@@ -65,7 +65,8 @@ const requestCorporateInfoFlow = ai.defineFlow(
             message: z.string(),
             error: z.string().optional()
         }),
-        tools: [sendEmailTool],
+        // tools: [sendEmailTool],
+
     },
     async (input) => {
         try {
