@@ -1,43 +1,37 @@
-
 /**
- * @fileOverview Initializes the Firebase Admin SDK using a service account file.
- * This ensures explicit and reliable authentication on the server side.
+ * @fileOverview Initializes the Firebase Admin SDK using environment variables.
+ * This method is compatible with Vercel and no longer requires a local JSON file.
  */
 
 import admin from 'firebase-admin';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
-// Directly import the service account file. Webpack (used by Next.js) will handle this.
-import serviceAccount from "./service-account.json";
-
-// Define an interface for the service account structure for type safety.
-interface ServiceAccount {
-  type: string;
-  project_id: string;
-  private_key_id: string;
-  private_key: string;
-  client_email: string;
-  client_id: string;
-  auth_uri: string;
-  token_uri: string;
-  auth_provider_x509_cert_url: string;
-  client_x509_cert_url: string;
-  universe_domain: string;
-}
 
 export function getFirebaseAdminApp(): admin.app.App {
-    if (getApps().length) {
-        return admin.app();
-    }
+  if (getApps().length) {
+    return admin.app();
+  }
 
-    try {
-        // Initialize with the explicitly imported service account credential.
-        const app = initializeApp({
-            credential: cert(serviceAccount as admin.ServiceAccount),
-        });
-        return app;
-    } catch (e: any) {
-        console.error("CRITICAL: Firebase Admin initialization failed.", e);
-        // Provide a more specific error message.
-        throw new Error(`Error de credenciales del servidor. Asegúrate que 'src/lib/service-account.json' es válido. Detalle: ${e.message}`);
-    }
+  try {
+    const serviceAccount = {
+      type: "service_account",
+      project_id: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
+      private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      client_email: process.env.FIREBASE_CLIENT_EMAIL,
+      client_id: process.env.FIREBASE_CLIENT_ID,
+      auth_uri: "https://accounts.google.com/o/oauth2/auth",
+      token_uri: "https://oauth2.googleapis.com/token",
+      auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+      client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL,
+    };
+
+    const app = initializeApp({
+      credential: cert(serviceAccount as admin.ServiceAccount),
+    });
+
+    return app;
+  } catch (e: any) {
+    console.error("CRITICAL: Firebase Admin initialization failed.", e);
+    throw new Error(`Error al inicializar Firebase Admin: ${e.message}`);
+  }
 }
