@@ -1,2 +1,6 @@
-# sommelierai-pro
-SommelierPro AI – Plataforma de análisis sensorial y maridaje de vinos impulsada por inteligencia artificial
+# Firebase Studio
+
+This is a NextJS starter in Firebase Studio.
+
+To get started, take a look at src/app/page.tsx.
+# Prueba de compilación
