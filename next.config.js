@@ -1,4 +1,3 @@
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
@@ -17,6 +16,10 @@ const nextConfig = {
         pathname: '/**',
       },
     ],
+  },
+  // Agrega esta sección para solucionar el error de compilación
+  experimental: {
+    serverComponentsExternalPackages: ["@opentelemetry/winston-transport"],
   },
 };
 
