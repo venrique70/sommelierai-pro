@@ -1,10 +1,23 @@
-import { Wine } from 'lucide-react';
+import Image from "next/image";
 
-export function Logo() {
+type LogoProps = {
+  variant?: "default" | "beige";
+  className?: string;
+};
+
+export default function Logo({ variant = "default", className = "" }: LogoProps) {
+  const src = variant === "beige"
+    ? "/logo/sommelierpro-beige.svg"
+    : "/logo/default.svg"; // puedes cambiar o eliminar esto si no usas otro logo
+
   return (
-    <div className="flex items-center gap-2 font-bold text-lg text-primary">
-      <Wine className="size-6" />
-      <span className="font-headline">SommelierPro AI</span>
-    </div>
+    <Image
+      src={src}
+      alt="SommelierPro AI"
+      width={40}
+      height={40}
+      className={className}
+      priority
+    />
   );
 }
