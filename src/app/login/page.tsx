@@ -25,9 +25,9 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { Loader2, LogIn, Mail, UserPlus, Wine } from "lucide-react";
+import { Loader2, LogIn, Mail, UserPlus } from "lucide-react";
+import Logo from "@/components/logo";
 
-// Esquemas de validación
 const loginSchema = z.object({
   email: z.string().email({ message: "Por favor, introduce un correo válido." }),
   password: z.string().min(1, { message: "La contraseña no puede estar vacía." }),
@@ -70,11 +70,9 @@ export default function LoginPage() {
         switch (error.code) {
           case 'auth/user-not-found':
           case 'auth/wrong-password':
-            description = "Correo o contraseña incorrectos.";
-            break;
+            description = "Correo o contraseña incorrectos."; break;
           case 'auth/email-already-in-use':
-            description = "Este correo electrónico ya está registrado. Por favor, inicia sesión.";
-            break;
+            description = "Este correo electrónico ya está registrado. Por favor, inicia sesión."; break;
           default:
             description = `Error: ${error.message}`;
         }
@@ -100,7 +98,7 @@ export default function LoginPage() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-background">
       <div className="flex items-center gap-4 mb-6">
-        <Wine className="size-12 text-destructive" />
+        <Logo className="h-10 w-auto" />
         <h1 className="text-4xl font-bold text-primary">SommelierPro AI</h1>
       </div>
 
@@ -110,7 +108,6 @@ export default function LoginPage() {
           <TabsTrigger value="register">Registrarse</TabsTrigger>
         </TabsList>
 
-        {/* LOGIN */}
         <TabsContent value="login">
           <Card>
             <CardHeader>
@@ -182,7 +179,6 @@ export default function LoginPage() {
           </Card>
         </TabsContent>
 
-        {/* REGISTRO */}
         <TabsContent value="register">
           <Card>
             <CardHeader>
@@ -228,4 +224,3 @@ export default function LoginPage() {
     </div>
   );
 }
-// v1.1 cambios confirmados
