@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -43,9 +42,9 @@ const registerSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
-
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -63,10 +62,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await action;
-      toast({
-        title: "¡Éxito!",
-        description: successMessage,
-      });
+      toast({ title: "¡Éxito!", description: successMessage });
       router.push("/");
     } catch (error: any) {
       let description = "Ocurrió un error inesperado. Por favor, inténtalo de nuevo.";
@@ -83,16 +79,11 @@ export default function LoginPage() {
             description = `Error: ${error.message}`;
         }
       }
-      toast({
-        title: "Error de autenticación",
-        description: description,
-        variant: "destructive",
-      });
+      toast({ title: "Error de autenticación", description, variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
-
 
   const onLoginSubmit = (data: LoginFormValues) => {
     handleAuthAction(signInWithEmail(data.email, data.password), "Has iniciado sesión correctamente.");
@@ -106,18 +97,20 @@ export default function LoginPage() {
     handleAuthAction(signInWithGoogle(), "Has iniciado sesión correctamente con Google.");
   };
 
-
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-background">
-        <div className="flex items-center gap-4 mb-6">
-            <Wine className="size-12 text-destructive" />
-            <h1 className="text-4xl font-bold text-primary">SommelierPro AI</h1>
-        </div>
+      <div className="flex items-center gap-4 mb-6">
+        <Wine className="size-12 text-destructive" />
+        <h1 className="text-4xl font-bold text-primary">SommelierPro AI</h1>
+      </div>
+
       <Tabs defaultValue="login" className="w-full max-w-md">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="login">Iniciar Sesión</TabsTrigger>
           <TabsTrigger value="register">Registrarse</TabsTrigger>
         </TabsList>
+
+        {/* LOGIN */}
         <TabsContent value="login">
           <Card>
             <CardHeader>
@@ -130,27 +123,48 @@ export default function LoginPage() {
               <Form {...loginForm}>
                 <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
                   <FormField control={loginForm.control} name="email" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Correo Electrónico</FormLabel>
-                        <FormControl><Input placeholder="tu@correo.com" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <FormItem>
+                      <FormLabel>Correo Electrónico</FormLabel>
+                      <FormControl><Input placeholder="tu@correo.com" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
                   <FormField control={loginForm.control} name="password" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contraseña</FormLabel>
-                        <FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <FormItem>
+                      <FormLabel>Contraseña</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            type={showPassword ? "text" : "password"}
+                            placeholder="••••••••"
+                            {...field}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm text-muted-foreground"
+                          >
+                            {showPassword ? "🙈" : "👁️"}
+                          </button>
+                        </div>
+                      </FormControl>
+                      <div className="flex justify-end mt-1">
+                        <a href="/forgot-password" className="text-xs text-primary hover:underline">
+                          ¿Olvidaste tu contraseña?
+                        </a>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? <Loader2 className="animate-spin" /> : <LogIn className="mr-2" />}
                     Iniciar Sesión
                   </Button>
                 </form>
               </Form>
+
               <div className="relative my-4">
                 <div className="absolute inset-0 flex items-center">
                   <span className="w-full border-t" />
@@ -159,13 +173,16 @@ export default function LoginPage() {
                   <span className="bg-background px-2 text-muted-foreground">O continúa con</span>
                 </div>
               </div>
+
               <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={loading}>
-                 {loading ? <Loader2 className="animate-spin" /> : <Mail className="mr-2"/>}
-                 Google
+                {loading ? <Loader2 className="animate-spin" /> : <Mail className="mr-2" />}
+                Google
               </Button>
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* REGISTRO */}
         <TabsContent value="register">
           <Card>
             <CardHeader>
@@ -175,32 +192,29 @@ export default function LoginPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-               <Form {...registerForm}>
+              <Form {...registerForm}>
                 <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
                   <FormField control={registerForm.control} name="displayName" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nombre Completo</FormLabel>
-                        <FormControl><Input placeholder="Tu Nombre" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <FormItem>
+                      <FormLabel>Nombre Completo</FormLabel>
+                      <FormControl><Input placeholder="Tu Nombre" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
                   <FormField control={registerForm.control} name="email" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Correo Electrónico</FormLabel>
-                        <FormControl><Input placeholder="tu@correo.com" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <FormItem>
+                      <FormLabel>Correo Electrónico</FormLabel>
+                      <FormControl><Input placeholder="tu@correo.com" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
                   <FormField control={registerForm.control} name="password" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contraseña</FormLabel>
-                        <FormControl><Input type="password" placeholder="Mínimo 6 caracteres" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <FormItem>
+                      <FormLabel>Contraseña</FormLabel>
+                      <FormControl><Input type="password" placeholder="Mínimo 6 caracteres" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? <Loader2 className="animate-spin" /> : <UserPlus className="mr-2" />}
                     Crear Cuenta
