@@ -29,8 +29,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ received: true });
 
-  } catch (error: any) {
-    console.error('❌ Error processing PayPal webhook:', error);
-    return NextResponse.json({ message: `Internal Server Error: ${error.message}` }, { status: 500 });
-  }
-}
+  } catch (error) {
+  const err = error instanceof Error ? error : new Error('Unknown error');
+  console.error('❌ Error processing PayPal webhook:', err);
+  return NextResponse.json({ message: `Internal Server Error: ${err.message}` }, { status: 500 });
+}}
+
