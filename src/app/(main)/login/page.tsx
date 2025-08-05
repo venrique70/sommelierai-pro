@@ -26,7 +26,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { Loader2, LogIn, Mail, UserPlus } from "lucide-react";
-import Image from "next/image";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Por favor, introduce un correo válido." }),
@@ -98,7 +97,7 @@ export default function LoginPage() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-background">
       <div className="flex items-center gap-4 mb-6">
-        <Image src="/logo/sommelierpro-beige.svg" alt="SommelierPro Logo" width={40} height={40} />
+        <img src="/logo/sommelierpro-beige.svg" alt="SommelierPro Logo" width="40" height="40" />
         <h1 className="text-4xl font-bold text-primary">SommelierPro AI</h1>
       </div>
 
