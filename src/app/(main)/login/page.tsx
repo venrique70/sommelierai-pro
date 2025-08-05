@@ -98,7 +98,7 @@ export default function LoginPage() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-background">
       <div className="flex items-center gap-4 mb-6">
-        <Logo className="h-10 w-auto" />
+        <Logo variant="beige" className="h-10 w-auto" />
         <h1 className="text-4xl font-bold text-primary">SommelierPro AI</h1>
       </div>
 
