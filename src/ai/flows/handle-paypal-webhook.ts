@@ -30,12 +30,12 @@ const planLimits = {
   'P-03451566SM055894PNCEVTYQ': { planName: 'Iniciado', analyzeWine: 8, recommendWine: 2, pairDinner: 0 },
   'P-6V154660MP480493JNCEVZMQ': { planName: 'Una Copa', analyzeWine: 12, recommendWine: 5, pairDinner: 2 },
   'P-82K13295DW5680202NCEV2WY': { planName: 'Copa Premium', analyzeWine: 30, recommendWine: 15, pairDinner: 10 },
-  'P-0JK36575PD651091NNCEV3RA': { planName: 'Sibarita', analyzeWine: 19.99, recommendWine: 20, pairDinner: 15 },
+  'P-0JK36575PD651091NNCEV3RA': { planName: 'Sibarita', analyzeWine: 60, recommendWine: 20, pairDinner: 15 },
   // Anuales
   'P-6C360058FU8751411NCEVI2A': { planName: 'Iniciado', analyzeWine: 8, recommendWine: 2, pairDinner: 0 },
   'P-73Y70148Y9205371BNCEVPDY': { planName: 'Una Copa', analyzeWine: 12, recommendWine: 5, pairDinner: 2 },
   'P-48C0924078583004PNCEVQBY': { planName: 'Copa Premium', analyzeWine: 30, recommendWine: 15, pairDinner: 10 },
-  'P-03U55368J9946653MNCEVRLQ': { planName: 'Sibarita', analyzeWine: 19.99, recommendWine: 20, pairDinner: 15 },
+  'P-03U55368J9946653MNCEVRLQ': { planName: 'Sibarita', analyzeWine: 60, recommendWine: 20, pairDinner: 15 },
 };
 type PayPalPlanId = keyof typeof planLimits;
 
@@ -118,9 +118,11 @@ const handlePaypalWebhookFlow = ai.defineFlow(
       console.log(message);
       return { success: true, message };
 
-    } catch (e: any) {
-      console.error(`Error crítico en el flujo del webhook de PayPal para ${userEmail}:`, e);
-      return { success: false, message: `Ocurrió un error inesperado al procesar el webhook de PayPal: ${e.message}` };
-    }
+    } catch (e) {
+  const error = e instanceof Error ? e : new Error('Error desconocido');
+  console.error(`Error crítico en el flujo del webhook de PayPal para ${userEmail}:`, error);
+  return { success: false, message: `Ocurrió un error inesperado al procesar el webhook de PayPal: ${error.message}` };
+}
+
   }
 );
