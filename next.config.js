@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
+
   images: {
     remotePatterns: [
       {
@@ -17,9 +18,60 @@ const nextConfig = {
       },
     ],
   },
-  // Agrega esta sección para solucionar el error de compilación
+
   experimental: {
-    serverComponentsExternalPackages: ["@opentelemetry/winston-transport"],
+    serverComponentsExternalPackages: ['@opentelemetry/winston-transport'],
+  },
+
+  async redirects() {
+    return [
+      {
+        // Redirige de www a dominio raíz
+        source: '/(.*)',
+        has: [
+          {
+            type: 'host',
+            value: 'www.sommelierai.pro',
+          },
+        ],
+        permanent: true,
+        destination: 'https://sommelierai.pro/:path*',
+      },
+      {
+        // Redirige de http a https
+        source: '/(.*)',
+        has: [
+          {
+            type: 'protocol',
+            value: 'http',
+          },
+        ],
+        permanent: true,
+        destination: 'https://sommelierai.pro/:path*',
+      },
+    ];
+  },
+
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains; preload',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+        ],
+      },
+    ];
   },
 };
 
