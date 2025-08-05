@@ -26,7 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { Loader2, LogIn, Mail, UserPlus } from "lucide-react";
-import Logo from "@/components/logo";
+import Image from "next/image";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Por favor, introduce un correo válido." }),
