@@ -34,21 +34,9 @@ const nextConfig = {
             value: 'www.sommelierai.pro',
           },
         ],
-        permanent: true,
         destination: 'https://sommelierai.pro/:path*',
-      },
-      {
-        // Redirige de http a https
-        source: '/(.*)',
-        has: [
-          {
-            type: 'protocol',
-            value: 'http',
-          },
-        ],
         permanent: true,
-        destination: 'https://sommelierai.pro/:path*',
-      },
+      }
     ];
   },
 
