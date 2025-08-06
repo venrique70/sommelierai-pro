@@ -47,3 +47,5 @@ const nextConfig = {
 };
 
 module.exports = nextConfig;
+// Forzar redeploy limpio - login_old removido
+
