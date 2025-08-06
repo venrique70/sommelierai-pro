@@ -24,21 +24,21 @@ const nextConfig = {
   },
 
   async redirects() {
-    return [
-      {
-        // Redirige de www a dominio raíz
-        source: '/(.*)',
-        has: [
-          {
-            type: 'host',
-            value: 'www.sommelierai.pro',
-          },
-        ],
-        destination: 'https://sommelierai.pro/:path*',
-        permanent: true,
-      }
-    ];
-  },
+  return [
+    {
+      // Redirige de www a dominio raíz
+      source: '/:path*',
+      has: [
+        {
+          type: 'host',
+          value: 'www.sommelierai.pro',
+        },
+      ],
+      destination: 'https://sommelierai.pro/:path*',
+      permanent: true,
+    }
+  ];
+},
 
   async headers() {
     return [
