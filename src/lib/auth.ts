@@ -11,7 +11,7 @@ import {
   signInWithEmailAndPassword,
   updateProfile
 } from 'firebase/auth';
-import { app, db, auth } from '@/lib/firebase';
+import { app, db, auth } from '@/lib/firebase-client';
 import { doc, setDoc, getDoc, serverTimestamp, increment, updateDoc } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
