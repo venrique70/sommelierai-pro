@@ -20,6 +20,7 @@ function createFirebaseApp(config: any): FirebaseApp {
   return getApp();
 }
 
+console.log("🟢 API KEY RECIBIDA:", process.env.NEXT_PUBLIC_FIREBASE_API_KEY);
 const app = createFirebaseApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
