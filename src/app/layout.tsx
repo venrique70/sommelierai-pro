@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
+import Footer from '@/components/Footer'; // 👈 Importa el Footer
 
 export const metadata: Metadata = {
   title: 'SommelierPro AI',
@@ -14,7 +15,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className="dark" suppressHydrationWarning>
-      <head><link rel="icon" href="/favicon-v2.ico" sizes="any" />
+      <head>
+        <link rel="icon" href="/favicon-v2.ico" sizes="any" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
@@ -29,8 +31,8 @@ export default function RootLayout({
         <script src="https://lmsqueezy.com/affiliate.js" defer></script>
       </head>
       <body className="font-body antialiased" suppressHydrationWarning={true}>
-
         {children}
+        <Footer /> {/* 👈 Aquí agregas el Footer */}
         <Toaster />
       </body>
     </html>
