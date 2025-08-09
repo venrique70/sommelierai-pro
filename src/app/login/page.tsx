@@ -41,7 +41,7 @@ const registerSchema = z.object({
   email: z.string().email({ message: "Por favor, introduce un correo válido." }),
   password: z.string().min(6, { message: "La contraseña debe tener al menos 6 caracteres." }),
   acceptPrivacy: z.boolean().refine((v) => v === true, {
-    message: "Debes aceptar la Política de Privacidad.",
+    message: "Debes aceptar los Términos y la Política de Privacidad.",
   }),
 });
 
@@ -150,6 +150,7 @@ export default function LoginPage() {
                               type="button"
                               onClick={() => setShowPassword(!showPassword)}
                               className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm text-muted-foreground"
+                              aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                             >
                               {showPassword ? "🙈" : "👁️"}
                             </button>
@@ -160,12 +161,19 @@ export default function LoginPage() {
                             ¿Olvidaste tu contraseña?
                           </a>
                         </div>
-                        <p className="mt-2 text-xs opacity-80">
-                          Al continuar aceptas nuestra{" "}
-                          <button type="button" onClick={() => setShowPrivacy(true)} className="underline">
+
+                        {/* Aviso legal en LOGIN */}
+                        <p className="mt-2 text-xs opacity-80 text-center">
+                          Al continuar aceptas nuestros{" "}
+                          <a href="/terms" className="underline hover:opacity-100">
+                            Términos y Condiciones
+                          </a>{" "}
+                          y la{" "}
+                          <a href="/privacy-policy" className="underline hover:opacity-100" target="_blank" rel="noreferrer">
                             Política de Privacidad
-                          </button>.
+                          </a>.
                         </p>
+
                         <FormMessage />
                       </FormItem>
                     )}
@@ -247,21 +255,29 @@ export default function LoginPage() {
                     control={registerForm.control}
                     name="acceptPrivacy"
                     render={({ field }) => (
-                      <FormItem className="flex items-start gap-2 mt-2">
-                        <FormControl>
-                          <input
-                            type="checkbox"
-                            checked={field.value}
-                            onChange={(e) => field.onChange(e.target.checked)}
-                            className="mt-1"
-                          />
-                        </FormControl>
-                        <FormLabel className="text-sm font-normal leading-6">
-                          Acepto la{" "}
-                          <button type="button" onClick={() => setShowPrivacy(true)} className="underline">
+                      <FormItem className="space-y-2 mt-2">
+                        <div className="flex items-start gap-2">
+                          <FormControl>
+                            <input
+                              type="checkbox"
+                              checked={field.value}
+                              onChange={(e) => field.onChange(e.target.checked)}
+                              className="mt-1"
+                              aria-label="Aceptar Términos y Política de Privacidad"
+                            />
+                          </FormControl>
+                          <FormLabel className="text-sm font-normal leading-6">
+                            Acepto los Términos y la Política de Privacidad.
+                          </FormLabel>
+                        </div>
+                        <p className="text-xs opacity-80">
+                          Consulta los{" "}
+                          <a href="/terms" className="underline">Términos y Condiciones</a>{" "}
+                          y la{" "}
+                          <a href="/privacy-policy" className="underline" target="_blank" rel="noreferrer">
                             Política de Privacidad
-                          </button>.
-                        </FormLabel>
+                          </a>.
+                        </p>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -277,7 +293,7 @@ export default function LoginPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Modal Política de Privacidad */}
+      {/* Modal de Privacidad opcional (puedes quitarlo si no lo usas) */}
       <Dialog open={showPrivacy} onOpenChange={setShowPrivacy}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
