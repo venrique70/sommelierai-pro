@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
-import Footer from '@/components/Footer'; // 👈 Importa el Footer
+import Footer from '@/components/Footer';
 
 export const metadata: Metadata = {
   title: 'SommelierPro AI',
@@ -10,9 +10,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="es" className="dark" suppressHydrationWarning>
       <head>
@@ -30,9 +28,13 @@ export default function RootLayout({
         />
         <script src="https://lmsqueezy.com/affiliate.js" defer></script>
       </head>
-      <body className="font-body antialiased" suppressHydrationWarning={true}>
-        {children}
-        <Footer /> {/* 👈 Aquí agregas el Footer */}
+      <body className="font-body antialiased min-h-screen flex flex-col" suppressHydrationWarning>
+        {/* Dejamos SIEMPRE espacio para el footer fijo */}
+        <div id="page" className="flex-1 pb-28">
+          {children}
+        </div>
+
+        <Footer /> 
         <Toaster />
       </body>
     </html>
