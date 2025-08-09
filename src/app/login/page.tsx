@@ -102,220 +102,222 @@ export default function LoginPage() {
     handleAuthAction(signInWithGoogle(), "Has iniciado sesión correctamente con Google.");
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-background">
-      <div className="flex items-center gap-4 mb-6">
-        <img src="/logo/sommelierpro-beige.svg" alt="SommelierPro Logo" width="40" height="40" />
-        <h1 className="text-4xl font-bold text-primary">SommelierPro AI</h1>
-      </div>
+    <main className="flex-1 px-4 pt-10 pb-24 bg-background">
+      <div className="mx-auto w-full max-w-md">
+        <div className="flex items-center gap-4 mb-6">
+          <img src="/logo/sommelierpro-beige.svg" alt="SommelierPro Logo" width="40" height="40" />
+          <h1 className="text-4xl font-bold text-primary">SommelierPro AI</h1>
+        </div>
 
-      <Tabs defaultValue="login" className="w-full max-w-md">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="login">Iniciar Sesión</TabsTrigger>
-          <TabsTrigger value="register">Registrarse</TabsTrigger>
-        </TabsList>
+        <Tabs defaultValue="login" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="login">Iniciar Sesión</TabsTrigger>
+            <TabsTrigger value="register">Registrarse</TabsTrigger>
+          </TabsList>
 
-        {/* LOGIN */}
-        <TabsContent value="login">
-          <Card>
-            <CardHeader>
-              <CardTitle>Bienvenido de Nuevo</CardTitle>
-              <CardDescription>Introduce tus credenciales para acceder a tu cuenta.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Form {...loginForm}>
-                <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
-                  <FormField
-                    control={loginForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Correo Electrónico</FormLabel>
-                        <FormControl>
-                          <Input placeholder="tu@correo.com" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={loginForm.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contraseña</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Input type={showPassword ? "text" : "password"} placeholder="••••••••" {...field} />
-                            <button
-                              type="button"
-                              onClick={() => setShowPassword(!showPassword)}
-                              className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm text-muted-foreground"
-                              aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                            >
-                              {showPassword ? "🙈" : "👁️"}
-                            </button>
-                          </div>
-                        </FormControl>
-                        <div className="flex justify-end mt-1">
-                          <a href="/forgot-password" className="text-xs text-primary hover:underline">
-                            ¿Olvidaste tu contraseña?
-                          </a>
-                        </div>
-
-                        {/* Aviso legal en LOGIN */}
-                        <p className="mt-2 text-xs opacity-80 text-center">
-                          Al continuar aceptas nuestros{" "}
-                          <a href="/terms" className="underline hover:opacity-100">
-                            Términos y Condiciones
-                          </a>{" "}
-                          y la{" "}
-                          <a href="/privacy-policy" className="underline hover:opacity-100" target="_blank" rel="noreferrer">
-                            Política de Privacidad
-                          </a>.
-                        </p>
-
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? <Loader2 className="animate-spin" /> : <LogIn className="mr-2" />}
-                    Iniciar Sesión
-                  </Button>
-                </form>
-              </Form>
-
-              <div className="relative my-4">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">O continúa con</span>
-                </div>
-              </div>
-
-              <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={loading}>
-                {loading ? <Loader2 className="animate-spin" /> : <Mail className="mr-2" />}
-                Google
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* REGISTRO */}
-        <TabsContent value="register">
-          <Card>
-            <CardHeader>
-              <CardTitle>Crear una Cuenta</CardTitle>
-              <CardDescription>Es rápido y fácil. Empieza a explorar el mundo del vino.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Form {...registerForm}>
-                <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
-                  <FormField
-                    control={registerForm.control}
-                    name="displayName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nombre Completo</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Tu Nombre" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={registerForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Correo Electrónico</FormLabel>
-                        <FormControl>
-                          <Input placeholder="tu@correo.com" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={registerForm.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contraseña</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="Mínimo 6 caracteres" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={registerForm.control}
-                    name="acceptPrivacy"
-                    render={({ field }) => (
-                      <FormItem className="space-y-2 mt-2">
-                        <div className="flex items-start gap-2">
+          {/* LOGIN */}
+          <TabsContent value="login">
+            <Card>
+              <CardHeader>
+                <CardTitle>Bienvenido de Nuevo</CardTitle>
+                <CardDescription>Introduce tus credenciales para acceder a tu cuenta.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Form {...loginForm}>
+                  <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
+                    <FormField
+                      control={loginForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Correo Electrónico</FormLabel>
                           <FormControl>
-                            <input
-                              type="checkbox"
-                              checked={field.value}
-                              onChange={(e) => field.onChange(e.target.checked)}
-                              className="mt-1"
-                              aria-label="Aceptar Términos y Política de Privacidad"
-                            />
+                            <Input placeholder="tu@correo.com" {...field} />
                           </FormControl>
-                          <FormLabel className="text-sm font-normal leading-6">
-                            Acepto los Términos y la Política de Privacidad.
-                          </FormLabel>
-                        </div>
-                        <p className="text-xs opacity-80">
-                          Consulta los{" "}
-                          <a href="/terms" className="underline">Términos y Condiciones</a>{" "}
-                          y la{" "}
-                          <a href="/privacy-policy" className="underline" target="_blank" rel="noreferrer">
-                            Política de Privacidad
-                          </a>.
-                        </p>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? <Loader2 className="animate-spin" /> : <UserPlus className="mr-2" />}
-                    Crear Cuenta
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={loginForm.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Contraseña</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Input type={showPassword ? "text" : "password"} placeholder="••••••••" {...field} />
+                              <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm text-muted-foreground"
+                                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                              >
+                                {showPassword ? "🙈" : "👁️"}
+                              </button>
+                            </div>
+                          </FormControl>
+                          <div className="flex justify-end mt-1">
+                            <a href="/forgot-password" className="text-xs text-primary hover:underline">
+                              ¿Olvidaste tu contraseña?
+                            </a>
+                          </div>
 
-      {/* Modal de Privacidad opcional (puedes quitarlo si no lo usas) */}
-      <Dialog open={showPrivacy} onOpenChange={setShowPrivacy}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Política de Privacidad</DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="h-[50vh] pr-4">
-            <div className="space-y-4 text-sm">
-              <p><strong>Última actualización:</strong> 8 de agosto de 2025</p>
-              <p>En <strong>SommelierPro AI</strong> valoramos y respetamos tu privacidad...</p>
-              <p>
-                Lee la versión completa en{" "}
-                <a href="/privacy-policy" className="underline" target="_blank" rel="noreferrer">
-                  /privacy-policy
-                </a>.
-              </p>
-            </div>
-          </ScrollArea>
-          <DialogFooter>
-            <Button onClick={() => setShowPrivacy(false)}>Cerrar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+                          {/* Aviso legal en LOGIN */}
+                          <p className="mt-2 text-xs opacity-80 text-center">
+                            Al continuar aceptas nuestros{" "}
+                            <a href="/terms" className="underline hover:opacity-100">
+                              Términos y Condiciones
+                            </a>{" "}
+                            y la{" "}
+                            <a href="/privacy-policy" className="underline hover:opacity-100" target="_blank" rel="noreferrer">
+                              Política de Privacidad
+                            </a>.
+                          </p>
+
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button type="submit" className="w-full" disabled={loading}>
+                      {loading ? <Loader2 className="animate-spin" /> : <LogIn className="mr-2" />}
+                      Iniciar Sesión
+                    </Button>
+                  </form>
+                </Form>
+
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">O continúa con</span>
+                  </div>
+                </div>
+
+                <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={loading}>
+                  {loading ? <Loader2 className="animate-spin" /> : <Mail className="mr-2" />}
+                  Google
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* REGISTRO */}
+          <TabsContent value="register">
+            <Card>
+              <CardHeader>
+                <CardTitle>Crear una Cuenta</CardTitle>
+                <CardDescription>Es rápido y fácil. Empieza a explorar el mundo del vino.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Form {...registerForm}>
+                  <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
+                    <FormField
+                      control={registerForm.control}
+                      name="displayName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nombre Completo</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Tu Nombre" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={registerForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Correo Electrónico</FormLabel>
+                          <FormControl>
+                            <Input placeholder="tu@correo.com" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={registerForm.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Contraseña</FormLabel>
+                          <FormControl>
+                            <Input type="password" placeholder="Mínimo 6 caracteres" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={registerForm.control}
+                      name="acceptPrivacy"
+                      render={({ field }) => (
+                        <FormItem className="space-y-2 mt-2">
+                          <div className="flex items-start gap-2">
+                            <FormControl>
+                              <input
+                                type="checkbox"
+                                checked={field.value}
+                                onChange={(e) => field.onChange(e.target.checked)}
+                                className="mt-1"
+                                aria-label="Aceptar Términos y Política de Privacidad"
+                              />
+                            </FormControl>
+                            <FormLabel className="text-sm font-normal leading-6">
+                              Acepto los Términos y la Política de Privacidad.
+                            </FormLabel>
+                          </div>
+                          <p className="text-xs opacity-80">
+                            Consulta los{" "}
+                            <a href="/terms" className="underline">Términos y Condiciones</a>{" "}
+                            y la{" "}
+                            <a href="/privacy-policy" className="underline" target="_blank" rel="noreferrer">
+                              Política de Privacidad
+                            </a>.
+                          </p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button type="submit" className="w-full" disabled={loading}>
+                      {loading ? <Loader2 className="animate-spin" /> : <UserPlus className="mr-2" />}
+                      Crear Cuenta
+                    </Button>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* Modal de Privacidad opcional */}
+        <Dialog open={showPrivacy} onOpenChange={setShowPrivacy}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Política de Privacidad</DialogTitle>
+            </DialogHeader>
+            <ScrollArea className="h-[50vh] pr-4">
+              <div className="space-y-4 text-sm">
+                <p><strong>Última actualización:</strong> 8 de agosto de 2025</p>
+                <p>En <strong>SommelierPro AI</strong> valoramos y respetamos tu privacidad...</p>
+                <p>
+                  Lee la versión completa en{" "}
+                  <a href="/privacy-policy" className="underline" target="_blank" rel="noreferrer">
+                    /privacy-policy
+                  </a>.
+                </p>
+              </div>
+            </ScrollArea>
+            <DialogFooter>
+              <Button onClick={() => setShowPrivacy(false)}>Cerrar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </main>
   );
 }
