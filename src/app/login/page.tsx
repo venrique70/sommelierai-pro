@@ -93,8 +93,26 @@ export default function LoginPage() {
 
   return (
     <main className="login-page flex-1 mx-auto max-w-xl px-6 pt-10 pb-28">
-      <div className="mb-6 text-center">
-        <div className="text-3xl font-extrabold tracking-tight">SommelierPro AI</div>
+      <div className="mb-6 w-full flex justify-center">
+        <div className="flex items-center space-x-6">
+          <svg
+            className="h-16 w-auto"
+            viewBox="0 0 35.84 32"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <defs>
+              <style>
+                {`.cls-1 {
+                  fill: #e0bf32;
+                  stroke-width: 0px;
+                }`}
+              </style>
+            </defs>
+            <path className="cls-1" d="m11,26.15v-6.64c3.51-.98,6-4,6-7.66s-1.07-6.51-1.97-8.42c-.16-.35-.52-.58-.91-.58H2.87c-.39,0-.74.22-.91.58-.59,1.26-1.97,4.61-1.97,8.42s2.49,6.68,6,7.66v6.64c-2.81,1.12-5,3.14-5,4.7,0,.55.45,1,1,1h13c.55,0,1-.45,1-1,0-1.56-2.19-3.58-5-4.7Zm-2,3.7H3.76c.72-.68,1.94-1.51,3.56-2.05.41-.14.68-.52.68-.95v-9.02c-3.4-.23-6-2.77-6-5.98,0-2.18.56-4.75,1.52-7h9.96c.75,1.73,1.52,4.2,1.52,7,0,3.21-2.6,5.75-6,5.98v9.02c0,.43.28.81.68.95,1.63.54,2.85,1.37,3.57,2.05h-4.25ZM3,11.85c0-1.9.56-3.71,1-5h6v5c0,.55.45,1,1,1s1-.45,1-1v-5h1c.49,1.4,1,3.12,1,5,0,6.41-11,6.94-11,0Z" />
+            <path className="cls-1" d="m28.84,13v11l-3-3-3,3,3,3,3-3v4c0,.55-.45,1-1,1h-6c-.55,0-1-.45-1-1v-10l3,3,3-3-3-3-3,3v-7c0-.55.45-1,1-1h2c.55,0,1,.45,1,1s-.45,1-1,1h-1v1h6Zm6.78-7.38c-.34.43-.98.5-1.41.16l-3.97-3.18-1.89,4.4h2.47c.42,0,.78.25.93.62.05.12.08.25.08.39v21.99c0,1.1-.9,2-2,2h-10c-1.1,0-2-.9-2-2V8.01c0-.14.03-.27.08-.39.15-.36.51-.62.93-.62h7.33l2.74-6.39c.12-.29.37-.5.68-.58.3-.08.62,0,.87.19l5,4c.43.35.5.97.16,1.41Zm-5.78,3.38h-10v21h10V9Z" />
+          </svg>
+          <div className="text-5xl md:text-6xl font-headline tracking-tighter font-bold">SommelierPro AI</div>
+        </div>
       </div>
 
       <Tabs defaultValue="login" className="w-full">
@@ -120,12 +138,18 @@ export default function LoginPage() {
                       <FormItem>
                         <FormLabel>Correo Electrónico</FormLabel>
                         <FormControl>
-                          <Input type="email" autoComplete="email" placeholder="tu@correo.com" {...field} />
+                          <Input
+                            type="email"
+                            autoComplete="email"
+                            placeholder="tu@correo.com"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+
                   <FormField
                     control={formLogin.control}
                     name="password"
@@ -159,20 +183,23 @@ export default function LoginPage() {
                       </FormItem>
                     )}
                   />
+
                   <Button type="submit" className="w-full" disabled={loadingEmail}>
                     {loadingEmail ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
                     Iniciar Sesión
                   </Button>
+
                   <p className="mt-2 text-xs opacity-70 text-center">
                     Al continuar, aceptas nuestros{" "}
-                    <Link href="/legal#terminos" className="underline">Términos y Condiciones</Link>{" "}
-                    y <Link href="/legal" className="underline">Legal</Link>.
+                    <Link href="/legal" className="underline">Legal</Link>.
                   </p>
+
                   <div className="relative my-2 h-px bg-border">
                     <span className="absolute left-1/2 -translate-x-1/2 -top-2 bg-background px-2 text-xs opacity-70">
                       O CONTINÚA CON
                     </span>
                   </div>
+
                   <Button type="button" variant="outline" className="w-full" onClick={onGoogle} disabled={loadingGoogle}>
                     {loadingGoogle ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
                     Google
@@ -200,12 +227,18 @@ export default function LoginPage() {
                       <FormItem>
                         <FormLabel>Correo Electrónico</FormLabel>
                         <FormControl>
-                          <Input type="email" autoComplete="email" placeholder="tu@correo.com" {...field} />
+                          <Input
+                            type="email"
+                            autoComplete="email"
+                            placeholder="tu@correo.com"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+
                   <FormField
                     control={formRegister.control}
                     name="password"
@@ -234,14 +267,15 @@ export default function LoginPage() {
                       </FormItem>
                     )}
                   />
+
                   <Button type="submit" className="w-full" disabled={loadingRegister}>
                     {loadingRegister ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
                     Crear Cuenta
                   </Button>
+
                   <p className="mt-2 text-xs opacity-70 text-center">
                     Al continuar, aceptas nuestros{" "}
-                    <Link href="/legal#terminos" className="underline">Términos y Condiciones</Link>{" "}
-                    y <Link href="/legal" className="underline">Legal</Link>.
+                    <Link href="/legal" className="underline">Legal</Link>.
                   </p>
                 </form>
               </Form>
