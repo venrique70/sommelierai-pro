@@ -17,6 +17,9 @@ import {
   Mail,
 } from "lucide-react";
 
+// 🚫 Evita que esta página se sirva desde caché
+export const revalidate = 0;
+
 export const metadata: Metadata = {
   title: "Legal / Términos y Condiciones y Política de Privacidad",
   description:
