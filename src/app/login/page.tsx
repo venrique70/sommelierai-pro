@@ -120,18 +120,12 @@ export default function LoginPage() {
                       <FormItem>
                         <FormLabel>Correo Electrónico</FormLabel>
                         <FormControl>
-                          <Input
-                            type="email"
-                            autoComplete="email"
-                            placeholder="tu@correo.com"
-                            {...field}
-                          />
+                          <Input type="email" autoComplete="email" placeholder="tu@correo.com" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={formLogin.control}
                     name="password"
@@ -165,18 +159,20 @@ export default function LoginPage() {
                       </FormItem>
                     )}
                   />
-
                   <Button type="submit" className="w-full" disabled={loadingEmail}>
                     {loadingEmail ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
                     Iniciar Sesión
                   </Button>
-
+                  <p className="mt-2 text-xs opacity-70 text-center">
+                    Al continuar, aceptas nuestros{" "}
+                    <Link href="/legal#terminos" className="underline">Términos y Condiciones</Link>{" "}
+                    y <Link href="/legal" className="underline">Legal</Link>.
+                  </p>
                   <div className="relative my-2 h-px bg-border">
                     <span className="absolute left-1/2 -translate-x-1/2 -top-2 bg-background px-2 text-xs opacity-70">
                       O CONTINÚA CON
                     </span>
                   </div>
-
                   <Button type="button" variant="outline" className="w-full" onClick={onGoogle} disabled={loadingGoogle}>
                     {loadingGoogle ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
                     Google
@@ -204,18 +200,12 @@ export default function LoginPage() {
                       <FormItem>
                         <FormLabel>Correo Electrónico</FormLabel>
                         <FormControl>
-                          <Input
-                            type="email"
-                            autoComplete="email"
-                            placeholder="tu@correo.com"
-                            {...field}
-                          />
+                          <Input type="email" autoComplete="email" placeholder="tu@correo.com" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={formRegister.control}
                     name="password"
@@ -244,11 +234,15 @@ export default function LoginPage() {
                       </FormItem>
                     )}
                   />
-
                   <Button type="submit" className="w-full" disabled={loadingRegister}>
                     {loadingRegister ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
                     Crear Cuenta
                   </Button>
+                  <p className="mt-2 text-xs opacity-70 text-center">
+                    Al continuar, aceptas nuestros{" "}
+                    <Link href="/legal#terminos" className="underline">Términos y Condiciones</Link>{" "}
+                    y <Link href="/legal" className="underline">Legal</Link>.
+                  </p>
                 </form>
               </Form>
             </CardContent>
