@@ -64,7 +64,11 @@ export default function LoginPage() {
   async function onSubmitRegister(values: z.infer<typeof registerSchema>) {
     try {
       setLoadingRegister(true);
-      await signUpWithEmail(values.email, values.password);
+      await signUpWithEmail(
+        values.email,
+        values.password,
+        values.email.split("@")[0] || "Usuario"
+      );
       toast({ title: "Cuenta creada", description: "Ya puedes usar SommelierPro AI" });
       router.push("/");
     } catch (err: any) {
