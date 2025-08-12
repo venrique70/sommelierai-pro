@@ -1,31 +1,48 @@
-import admin from 'firebase-admin';
-import { initializeApp, getApps, cert, AppOptions } from 'firebase-admin/app';
+// src/lib/firebaseAdmin.ts
+import * as admin from "firebase-admin";
 
-export function getFirebaseAdminApp(): admin.app.App & { auth: () => admin.auth.Auth } {
-  if (getApps().length) {
-    return admin.app() as admin.app.App & { auth: () => admin.auth.Auth };
-  }
+/**
+ * Importante:
+ * - Asegúrate de que FIREBASE_CLIENT_EMAIL coincida EXACTAMENTE con tu JSON:
+ *   firebase-adminsdk-XXXX@sommelierpro-gemini.iam.gserviceaccount.com
+ * - En Vercel, FIREBASE_PRIVATE_KEY debe ir en una sola línea con \n.
+ *   En local puede ser multilínea. Este archivo ya hace el replace.
+ */
 
-  try {
-    const serviceAccount: AppOptions = {
-      credential: cert({
-        type: 'service_account',
-        project_id: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-        private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-        private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\n/g, '\n'),
-        client_email: process.env.FIREBASE_CLIENT_EMAIL,
-        client_id: process.env.FIREBASE_CLIENT_ID,
-        auth_uri: 'https://accounts.google.com/o/oauth2/auth',
-        token_uri: 'https://oauth2.googleapis.com/token',
-        auth_provider_x509_cert_url: 'https://www.googleapis.com/oauth2/v1/certs',
-        client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL,
-      } as admin.ServiceAccount),
-    };
-
-    const app = initializeApp(serviceAccount) as admin.app.App & { auth: () => admin.auth.Auth };
-    return app;
-  } catch (e: any) {
-    console.error("CRITICAL: Firebase Admin initialization failed.", e);
-    throw new Error(`Error al inicializar Firebase Admin: ${e.message}`);
-  }
+declare global {
+  // eslint-disable-next-line no-var
+  var __firebaseAdminApp: admin.app.App | undefined;
 }
+
+function initFirebaseAdmin() {
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = (process.env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n");
+  const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+
+  if (!projectId || !clientEmail || !privateKey) {
+    throw new Error(
+      "Faltan variables de entorno para Firebase Admin: " +
+        "[FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY]"
+    );
+  }
+
+  return admin.initializeApp({
+    credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
+    // opcional: solo si usas Storage desde Admin
+    storageBucket,
+  });
+}
+
+export function getFirebaseAdminApp() {
+  if (!global.__firebaseAdminApp) {
+    global.__firebaseAdminApp = initFirebaseAdmin();
+  }
+  return global.__firebaseAdminApp;
+}
+
+const app = getFirebaseAdminApp();
+
+export const adminAuth = admin.auth(app);
+export const adminDb = admin.firestore(app);
+export const adminBucket = admin.storage(app).bucket();

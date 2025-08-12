@@ -1,51 +1,51 @@
 // src/app/api/gemini/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 
-const MODEL_DEFAULT = process.env.GEMINI_MODEL ?? 'gemini-1.5-pro';
+export const runtime = 'nodejs'; // explícito en App Router
+
+const MODEL_DEFAULT =
+  process.env.GEMINI_MODEL ||
+  process.env.NEXT_PUBLIC_GEMINI_MODEL ||
+  'gemini-1.5-pro';
+
+const GEMINI_API_KEY =
+  process.env.GEMINI_API_KEY ||
+  process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
 export async function POST(req: NextRequest) {
   try {
     const { prompt, model = MODEL_DEFAULT } = await req.json();
 
     if (!prompt || typeof prompt !== 'string') {
-      return NextResponse.json(
-        { error: 'Falta el prompt' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Falta el prompt' }, { status: 400 });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
+    if (!GEMINI_API_KEY) {
       return NextResponse.json(
-        { error: 'Missing GEMINI_API_KEY on server' },
+        { error: 'Falta GEMINI_API_KEY (o NEXT_PUBLIC_GEMINI_API_KEY)' },
         { status: 500 }
       );
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
 
     const r = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [
-          { role: 'user', parts: [{ text: prompt }] }
-        ]
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
       }),
-      // Evita cache en Vercel si quieres respuestas frescas
       cache: 'no-store',
     });
 
     const json = await r.json();
 
     if (!r.ok) {
-      // Devuelve el mensaje de Google para debug (quitar en prod si quieres)
-      return NextResponse.json(
-        { error: 'Gemini error', details: json },
-        { status: r.status }
-      );
+      // Devuelve detalle de Google para debug
+      return NextResponse.json({ error: 'Gemini error', details: json }, { status: r.status });
     }
 
-    // Extraer el texto
+    // Extrae el texto (cubriendo varias formas de respuesta)
     const text =
       json?.candidates?.[0]?.content?.parts?.[0]?.text ??
       json?.candidates?.[0]?.output_text ??
