@@ -1,5 +1,4 @@
 'use server';
-export const runtime = 'nodejs';
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
@@ -144,9 +143,9 @@ const AiResponseSchema = z.object({
 });
 
 // ============================
-// Prompt de análisis
+// Prompt de análisis (no exportar)
 // ============================
-export const analyzeWinePrompt = ai.definePrompt({
+const analyzeWinePrompt = ai.definePrompt({
   name: 'analyzeWinePrompt',
   model: 'googleai/gemini-1.5-pro',
   input: { schema: WineAnalysisClientSchema },
@@ -208,9 +207,9 @@ export async function saveAnalysisToHistory(uid: string, analysis: WineAnalysis)
 // ============================
 // Flujo principal de análisis
 // ============================
-export const analyzeWineFlow = async (
+export async function analyzeWineFlow(
   userInput: z.infer<typeof WineAnalysisClientSchema>
-): Promise<WineAnalysis> => {
+): Promise<WineAnalysis> {
   const { output } = await analyzeWinePrompt(userInput);
   if (!output) {
     throw new Error('No structured output returned from AI.');
@@ -296,4 +295,4 @@ export const analyzeWineFlow = async (
   }
 
   return result;
-};
+}
