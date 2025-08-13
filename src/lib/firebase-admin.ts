@@ -17,13 +17,30 @@ declare global {
 function initFirebaseAdmin() {
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = (process.env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n");
+
+  // Saneamos la clave para que funcione tanto en local (multilínea)
+  // como en Vercel (una sola línea con '\n'), y quitamos comillas/CR.
+  const rawKey = process.env.FIREBASE_PRIVATE_KEY || "";
+  const privateKey = rawKey
+    .replace(/\\n/g, "\n")   // convierte '\n' literales en saltos reales
+    .replace(/\r/g, "")      // limpia CR en Windows
+    .replace(/^"|"$/g, "")   // quita comillas alrededor si las hubiera
+    .trim();                 // quita espacios en blanco al inicio/fin
+
   const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
 
   if (!projectId || !clientEmail || !privateKey) {
     throw new Error(
       "Faltan variables de entorno para Firebase Admin: " +
         "[FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY]"
+    );
+  }
+
+  // Validación rápida de formato PEM para dar un mensaje claro si algo falla
+  if (!privateKey.startsWith("-----BEGIN PRIVATE KEY-----")) {
+    throw new Error(
+      "FIREBASE_PRIVATE_KEY no tiene el formato PEM esperado. " +
+      "Revisa que en local sea MULTILÍNEA real y en Vercel sea una sola línea con \\n, sin comillas."
     );
   }
 

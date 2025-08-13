@@ -1,33 +1,46 @@
-
 'use server';
 /**
- * @fileOverview A secure Genkit flow to get the full details of a specific wine analysis.
+ * @fileOverview Secure server-side flow to fetch a wine analysis detail.
+ * Uses Firebase Admin (no client-side security rules involved).
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import type { WineAnalysis, WineAnalysisError } from '@/types';
-import { db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import type { WineAnalysis } from '@/types';
+import { getFirebaseAdminApp } from '@/lib/firebase-admin';
+import * as admin from 'firebase-admin';
 
+type WineAnalysisError = { error: string };
 
-// Esquema de entrada: ID del documento y UID del usuario (para verificación de propiedad).
+// ── Schemas ───────────────────────────────────────────────────────────────────
 const GetAnalysisDetailInputSchema = z.object({
-  analysisId: z.string().describe('The ID of the wine analysis document in Firestore.'),
-  uid: z.string().describe('The UID of the user requesting the detail, for ownership verification.'),
+  analysisId: z.string().describe('ID del documento del análisis en Firestore.'),
+  uid: z.string().describe('UID del usuario solicitante para verificar propiedad.'),
 });
 export type GetAnalysisDetailInput = z.infer<typeof GetAnalysisDetailInputSchema>;
 
-// Esquema de salida: el objeto de análisis completo o un error.
-// Usamos z.any() porque el tipo WineAnalysis es complejo y ya está definido en TypeScript.
 const GetAnalysisDetailOutputSchema = z.custom<WineAnalysis | WineAnalysisError>();
 export type GetAnalysisDetailOutput = WineAnalysis | WineAnalysisError;
 
-
-export async function getAnalysisDetail(input: GetAnalysisDetailInput): Promise<GetAnalysisDetailOutput> {
-   return getAnalysisDetailFlow(input);
+// ── Public API ────────────────────────────────────────────────────────────────
+export async function getAnalysisDetail(
+  input: GetAnalysisDetailInput
+): Promise<GetAnalysisDetailOutput> {
+  return getAnalysisDetailFlow(input);
 }
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function toISO(ts: any): string | undefined {
+  // Convierte admin.firestore.Timestamp o Date a ISO
+  if (!ts) return undefined;
+  // Timestamp de Admin
+  // @ts-ignore
+  if (typeof ts?.toDate === 'function') return ts.toDate().toISOString();
+  if (ts instanceof Date) return ts.toISOString();
+  return undefined;
+}
+
+// ── Flow ─────────────────────────────────────────────────────────────────────
 const getAnalysisDetailFlow = ai.defineFlow(
   {
     name: 'getAnalysisDetailFlow',
@@ -36,28 +49,44 @@ const getAnalysisDetailFlow = ai.defineFlow(
   },
   async ({ analysisId, uid }) => {
     try {
-      const docRef = doc(db, 'wineAnalyses', analysisId);
-      const docSnap = await getDoc(docRef);
+      if (!analysisId || !uid) return { error: 'Faltan parámetros.' };
 
-      if (!docSnap.exists) {
-        return { error: 'Análisis no encontrado.' };
+      const app = getFirebaseAdminApp();
+      const db = admin.firestore(app);
+
+      // 1) Intenta en /history/{analysisId}
+      let snap = await db.collection('history').doc(analysisId).get();
+
+      // 2) Si no existe, intenta en /wineAnalyses/{analysisId}
+      if (!snap.exists) {
+        snap = await db.collection('wineAnalyses').doc(analysisId).get();
+        if (!snap.exists) return { error: 'Análisis no encontrado.' };
       }
 
-      const data = docSnap.data() as WineAnalysis;
+      const data = snap.data() as any;
 
-      // Security Check: Ensure the requested analysis belongs to the user making the request.
-      if (data.userId !== uid) {
-        console.warn(`Security warning: User ${uid} attempted to access analysis ${analysisId} belonging to user ${data.userId}.`);
+      // Validación de propiedad: acepta `uid` o `userId` en el documento
+      const ownerUid: string | undefined = data?.uid ?? data?.userId;
+      if (!ownerUid || ownerUid !== uid) {
+        console.warn(
+          `Acceso denegado: uid=${uid} intentó leer analysisId=${analysisId} de owner=${ownerUid}`
+        );
         return { error: 'Acceso denegado. No tienes permiso para ver este análisis.' };
       }
-      
-      const createdAt = data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : new Date().toISOString();
 
-      return { ...data, createdAt };
+      // Normaliza campos comunes
+      const createdAtISO = toISO(data?.createdAt) ?? new Date().toISOString();
 
+      // Devuelve el documento tipado (si tu tipo tiene otras props, se mantienen)
+      const result: WineAnalysis = {
+        ...data,
+        createdAt: createdAtISO,
+      };
+
+      return result;
     } catch (e: any) {
-      console.error(`Error in getAnalysisDetailFlow for user ${uid}, analysis ${analysisId}:`, e);
-      return { error: `Ocurrió un error inesperado al recuperar el detalle del análisis: ${e.message}` };
+      console.error('getAnalysisDetail error:', e);
+      return { error: e?.message || 'Error interno al obtener el análisis.' };
     }
   }
 );

@@ -1,69 +1,105 @@
-
 'use server';
 /**
- * @fileOverview A Genkit flow to list all wines from a user's personal cellar.
+ * Server-side list of wines in the user's cellar (sin índices compuestos).
+ * Usamos Firebase Admin y evitamos orderBy; ordenamos en memoria.
  */
 
 import { ai } from '@/ai/genkit';
-import { db } from '@/lib/firebase';
-import { collection, getDocs, orderBy, query } from 'firebase/firestore';
-import {
-  ListWinesFromCellarInputSchema,
-  ListWinesFromCellarOutputSchema,
-  type ListWinesFromCellarInput,
-  type ListWinesFromCellarOutput,
-} from '@/lib/schemas';
 import { z } from 'zod';
-import { WineInCellarSchema } from '@/lib/schemas';
+import { getFirebaseAdminApp } from '@/lib/firebase-admin';
+import * as admin from 'firebase-admin';
 
-/**
- * Retrieves the list of wines from a user's cellar.
- * @param input The UID of the user.
- * @returns A promise that resolves to the list of wines or an error.
- */
-export async function listWinesFromCellar(input: ListWinesFromCellarInput): Promise<ListWinesFromCellarOutput> {
+import type {
+  ListWinesFromCellarInput,
+  ListWinesFromCellarOutput,
+} from '@/lib/schemas';
+
+const InputSchema = z.object({
+  uid: z.string().min(1, 'uid requerido'),
+  limit: z.number().min(1).max(200).optional(),
+});
+
+function toISO(ts: any): string | undefined {
+  if (!ts) return undefined;
+  // admin.firestore.Timestamp
+  // @ts-ignore
+  if (typeof ts?.toDate === 'function') return ts.toDate().toISOString();
+  if (ts instanceof Date) return ts.toISOString();
+  // Si ya es string (ISO), lo devolvemos igual
+  if (typeof ts === 'string') return ts;
+  return undefined;
+}
+
+export async function listWinesFromCellar(
+  input: ListWinesFromCellarInput
+): Promise<ListWinesFromCellarOutput> {
   return listWinesFromCellarFlow(input);
 }
 
 const listWinesFromCellarFlow = ai.defineFlow(
   {
     name: 'listWinesFromCellarFlow',
-    inputSchema: ListWinesFromCellarInputSchema,
-    outputSchema: ListWinesFromCellarOutputSchema,
+    inputSchema: InputSchema,
+    outputSchema: z.any(),
   },
-  async ({ uid }) => {
+  async ({ uid, limit }) => {
     try {
-      const cellarCollectionRef = collection(db, 'users', uid, 'cellar');
-      const q = query(cellarCollectionRef, orderBy('dateAdded', 'desc'));
-      const cellarSnapshot = await getDocs(q);
-      
-      if (cellarSnapshot.empty) {
-        return { success: true, wines: [] };
+      const max = limit ?? 100;
+      const app = getFirebaseAdminApp();
+      const db = admin.firestore(app);
+
+      // 1) /cellar con igualdad por uid (SIN orderBy -> no necesita índice compuesto)
+      let snap = await db
+        .collection('cellar')
+        .where('uid', '==', uid)
+        .limit(max)
+        .get();
+
+      // 2) /cellars si vacío
+      if (snap.empty) {
+        snap = await db
+          .collection('cellars')
+          .where('uid', '==', uid)
+          .limit(max)
+          .get();
       }
 
-      const wines = cellarSnapshot.docs.map(doc => {
-        const data = doc.data();
-        const dateAdded = data.dateAdded?.toDate ? data.dateAdded.toDate().toISOString() : new Date().toISOString();
-        
+      // 3) /users/{uid}/cellar si aún vacío
+      if (snap.empty) {
+        snap = await db
+          .collection('users')
+          .doc(uid)
+          .collection('cellar')
+          .limit(max)
+          .get();
+      }
+
+      let wines = snap.docs.map((d) => {
+        const data = d.data() as any;
+        const createdAtISO = toISO(data.createdAt) ?? new Date().toISOString();
         return {
-          id: doc.id,
-          name: data.name || 'N/A',
-          variety: data.variety || 'N/A',
-          year: data.year || 0,
-          quantity: data.quantity || 0,
-          status: data.status || "Listo para Beber",
-          dateAdded: dateAdded,
+          id: d.id,
+          name: data.name ?? 'Vino',
+          variety: data.variety ?? data.cepa,
+          year: data.year,
+          quantity: data.quantity ?? 1,
+          status: data.status ?? 'Listo para Beber',
+          createdAt: createdAtISO,
+          uid,
         };
       });
 
-      const validatedWines = z.array(WineInCellarSchema).parse(wines);
-      return { success: true, wines: validatedWines };
+      // Ordenamos en memoria por fecha desc y aplicamos límite
+      wines.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      if (wines.length > max) wines = wines.slice(0, max);
 
-    } catch (e: any)
-      {
-      console.error(`Error in listWinesFromCellarFlow for user ${uid}:`, e);
-      let errorMessage = `Ocurrió un error inesperado al cargar tu bodega. Detalle: ${e.message}`;
-      return { success: false, error: errorMessage };
+      return { wines };
+    } catch (err: any) {
+      console.error('listWinesFromCellar error:', err);
+      return { error: err?.message ?? 'Error al cargar tu bodega.' };
     }
   }
 );

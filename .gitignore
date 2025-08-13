@@ -142,3 +142,4 @@ vite.config.ts.timestamp-*
 .env.local
 src/lib/service-account.json
 
+.vercel

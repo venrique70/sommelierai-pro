@@ -91,7 +91,9 @@ export function RecommendWineTab({ t, language }: { t: Translation, language: La
         return;
     }
 
-    const { current, limit } = profile.usage.recommendWine;
+    const { current = 0, limit = Infinity } =
+  profile?.usage?.recommendWine ?? { current: 0, limit: Infinity };
+
     if (limit !== Infinity && current >= limit) {
         toast({
             title: "Límite de Recomendaciones Alcanzado",

@@ -20,7 +20,10 @@ function createFirebaseApp(config: any): FirebaseApp {
   return getApp();
 }
 
+// Logs para diagnóstico
 console.log("🟢 API KEY RECIBIDA:", process.env.NEXT_PUBLIC_FIREBASE_API_KEY);
+console.log("🟢 FIREBASE PROJECT ID:", process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
+
 const app = createFirebaseApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);

@@ -3,51 +3,31 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { VariantProps, cva } from "class-variance-authority"
-import { PanelLeft, BarChart, Wine, HandCoins, UserCog, BotMessageSquare, CookingPot, FileText, Utensils, Building, Users, LogOut, Home, History, Beaker, Archive, BookOpenCheck, DollarSign, ShieldCheck } from "lucide-react"
+import { BarChart, HandCoins, UserCog, FileText, Utensils, Building, Users, LogOut, Home, History, Beaker, Archive, BookOpenCheck, DollarSign, ShieldCheck } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from 'next/navigation'
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Separator } from "@/components/ui/separator"
-import { Sheet, SheetContent } from "@/components/ui/sheet"
-import { Skeleton } from "@/components/ui/skeleton"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { logout } from "@/lib/auth"
 import { useToast } from "@/hooks/use-toast"
 
 /* -------------------- COMPONENTES BASE -------------------- */
 
-const SidebarMenu = React.forwardRef<
-  HTMLUListElement,
-  React.ComponentProps<"ul">
->(({ className, ...props }, ref) => (
-  <ul
-    ref={ref}
-    className={cn("flex w-full min-w-0 flex-col gap-1", className)}
-    {...props}
-  />
-))
+const SidebarMenu = React.forwardRef<HTMLUListElement, React.ComponentProps<"ul">>(
+  ({ className, ...props }, ref) => (
+    <ul ref={ref} className={cn("flex w-full min-w-0 flex-col gap-1", className)} {...props} />
+  )
+)
 SidebarMenu.displayName = "SidebarMenu"
 
-const SidebarMenuItem = React.forwardRef<
-  HTMLLIElement,
-  React.ComponentProps<"li">
->(({ className, ...props }, ref) => (
-  <li
-    ref={ref}
-    className={cn("group/menu-item relative", className)}
-    {...props}
-  />
-))
+const SidebarMenuItem = React.forwardRef<HTMLLIElement, React.ComponentProps<"li">>(
+  ({ className, ...props }, ref) => (
+    <li ref={ref} className={cn("group/menu-item relative", className)} {...props} />
+  )
+)
 SidebarMenuItem.displayName = "SidebarMenuItem"
 
 const sidebarMenuButtonVariants = cva(
@@ -75,9 +55,7 @@ const SidebarMenuButton = React.forwardRef<
   )
 
   if (!tooltip) return button
-  if (typeof tooltip === "string") {
-    tooltip = { children: tooltip }
-  }
+  if (typeof tooltip === "string") tooltip = { children: tooltip }
 
   return (
     <Tooltip>
@@ -103,10 +81,9 @@ const SidebarProvider = ({ children, defaultOpen = true }: { children: React.Rea
   const [open, setOpen] = React.useState(defaultOpen)
 
   const toggleSidebar = () => (isMobile ? setOpenMobile(!openMobile) : setOpen(!open))
-  const state = open ? "expanded" : "collapsed"
 
   return (
-    <SidebarContext.Provider value={{ state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar }}>
+    <SidebarContext.Provider value={{ open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar }}>
       <TooltipProvider delayDuration={0}>
         <div className="flex h-full">{children}</div>
       </TooltipProvider>
@@ -132,7 +109,7 @@ const AppSidebar = () => {
     { href: "/account", label: "Mi Cuenta", icon: UserCog },
     { href: "/planes", label: "Planes", icon: HandCoins },
     { href: "/corporate", label: "Planes Corporativos", icon: Building },
-    { href: "/privacy-policy", label: "Política de Privacidad", icon: ShieldCheck }, // 👈 añadido
+    { href: "/privacy-policy", label: "Legal", icon: ShieldCheck },
   ];
 
   const affiliateNav = [
@@ -152,11 +129,8 @@ const AppSidebar = () => {
   ]
 
   const handleHomeClick = () => {
-    if (pathname === '/') {
-      window.location.reload();
-    } else {
-      router.push('/');
-    }
+    if (pathname === '/') window.location.reload();
+    else router.push('/');
   };
 
   const NavMenu = ({ items }: { items: { href: string, label: string, icon: React.ElementType, isButton?: boolean }[] }) => (
@@ -185,7 +159,7 @@ const AppSidebar = () => {
     try {
       await logout(router);
       toast({ title: "Sesión Cerrada", description: "Has cerrado sesión correctamente." });
-    } catch(error) {
+    } catch {
       toast({ title: "Error al cerrar sesión", description: "No se pudo cerrar la sesión. Inténtalo de nuevo.", variant: "destructive" });
     }
   }
@@ -194,11 +168,23 @@ const AppSidebar = () => {
     <SidebarProvider defaultOpen={true}>
       <div className="flex flex-col w-64 bg-sidebar text-sidebar-foreground">
         <div className="p-4 font-bold text-lg">SommelierPro AI</div>
+
+        {/* Principal */}
         <NavMenu items={mainNav} />
+
+        {/* Herramientas IA */}
         <div className="mt-4 font-semibold text-xs px-4">Herramientas IA</div>
         <NavMenu items={toolNav} />
+
+        {/* Cuenta */}
         <div className="mt-4 font-semibold text-xs px-4">Cuenta</div>
         <NavMenu items={accountNav} />
+
+        {/* Afiliados (nuevo bloque) */}
+        <div className="mt-4 font-semibold text-xs px-4">Afiliados</div>
+        <NavMenu items={affiliateNav} />
+
+        {/* Logout */}
         {!authLoading && (
           <SidebarMenu>
             <SidebarMenuItem>
@@ -209,6 +195,8 @@ const AppSidebar = () => {
             </SidebarMenuItem>
           </SidebarMenu>
         )}
+
+        {/* Admin */}
         {profile?.role === 'admin' && (
           <>
             <div className="mt-4 font-semibold text-xs px-4">Admin</div>
