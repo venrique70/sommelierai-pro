@@ -13,10 +13,14 @@ import { DinnerPairingTab } from "@/components/features/dinner-pairing-tab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 
-const LogoIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 35.84 32" className="size-12 text-primary fill-current hidden sm:block">
-    {/* paths */}
-  </svg>
+// Logo visible (lee de /public/logo/sommelierpro-beige.svg)
+const BrandLogo = () => (
+  <img
+    src="/logo/sommelierpro-beige.svg"
+    alt="SommelierPro AI"
+    className="h-12 w-12"
+    aria-hidden="true"
+  />
 );
 
 export default function SommelierHomePage() {
@@ -29,7 +33,7 @@ export default function SommelierHomePage() {
 
       <div className="text-center space-y-4">
         <div className="flex justify-center items-center gap-4">
-          <LogoIcon />
+          <BrandLogo />
           <h1 className="text-5xl md:text-6xl font-headline tracking-tighter font-bold">
             SommelierPro AI
           </h1>
@@ -37,9 +41,11 @@ export default function SommelierHomePage() {
             BETA
           </Badge>
         </div>
+
         <p className="text-2xl text-muted-foreground font-signature">
           {t.discoverWineSecrets}
         </p>
+
         <div className="flex justify-center items-center gap-4 text-sm text-primary/80">
           <span>{t.detailedNotes}</span>
           <span className="text-destructive">&bull;</span>
@@ -61,6 +67,7 @@ export default function SommelierHomePage() {
             <UtensilsCrossed className="mr-2" /> {t.dinnerPairing}
           </TabsTrigger>
         </TabsList>
+
         <p className="mt-2 text-xs opacity-70 text-center">
           Al continuar, aceptas nuestros{" "}
           <Link href="/legal#terminos" className="underline">
@@ -68,6 +75,7 @@ export default function SommelierHomePage() {
           </Link>{" "}
           y <Link href="/legal" className="underline">Legal</Link>.
         </p>
+
         <TabsContent value="analyze" className="mt-6">
           <WineAnalysisTab t={t} language={language} />
         </TabsContent>
@@ -81,3 +89,4 @@ export default function SommelierHomePage() {
     </div>
   );
 }
+

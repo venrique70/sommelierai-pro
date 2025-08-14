@@ -1,23 +1,15 @@
-import Image from "next/image";
+import Link from "next/link";
 
-type LogoProps = {
-  variant?: "default" | "beige";
-  className?: string;
-};
-
-export default function Logo({ variant = "default", className = "" }: LogoProps) {
-  const src = variant === "beige"
-    ? "/logo/sommelierpro-beige.svg"
-    : "/logo/default.svg"; // puedes cambiar o eliminar esto si no usas otro logo
-
+export default function Logo() {
   return (
-    <Image
-      src={src}
-      alt="SommelierPro AI"
-      width={40}
-      height={40}
-      className={className}
-      priority
-    />
+    <Link href="/" className="flex items-center gap-3">
+      <img
+        src="/logo/sommelierpro-beige.svg"
+        alt="SommelierPro AI"
+        className="h-8 w-8"
+        aria-hidden="true"
+      />
+      <span className="text-2xl font-semibold">SommelierPro AI</span>
+    </Link>
   );
 }
