@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { listAnalyses, type ListAnalysesOutput } from '@/ai/flows/list-analyses';
+import { listAnalyses } from '@/ai/flows/list-analyses';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,9 +13,20 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, History, ImageIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
-// Tipos relajados: no cambian runtime, solo evitan errores de TS
-type AnalysisSummary =
-  NonNullable<(ListAnalysesOutput & { analyses: unknown[] })['analyses']>[0];
+// Tipos locales solo para este componente (no cambian el runtime)
+type AnalysisSummary = {
+  id: string;
+  wineName: string;
+  year?: number;
+  grapeVariety?: string;
+  imageUrl?: string;
+  createdAt: string | number | Date;
+};
+
+type ListAnalysesResult = {
+  error?: string;
+  analyses?: AnalysisSummary[];
+};
 
 export default function HistoryPage() {
   const [analyses, setAnalyses] = useState<AnalysisSummary[]>([]);
@@ -33,15 +44,13 @@ export default function HistoryPage() {
 
     const fetchAnalyses = async () => {
       try {
-        // ⬇️ Forzamos tipo ancho para poder leer 'error' y 'analyses' sin que TS bloquee
-        const result: any = await listAnalyses({ uid: user.uid });
+        // ⚠️ Forzamos el tipo aquí para no depender del tipo externo
+        const result = (await listAnalyses({ uid: user.uid })) as unknown as ListAnalysesResult;
 
-        const maybeError: string | undefined = result?.error;
-        if (maybeError) {
-          setError(maybeError);
+        if (result.error) {
+          setError(result.error);
         } else {
-          const arr = (result?.analyses ?? []) as AnalysisSummary[];
-          setAnalyses(arr);
+          setAnalyses(result.analyses || []);
         }
       } catch (e: any) {
         setError(e?.message || "Un error inesperado ocurrió.");
