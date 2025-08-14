@@ -13,13 +13,9 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, History, ImageIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
-// Tipos relajados: forzamos que pueda existir 'analyses' y 'error' sin romper build
+// Tipos relajados: no cambian runtime, solo evitan errores de TS
 type AnalysisSummary =
   NonNullable<(ListAnalysesOutput & { analyses: unknown[] })['analyses']>[0];
-type ListAnalysesOutputWithError = ListAnalysesOutput & {
-  error?: string;
-  analyses?: AnalysisSummary[];
-};
 
 export default function HistoryPage() {
   const [analyses, setAnalyses] = useState<AnalysisSummary[]>([]);
@@ -37,14 +33,18 @@ export default function HistoryPage() {
 
     const fetchAnalyses = async () => {
       try {
-        const result: ListAnalysesOutputWithError = await listAnalyses({ uid: user.uid });
-        if (result.error) {
-          setError(result.error);
+        // ⬇️ Forzamos tipo ancho para poder leer 'error' y 'analyses' sin que TS bloquee
+        const result: any = await listAnalyses({ uid: user.uid });
+
+        const maybeError: string | undefined = result?.error;
+        if (maybeError) {
+          setError(maybeError);
         } else {
-          setAnalyses(result.analyses || []);
+          const arr = (result?.analyses ?? []) as AnalysisSummary[];
+          setAnalyses(arr);
         }
       } catch (e: any) {
-        setError(e.message || "Un error inesperado ocurrió.");
+        setError(e?.message || "Un error inesperado ocurrió.");
       } finally {
         setLoading(false);
       }
