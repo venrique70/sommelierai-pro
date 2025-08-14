@@ -11,12 +11,12 @@ export async function GET() {
   ];
 
   const data: Record<string, string | undefined> = {};
-  for (const k of allowedKeys) {
-    data[k] = process.env[k];
-  }
+  for (const k of allowedKeys) data[k] = process.env[k];
+
+  // 👇 Mueve esto ANTES del return
+  data["TEST_VARIABLE"] = "✅ Deploy actualizado";
 
   return new Response(JSON.stringify(data), {
     headers: { "content-type": "application/json" },
   });
 }
-data["TEST_VARIABLE"] = "✅ Deploy actualizado";
