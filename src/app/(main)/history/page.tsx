@@ -10,14 +10,16 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle, History, Info, ImageIcon } from 'lucide-react';
+import { AlertCircle, History, ImageIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
-// PARCHE DE TIPOS: relajamos el tipado sin tocar la lógica.
-// Antes:
-// type AnalysisSummary = NonNullable<ListAnalysesOutput['analyses']>[0];
+// Tipos relajados: forzamos que pueda existir 'analyses' y 'error' sin romper build
 type AnalysisSummary =
   NonNullable<(ListAnalysesOutput & { analyses: unknown[] })['analyses']>[0];
+type ListAnalysesOutputWithError = ListAnalysesOutput & {
+  error?: string;
+  analyses?: AnalysisSummary[];
+};
 
 export default function HistoryPage() {
   const [analyses, setAnalyses] = useState<AnalysisSummary[]>([]);
@@ -35,7 +37,7 @@ export default function HistoryPage() {
 
     const fetchAnalyses = async () => {
       try {
-        const result = await listAnalyses({ uid: user.uid });
+        const result: ListAnalysesOutputWithError = await listAnalyses({ uid: user.uid });
         if (result.error) {
           setError(result.error);
         } else {
