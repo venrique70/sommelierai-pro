@@ -1,19 +1,19 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { useAuth } from '@/hooks/use-auth';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import Image from 'next/image';
-import { listAnalyses } from '@/ai/flows/list-analyses';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle, History, ImageIcon } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle, History, ImageIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
-// Tipo local mínimo para lo que muestra la UI
+// ⚠️ OJO: NO importes listAnalyses aquí
+
 type AnalysisSummary = {
   id: string;
   wineName: string;
@@ -33,21 +33,25 @@ export default function HistoryPage() {
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
-      router.push('/login');
+      router.push("/login");
       return;
     }
 
     const fetchAnalyses = async () => {
       try {
-        // Forzamos resultado ancho para no depender de tipos externos
-        const result: any = await (listAnalyses as any)({ uid: user.uid });
+        const res = await fetch("/api/history", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ uid: user.uid }),
+        });
 
-        if (result?.error) {
-          setError(result.error as string);
-        } else {
-          const arr = (result?.analyses ?? []) as AnalysisSummary[];
-          setAnalyses(arr);
+        const result = await res.json();
+        if (!res.ok || result?.error) {
+          setError(result?.error || `HTTP ${res.status}`);
+          return;
         }
+
+        setAnalyses((result.analyses ?? []) as AnalysisSummary[]);
       } catch (e: any) {
         setError(e?.message || "Un error inesperado ocurrió.");
       } finally {
@@ -135,7 +139,7 @@ export default function HistoryPage() {
                   </div>
                 )}
                 <CardTitle className="mt-4 pt-2">{analysis.wineName}</CardTitle>
-                <CardDescription>{analysis.grapeVariety || 'N/A'} - {analysis.year}</CardDescription>
+                <CardDescription>{analysis.grapeVariety || "N/A"} - {analysis.year}</CardDescription>
               </CardHeader>
               <CardContent className="flex-grow">
                 <Badge variant="outline">
