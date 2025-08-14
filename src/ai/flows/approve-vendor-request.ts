@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A secure Genkit flow for an admin to approve a vendor request.
@@ -11,11 +10,13 @@ import {
   type ApproveVendorRequestInput,
   type ApproveVendorRequestOutput,
 } from '@/lib/schemas';
-import { getFirebaseAdminApp } from '@/lib/firebase-admin';
-import * as admin from 'firebase-admin';
 
+// ✅ Usamos los helpers de firebase-admin (no importamos "firebase-admin" directo)
+import { adminDb, adminAuth } from '@/lib/firebase-admin';
 
-export async function approveVendorRequest(input: ApproveVendorRequestInput): Promise<ApproveVendorRequestOutput> {
+export async function approveVendorRequest(
+  input: ApproveVendorRequestInput
+): Promise<ApproveVendorRequestOutput> {
   return approveVendorRequestFlow(input);
 }
 
@@ -27,44 +28,55 @@ const approveVendorRequestFlow = ai.defineFlow(
   },
   async ({ adminUid, uidToApprove }) => {
     try {
-      const adminApp = getFirebaseAdminApp();
-      const dbAdmin = admin.firestore(adminApp);
-      const auth = adminApp.auth();
+      // ✅ Admin SDK a través de helpers
+      const dbAdmin = adminDb();
+      const auth = adminAuth();
 
-      // 1. Verify the requesting user is an admin
+      // 1) Verificar que quien solicita sea admin
       const adminUserDoc = await dbAdmin.collection('users').doc(adminUid).get();
       if (!adminUserDoc.exists || adminUserDoc.data()?.role !== 'admin') {
-        return { success: false, error: 'Acción no autorizada. Se requieren permisos de administrador.' };
+        return {
+          success: false,
+          error: 'Acción no autorizada. Se requieren permisos de administrador.',
+        };
       }
 
-      // 2. Get the user document to approve
+      // 2) Cargar el usuario a aprobar
       const userToApproveRef = dbAdmin.collection('users').doc(uidToApprove);
       const userToApproveDoc = await userToApproveRef.get();
 
       if (!userToApproveDoc.exists) {
         return { success: false, error: 'El usuario a aprobar no fue encontrado.' };
       }
-      
+
       const userToApproveData = userToApproveDoc.data();
       if (userToApproveData?.vendorRequestStatus !== 'pending') {
-         return { success: false, error: 'El usuario no tiene una solicitud de vendedor pendiente.' };
+        return {
+          success: false,
+          error: 'El usuario no tiene una solicitud de vendedor pendiente.',
+        };
       }
 
-      // 3. Update the user's role and request status
+      // 3) Actualizar rol y estado de solicitud
       await userToApproveRef.update({
         role: 'vendedor',
         vendorRequestStatus: 'approved',
-        'subscription.plan': 'Sibarita', // Asignar plan Sibarita al aprobar
+        'subscription.plan': 'Sibarita',
       });
 
-      // (Opcional pero recomendado) Actualizar custom claims en Firebase Auth
+      // 4) Actualizar custom claims en Firebase Auth
       await auth.setCustomUserClaims(uidToApprove, { role: 'vendedor' });
 
-      return { success: true, message: `El usuario ${userToApproveData.displayName} ha sido aprobado como vendedor.` };
-
+      return {
+        success: true,
+        message: `El usuario ${userToApproveData?.displayName ?? uidToApprove} ha sido aprobado como vendedor.`,
+      };
     } catch (e: any) {
       console.error('Error in approveVendorRequestFlow:', e);
-      return { success: false, error: `Ocurrió un error inesperado en el servidor: ${e.message}` };
+      return {
+        success: false,
+        error: `Ocurrió un error inesperado en el servidor: ${e.message}`,
+      };
     }
   }
 );
