@@ -1,8 +1,9 @@
-export const dynamic = "force-dynamic"; // 🚀 obliga a regenerar en cada request (sin caché en build)
-export const revalidate = 0;            // 🚀 desactiva la revalidación en caché
+// src/app/api/debug-config/route.ts
+export const dynamic = "force-dynamic";   // no cache en build
+export const revalidate = 0;              // no revalidación
 
 export async function GET() {
-  const allowedKeys = [
+  const wanted = [
     "NEXT_PUBLIC_FIREBASE_API_KEY",
     "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
     "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
@@ -11,18 +12,21 @@ export async function GET() {
     "NEXT_PUBLIC_FIREBASE_APP_ID",
     "NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID",
     "NEXT_PUBLIC_GEMINI_API_KEY",
-  ];
+  ] as const;
 
-  const data: Record<string, string | undefined> = {};
-  for (const k of allowedKeys) data[k] = process.env[k];
+  const data: Record<string, string> = {};
+  for (const k of wanted) {
+    const v = process.env[k];
+    // si no existe en el entorno, lo marcamos para detectar el problema
+    data[k] = v ?? "__UNDEFINED__";
+  }
 
-  // Bandera para verificar que el deploy nuevo está activo
+  // bandera para confirmar deploy nuevo
   data["TEST_VARIABLE"] = "✅ Deploy actualizado";
 
-  return new Response(JSON.stringify(data), {
+  return new Response(JSON.stringify(data, null, 2), {
     headers: {
       "content-type": "application/json",
-      // Forzar no-cache en navegador y CDN
       "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
       "CDN-Cache-Control": "no-store",
       "Vercel-CDN-Cache-Control": "no-store",

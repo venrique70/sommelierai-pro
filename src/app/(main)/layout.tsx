@@ -1,13 +1,12 @@
-
 "use client";
 
-import * as React from 'react';
-import { AppSidebar } from '@/components/ui/sidebar';
-import { AuthProvider, useAuth } from '@/hooks/use-auth';
-import { Loader2 } from 'lucide-react';
+import * as React from "react";
+import { AppSidebar } from "@/components/ui/sidebar";
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
+import { Loader2 } from "lucide-react";
+import { Toaster } from "@/components/ui/toaster";
+import Footer from "@/components/Footer";
 
-// Este componente ahora consume el contexto de forma segura
-// porque siempre se renderizará como hijo de AuthProvider.
 function MainContent({ children }: { children: React.ReactNode }) {
   const { loading } = useAuth();
 
@@ -26,15 +25,15 @@ function MainContent({ children }: { children: React.ReactNode }) {
     <div className="grid grid-cols-[auto_1fr] min-h-screen">
       <AppSidebar />
       <main className="w-full p-4 sm:p-6 flex justify-center">
-        <div className="w-full">
-          {children}
-        </div>
+        <div className="w-full">{children}</div>
       </main>
+      {/* Pie y Toaster visibles en toda el área (main) */}
+      <Footer />
+      <Toaster />
     </div>
   );
 }
 
-// El layout principal ahora solo se encarga de proveer el contexto.
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
