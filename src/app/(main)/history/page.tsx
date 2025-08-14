@@ -13,7 +13,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, History, ImageIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
-// Tipos locales solo para este componente (no cambian el runtime)
+// Tipo local mínimo para lo que muestra la UI
 type AnalysisSummary = {
   id: string;
   wineName: string;
@@ -21,11 +21,6 @@ type AnalysisSummary = {
   grapeVariety?: string;
   imageUrl?: string;
   createdAt: string | number | Date;
-};
-
-type ListAnalysesResult = {
-  error?: string;
-  analyses?: AnalysisSummary[];
 };
 
 export default function HistoryPage() {
@@ -44,13 +39,14 @@ export default function HistoryPage() {
 
     const fetchAnalyses = async () => {
       try {
-        // ⚠️ Forzamos el tipo aquí para no depender del tipo externo
-        const result = (await listAnalyses({ uid: user.uid })) as unknown as ListAnalysesResult;
+        // Forzamos resultado ancho para no depender de tipos externos
+        const result: any = await (listAnalyses as any)({ uid: user.uid });
 
-        if (result.error) {
-          setError(result.error);
+        if (result?.error) {
+          setError(result.error as string);
         } else {
-          setAnalyses(result.analyses || []);
+          const arr = (result?.analyses ?? []) as AnalysisSummary[];
+          setAnalyses(arr);
         }
       } catch (e: any) {
         setError(e?.message || "Un error inesperado ocurrió.");
