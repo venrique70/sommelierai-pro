@@ -1,65 +1,55 @@
-// src/lib/firebaseAdmin.ts
-import * as admin from "firebase-admin";
+// src/lib/firebase-admin.ts
+"use server";
 
-/**
- * Importante:
- * - Asegúrate de que FIREBASE_CLIENT_EMAIL coincida EXACTAMENTE con tu JSON:
- *   firebase-adminsdk-XXXX@sommelierpro-gemini.iam.gserviceaccount.com
- * - En Vercel, FIREBASE_PRIVATE_KEY debe ir en una sola línea con \n.
- *   En local puede ser multilínea. Este archivo ya hace el replace.
- */
+import { getApps, initializeApp, cert, type App } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
+import { getStorage } from "firebase-admin/storage";
 
-declare global {
-  // eslint-disable-next-line no-var
-  var __firebaseAdminApp: admin.app.App | undefined;
+function loadPrivateKey(): string | undefined {
+  let key =
+    process.env.FIREBASE_PRIVATE_KEY ||
+    process.env.GOOGLE_PRIVATE_KEY ||
+    undefined;
+
+  const b64 =
+    process.env.FIREBASE_PRIVATE_KEY_BASE64 ||
+    process.env.GOOGLE_PRIVATE_KEY_BASE64 ||
+    undefined;
+
+  if (!key && b64) {
+    key = Buffer.from(b64, "base64").toString("utf8");
+  }
+
+  if (key) {
+    // Quitar comillas accidentales y normalizar saltos de línea
+    if (key.startsWith('"') && key.endsWith('"')) key = key.slice(1, -1);
+    key = key.replace(/\\n/g, "\n").trim();
+  }
+  return key;
 }
 
-function initFirebaseAdmin() {
-  const projectId = process.env.FIREBASE_PROJECT_ID;
+export function getFirebaseAdminApp(): App {
+  const existing = getApps()[0];
+  if (existing) return existing;
+
+  const projectId =
+    process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-
-  // Saneamos la clave para que funcione tanto en local (multilínea)
-  // como en Vercel (una sola línea con '\n'), y quitamos comillas/CR.
-  const rawKey = process.env.FIREBASE_PRIVATE_KEY || "";
-  const privateKey = rawKey
-    .replace(/\\n/g, "\n")   // convierte '\n' literales en saltos reales
-    .replace(/\r/g, "")      // limpia CR en Windows
-    .replace(/^"|"$/g, "")   // quita comillas alrededor si las hubiera
-    .trim();                 // quita espacios en blanco al inicio/fin
-
-  const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+  const privateKey = loadPrivateKey();
 
   if (!projectId || !clientEmail || !privateKey) {
     throw new Error(
-      "Faltan variables de entorno para Firebase Admin: " +
-        "[FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY]"
+      "Faltan envs de Admin: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY/BASE64"
     );
   }
 
-  // Validación rápida de formato PEM para dar un mensaje claro si algo falla
-  if (!privateKey.startsWith("-----BEGIN PRIVATE KEY-----")) {
-    throw new Error(
-      "FIREBASE_PRIVATE_KEY no tiene el formato PEM esperado. " +
-      "Revisa que en local sea MULTILÍNEA real y en Vercel sea una sola línea con \\n, sin comillas."
-    );
-  }
-
-  return admin.initializeApp({
-    credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
-    // opcional: solo si usas Storage desde Admin
-    storageBucket,
+  return initializeApp({
+    credential: cert({ projectId, clientEmail, privateKey }),
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   });
 }
 
-export function getFirebaseAdminApp() {
-  if (!global.__firebaseAdminApp) {
-    global.__firebaseAdminApp = initFirebaseAdmin();
-  }
-  return global.__firebaseAdminApp;
-}
-
-const app = getFirebaseAdminApp();
-
-export const adminAuth = admin.auth(app);
-export const adminDb = admin.firestore(app);
-export const adminBucket = admin.storage(app).bucket();
+export const adminDb = () => getFirestore(getFirebaseAdminApp());
+export const adminAuth = () => getAuth(getFirebaseAdminApp());
+export const adminStorage = () => getStorage(getFirebaseAdminApp());
