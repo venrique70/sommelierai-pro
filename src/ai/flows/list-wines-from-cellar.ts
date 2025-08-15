@@ -6,8 +6,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { getFirebaseAdminApp } from '@/lib/firebase-admin';
-import * as admin from 'firebase-admin';
+import { adminDb } from '@/lib/firebase-admin'; // ✅ usar helper adminDb (no admin.firestore)
 
 import type {
   ListWinesFromCellarInput,
@@ -21,11 +20,10 @@ const InputSchema = z.object({
 
 function toISO(ts: any): string | undefined {
   if (!ts) return undefined;
-  // admin.firestore.Timestamp
+  // admin.firestore.Timestamp compatible
   // @ts-ignore
   if (typeof ts?.toDate === 'function') return ts.toDate().toISOString();
   if (ts instanceof Date) return ts.toISOString();
-  // Si ya es string (ISO), lo devolvemos igual
   if (typeof ts === 'string') return ts;
   return undefined;
 }
@@ -45,8 +43,7 @@ const listWinesFromCellarFlow = ai.defineFlow(
   async ({ uid, limit }) => {
     try {
       const max = limit ?? 100;
-      const app = getFirebaseAdminApp();
-      const db = admin.firestore(app);
+      const db = adminDb(); // ✅ Firestore Admin listo
 
       // 1) /cellar con igualdad por uid (SIN orderBy -> no necesita índice compuesto)
       let snap = await db
