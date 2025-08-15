@@ -12,11 +12,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Wine, Plus } from "lucide-react";
 
-// 🔸 Firestore (SDK modular)
+// Firestore (SDK modular)
 import { db } from "@/lib/firebase";
 import {
-  collection, query, where, orderBy, limit, getDocs,
-  Timestamp,
+  collection, query, where, limit, getDocs, Timestamp,
 } from "firebase/firestore";
 
 type Bottle = {
@@ -45,26 +44,39 @@ export default function MyCellarPage() {
 
     const load = async () => {
       try {
-        // ✅ Consulta modular (NO usar .firestore())
-        // Ajusta "cellar" si tu colección se llama distinto (p.ej. "bodega")
-        const q = query(
-          collection(db, "cellar"),
-          where("uid", "==", user.uid),
-          orderBy("addedAt", "desc"),
-          limit(100)
+        // Consulta SIN orderBy (no requiere índice compuesto)
+        const snap = await getDocs(
+          query(
+            collection(db, "cellar"),
+            where("uid", "==", user.uid),
+            limit(200)
+          )
         );
-        const snap = await getDocs(q);
-        const rows = snap.docs.map((d) => {
-          const x = d.data() as any;
-          return {
-            id: d.id,
-            wineName: x.wineName ?? x.name ?? "Producto",
-            year: x.year,
-            country: x.country,
-            grapeVariety: x.grapeVariety,
-            addedAt: x.addedAt ?? x.createdAt ?? Date.now(),
-          } as Bottle;
-        });
+
+        // Normaliza y ORDENA en cliente (desc)
+        const rows = snap.docs
+          .map((d) => {
+            const x = d.data() as any;
+            const added =
+              x?.addedAt?.toDate?.() ??
+              (x?.addedAt?.seconds ? new Date(x.addedAt.seconds * 1000) : undefined) ??
+              (x?.addedAt ? new Date(x.addedAt) : new Date());
+
+            return {
+              id: d.id,
+              wineName: x.wineName ?? x.name ?? "Producto",
+              year: x.year,
+              country: x.country,
+              grapeVariety: x.grapeVariety,
+              addedAt: added,
+            } as Bottle;
+          })
+          .sort(
+            (a, b) =>
+              new Date(b.addedAt as any).getTime() -
+              new Date(a.addedAt as any).getTime()
+          );
+
         setItems(rows);
       } catch (e: any) {
         setError(e?.message || "Ocurrió un error al cargar tu bodega.");
