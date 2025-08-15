@@ -8,7 +8,7 @@ import * as z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { signInWithEmail, signUpWithEmail } from "@/lib/auth";
-import { auth } from "@/lib/firebase";
+import { auth } from "@/lib/firebase-client";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 import { Button } from "@/components/ui/button";

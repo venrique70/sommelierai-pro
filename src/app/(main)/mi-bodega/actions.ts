@@ -4,7 +4,7 @@ import "server-only";
 import { adminDb } from "@/lib/firebase-admin";
 import type { WineInCellarFormValues } from "@/lib/schemas";
 
-// Normaliza documentos para tu UI
+// Normaliza documentos para tu UI, asegurando que addedAt sea una cadena serializable
 function normalize(id: string, x: any) {
   return {
     id,
@@ -13,17 +13,17 @@ function normalize(id: string, x: any) {
     year: typeof x.year === "number" ? x.year : x.year ? Number(x.year) : undefined,
     quantity: typeof x.quantity === "number" ? x.quantity : x.quantity ? Number(x.quantity) : 1,
     status: x.status ?? "Listo para Beber",
-    addedAt: x.addedAt ?? x.createdAt ?? new Date(),
+    addedAt: x.addedAt?.toISOString ? x.addedAt.toISOString() : x.createdAt?.toISOString ? x.createdAt.toISOString() : new Date().toISOString(),
   };
 }
 
 // LISTAR
 export async function listWinesAction({ uid }: { uid: string }) {
   try {
-    const snap = await adminDb().collection("cellar").where("uid","==",uid).get();
+    const snap = await adminDb().collection("cellar").where("uid", "==", uid).get();
     const wines = snap.docs
       .map((d) => normalize(d.id, d.data()))
-      .sort((a,b)=> new Date(b.addedAt as any).getTime() - new Date(a.addedAt as any).getTime());
+      .sort((a, b) => new Date(b.addedAt as any).getTime() - new Date(a.addedAt as any).getTime());
     return { wines };
   } catch (e: any) {
     return { error: String(e?.message || e) };
@@ -31,8 +31,7 @@ export async function listWinesAction({ uid }: { uid: string }) {
 }
 
 // AÑADIR
-export async function addWineAction({ uid, name, variety, year, quantity, status }:
-  { uid: string } & WineInCellarFormValues) {
+export async function addWineAction({ uid, name, variety, year, quantity, status }: { uid: string } & WineInCellarFormValues) {
   try {
     const doc = {
       uid,
@@ -51,8 +50,7 @@ export async function addWineAction({ uid, name, variety, year, quantity, status
 }
 
 // ACTUALIZAR
-export async function updateWineAction({ uid, wineId, name, variety, year, quantity, status }:
-  { uid: string; wineId: string } & WineInCellarFormValues) {
+export async function updateWineAction({ uid, wineId, name, variety, year, quantity, status }: { uid: string; wineId: string } & WineInCellarFormValues) {
   try {
     const ref = adminDb().collection("cellar").doc(wineId);
     const snap = await ref.get();
