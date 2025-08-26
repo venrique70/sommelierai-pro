@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 'use server';
 /**
@@ -70,8 +71,8 @@ const listVendedoresFlow = ai.defineFlow(
 
     } catch (e: any) {
       console.error('Error in listVendedoresFlow:', e);
-      let errorMessage = e.message || 'Ocurrió un error inesperado en el servidor.';
-      return { error: `Ocurrió un error inesperado en el servidor: ${errorMessage}` };
+      let errorMessage = e.message || 'OcurriÃ³ un error inesperado en el servidor.';
+      return { error: `OcurriÃ³ un error inesperado en el servidor: ${errorMessage}` };
     }
   }
 );

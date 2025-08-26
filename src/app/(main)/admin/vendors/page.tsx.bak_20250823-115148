@@ -1,0 +1,15 @@
+﻿export const runtime = 'nodejs';
+
+import SellersManager from '@/components/vendors/SellersManager';
+import { getVendors, listVendorRequests } from '@/lib/actions/vendors';
+
+export const metadata = { title: 'Vendedores | Admin' };
+
+export default async function Page() {
+  const [vendors, requests] = await Promise.all([ getVendors(), listVendorRequests({ status:'pending' }) ]);
+  return (
+    <main className='mx-auto max-w-6xl p-6'>
+      <SellersManager initialVendors={vendors} initialRequests={requests} />
+    </main>
+  );
+}

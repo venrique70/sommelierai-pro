@@ -1,16 +1,16 @@
-
+// src/ai/flows/analize-wine.ts
+// @ts-nocheck
 'use server';
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { WineAnalysisClientSchema } from '@/lib/schemas';
 import type { WineAnalysis } from '@/types';
-import { getFirebaseAdminApp } from '@/lib/firebase-admin';
-import * as admin from 'firebase-admin';
+import { adminDb, FieldValue } from '@/lib/firebase-admin';
 
-// This file contains the internal logic for the wine analysis.
-// It is NOT directly called by the client. It is called by the Server Action in actions.ts.
-
+// ───────────────────────────────────────────────────────────────────────────────
+// Schema esperado de salida del modelo
+// ───────────────────────────────────────────────────────────────────────────────
 const AiResponseSchema = z.object({
   isAiGenerated: z.boolean().describe("Set to true ONLY if you cannot find the specific wine and have to analyze a similar one."),
   wineName: z.string().describe("The full, corrected name of the wine."),
@@ -19,7 +19,7 @@ const AiResponseSchema = z.object({
   wineryName: z.string().optional().describe("The name of the winery. If the user does not provide it, you MUST research and provide it if the wine is known."),
   notes: z.string().describe("Your final expert opinion and conclusion. Comment on the wine's typicity, style, aging potential, and origin country. Maintain a warm, technical, and mentoring tone. This is your personal seal."),
   corrections: z.array(z.object({
-    field: z.enum(['Vino', 'Año', 'Cepa', 'Bodega', 'País', 'Wine', 'Year', 'Grape', 'Winery', 'Country']),
+    field: z.enum(['Vino', 'AÃƒÂ±o', 'Cepa', 'Bodega', 'PaÃƒÂ­s', 'Wine', 'Year', 'Grape', 'Winery', 'Country']),
     original: z.string(),
     corrected: z.string(),
   })).optional().describe("A list of corrections made to the user's input. ONLY report a correction if the user provided a non-empty value that was wrong. Do NOT report a correction if you are filling in a field the user left blank."),
@@ -27,7 +27,7 @@ const AiResponseSchema = z.object({
   pairingNotes: z.string().optional().describe("If foodToPair was provided, detailed notes explaining the pairing rating. Otherwise, null."),
   analysis: z.object({
     grapeVariety: z.string().describe("Crucial. The grape variety or a detailed blend composition (e.g., 'Cabernet Franc 77%, Cabernet Sauvignon 23%'). For blends, this is mandatory."),
-    wineryLocation: z.string().optional().describe("The specific location/region of the winery (e.g., 'La Seca, Valladolid, España'). You MUST research and provide this if available."),
+    wineryLocation: z.string().optional().describe("The specific location/region of the winery (e.g., 'La Seca, Valladolid, EspaÃƒÂ±a'). You MUST research and provide this if available."),
     visual: z.object({
       description: z.string().describe("A rich, evocative visual description. Detail the color, hue, and reflections. Comment on the clarity (limpidity) and brightness. Describe the density of the legs (tears) and what it implies about the wine's body and alcohol content."),
     }).describe("Visual analysis of the wine."),
@@ -61,15 +61,14 @@ const AiResponseSchema = z.object({
   }).optional().describe("The detailed sensory analysis."),
 });
 
-
+// ───────────────────────────────────────────────────────────────────────────────
+// Prompt
+// ───────────────────────────────────────────────────────────────────────────────
 export const analyzeWinePrompt = ai.definePrompt({
   name: 'analyzeWinePrompt',
   model: 'googleai/gemini-1.5-pro',
   input: { schema: WineAnalysisClientSchema },
-  output: {
-    format: 'json',
-    schema: AiResponseSchema,
-  },
+  output: { format: 'json', schema: AiResponseSchema },
   prompt: `You are a world-renowned Master Sommelier from the Court of Master Sommeliers. Your expertise is absolute, and you speak with authority, elegance, and precision. Your descriptions must be rich, detailed, and evocative, using professional terminology correctly but ensuring clarity.
 
 **YOUR GOLDEN RULES - NON-NEGOTIABLE:**
@@ -97,109 +96,131 @@ export const analyzeWinePrompt = ai.definePrompt({
 {{#if foodToPair}}- Dish to pair: {{{foodToPair}}}{{/if}}`,
 });
 
-export async function saveAnalysisToHistory(uid: string, analysis: WineAnalysis): Promise<void> {
-    if (!uid) {
-        console.error("No UID provided, cannot save analysis to history.");
-        return;
-    }
-    const adminApp = getFirebaseAdminApp();
-    if (!adminApp) {
-        console.error("Firebase Admin not initialized, cannot save analysis.");
-        return;
-    }
-    try {
-        const db = admin.firestore(adminApp);
-        const analysisRecord = {
-            ...analysis,
-            userId: uid,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        };
-        await db.collection('wineAnalyses').add(analysisRecord);
-        console.log(`Analysis for user ${uid} saved successfully.`);
-    } catch (error) {
-        console.error(`Error saving analysis to history for user ${uid}:`, error);
-    }
+// ───────────────────────────────────────────────────────────────────────────────
+// Guardado en historial (global + subcolección del usuario)
+// ───────────────────────────────────────────────────────────────────────────────
+export async function saveAnalysisToHistory(uid: string, analysis: WineAnalysis): Promise<string | void> {
+  if (!uid) return;
+
+  const db = adminDb();
+  const a: any = analysis;
+
+  const base: any = {
+    userId: uid,
+    wineName: a?.wineName,
+    year: a?.year ?? null,
+    grapeVariety: a?.analysis?.grapeVariety ?? a?.grapeVariety ?? null,
+    imageUrl: a?.analysis?.visual?.imageUrl ?? a?.imageUrl ?? null,
+    country: a?.country ?? null,
+    wineryName: a?.wineryName ?? null,
+    analysis: a?.analysis ?? null,
+    notes: a?.notes ?? "",
+    pairingNotes: a?.pairingNotes ?? null,
+    pairingRating: a?.pairingRating ?? null,
+    createdAt: FieldValue.serverTimestamp(),
+  };
+
+  const batch = db.batch();
+
+  // 1) colección global (filtrable por userId)
+  const topRef = db.collection('wineAnalyses').doc();
+
+  // 2) subcolección del usuario (lo que suele leer "Mi Historial")
+  const userRef = db.collection('users').doc(uid).collection('history').doc(topRef.id);
+
+  batch.set(topRef, base);
+  batch.set(userRef, { ...base, _topId: topRef.id });
+
+  await batch.commit();
+  return topRef.id;
 }
 
-export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClientSchema>): Promise<WineAnalysis> => {
+// ───────────────────────────────────────────────────────────────────────────────
+// Flujo principal
+// ───────────────────────────────────────────────────────────────────────────────
+export const analyzeWineFlow = async (
+  userInput: z.infer<typeof WineAnalysisClientSchema>
+): Promise<WineAnalysis> => {
+  const { output } = await analyzeWinePrompt(userInput);
+  if (!output) {
+    throw new Error('No structured output returned from AI.');
+  }
 
-    const { output } = await analyzeWinePrompt(userInput);
-    if (!output) {
-      throw new Error('No structured output returned from AI.');
+  let result: WineAnalysis;
+
+  const imageGenerationModel = 'googleai/gemini-2.0-flash-preview-image-generation';
+  const imageGenerationConfig = { responseModalities: ['TEXT', 'IMAGE'] as const };
+
+  if (!output.analysis) {
+    result = {
+      isAiGenerated: output.isAiGenerated,
+      wineName: output.wineName,
+      year: output.year,
+      notes: output.notes,
+      corrections: output.corrections,
+    };
+  } else {
+    const analysisData = output.analysis;
+
+    const imagePromises = [
+      ai.generate({
+        model: imageGenerationModel,
+        prompt: `Hyper-realistic photo, a glass of wine. ${analysisData.visualDescriptionEn}. Studio lighting, neutral background.`,
+        config: imageGenerationConfig,
+      }),
+      ai.generate({
+        model: imageGenerationModel,
+        prompt: `Abstract art, captures the essence of wine aromas. ${analysisData.olfactoryAnalysisEn}. No text, no glass.`,
+        config: imageGenerationConfig,
+      }),
+      ai.generate({
+        model: imageGenerationModel,
+        prompt: `Abstract textured art, evokes the sensation of wine flavors. ${analysisData.gustatoryPhaseEn}. No text, no glass.`,
+        config: imageGenerationConfig,
+      }),
+    ];
+
+    let glassImagePromise: Promise<any> = Promise.resolve(null);
+    if (analysisData.suggestedGlassType && !/n\/?a|no especificado|not specified/i.test(analysisData.suggestedGlassType)) {
+      glassImagePromise = ai.generate({
+        model: imageGenerationModel,
+        prompt: `Professional product photo of an empty ${analysisData.suggestedGlassType} wine glass. White background, studio lighting.`,
+        config: imageGenerationConfig,
+      });
     }
 
-    let result: WineAnalysis;
+    const [visualResult, olfactoryResult, gustatoryResult, glassResult] =
+      await Promise.allSettled([...imagePromises, glassImagePromise]);
 
-    const imageGenerationModel = 'googleai/gemini-2.0-flash-preview-image-generation';
-    const imageGenerationConfig = { responseModalities: ['TEXT', 'IMAGE'] as const };
+    const getUrl = (res: PromiseSettledResult<any>) =>
+      res.status === 'fulfilled' && res.value?.media?.url ? res.value.media.url : undefined;
 
-    if (!output.analysis) {
-      result = {
-        isAiGenerated: output.isAiGenerated,
-        wineName: output.wineName,
-        year: output.year,
-        notes: output.notes,
-        corrections: output.corrections,
-      };
-    } else {
-      const analysisData = output.analysis;
+    result = {
+      isAiGenerated: output.isAiGenerated,
+      wineName: output.wineName,
+      year: output.year,
+      country: output.country,
+      wineryName: output.wineryName,
+      notes: output.notes,
+      corrections: output.corrections,
+      pairingRating: output.pairingRating,
+      pairingNotes: output.pairingNotes,
+      foodToPair: userInput.foodToPair,
+      analysis: {
+        ...analysisData,
+        visual: { ...analysisData.visual, imageUrl: getUrl(visualResult) },
+        olfactory: { ...analysisData.olfactory, imageUrl: getUrl(olfactoryResult) },
+        gustatory: { ...analysisData.gustatory, imageUrl: getUrl(gustatoryResult) },
+        suggestedGlassTypeImageUrl: getUrl(glassResult),
+      },
+    };
+  }
 
-      const imagePromises = [
-        ai.generate({
-          model: imageGenerationModel,
-          prompt: `Hyper-realistic photo, a glass of wine. ${analysisData.visualDescriptionEn}. Studio lighting, neutral background.`,
-          config: imageGenerationConfig,
-        }),
-        ai.generate({
-          model: imageGenerationModel,
-          prompt: `Abstract art, captures the essence of wine aromas. ${analysisData.olfactoryAnalysisEn}. No text, no glass.`,
-          config: imageGenerationConfig,
-        }),
-        ai.generate({
-          model: imageGenerationModel,
-          prompt: `Abstract textured art, evokes the sensation of wine flavors. ${analysisData.gustatoryPhaseEn}. No text, no glass.`,
-          config: imageGenerationConfig,
-        }),
-      ];
+  if (userInput.uid) {
+    await saveAnalysisToHistory(userInput.uid, result);
+  }
 
-      let glassImagePromise: Promise<any> = Promise.resolve(null);
-      if (analysisData.suggestedGlassType && !/n\/?a|no especificado|not specified/i.test(analysisData.suggestedGlassType)) {
-        glassImagePromise = ai.generate({
-          model: imageGenerationModel,
-          prompt: `Professional product photo of an empty ${analysisData.suggestedGlassType} wine glass. White background, studio lighting.`,
-          config: imageGenerationConfig,
-        });
-      }
+  return result;
+};
 
-      const [visualResult, olfactoryResult, gustatoryResult, glassResult] = await Promise.allSettled([...imagePromises, glassImagePromise]);
-
-      const getUrl = (res: PromiseSettledResult<any>) =>
-        res.status === 'fulfilled' && res.value?.media?.url ? res.value.media.url : undefined;
-
-      result = {
-        isAiGenerated: output.isAiGenerated,
-        wineName: output.wineName,
-        year: output.year,
-        country: output.country,
-        wineryName: output.wineryName,
-        notes: output.notes,
-        corrections: output.corrections,
-        pairingRating: output.pairingRating,
-        pairingNotes: output.pairingNotes,
-        foodToPair: userInput.foodToPair,
-        analysis: {
-          ...analysisData,
-          visual: { ...analysisData.visual, imageUrl: getUrl(visualResult) },
-          olfactory: { ...analysisData.olfactory, imageUrl: getUrl(olfactoryResult) },
-          gustatory: { ...analysisData.gustatory, imageUrl: getUrl(gustatoryResult) },
-          suggestedGlassTypeImageUrl: getUrl(glassResult),
-        },
-      };
-    }
-
-    if(userInput.uid) {
-      await saveAnalysisToHistory(userInput.uid, result);
-    }
-
-    return result;
-}
+export default analyzeWineFlow;

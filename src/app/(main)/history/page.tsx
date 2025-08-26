@@ -1,160 +1,109 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@/hooks/use-auth";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Wine, Calendar, Info, ArrowRight } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, History, ImageIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/use-auth";
+import { db } from "@/lib/firebase";
+import {
+  collection, query, where, orderBy, onSnapshot, limit,
+} from "firebase/firestore";
 
-// ⚠️ OJO: NO importes listAnalyses aquí
+type Row = { id: string; wineName?: string; year?: number | null; createdAt?: any };
 
-type AnalysisSummary = {
-  id: string;
-  wineName: string;
-  year?: number;
-  grapeVariety?: string;
-  imageUrl?: string;
-  createdAt: string | number | Date;
-};
-
-export default function HistoryPage() {
-  const [analyses, setAnalyses] = useState<AnalysisSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { user, loading: authLoading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      router.push("/login");
-      return;
-    }
-
-    const fetchAnalyses = async () => {
-      try {
-        const res = await fetch("/api/history", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ uid: user.uid }),
-        });
-
-        const result = await res.json();
-        if (!res.ok || result?.error) {
-          setError(result?.error || `HTTP ${res.status}`);
-          return;
-        }
-
-        setAnalyses((result.analyses ?? []) as AnalysisSummary[]);
-      } catch (e: any) {
-        setError(e?.message || "Un error inesperado ocurrió.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAnalyses();
-  }, [user, authLoading, router]);
-
-  if (loading) {
-    return (
-      <div className="space-y-8">
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight text-primary flex items-center gap-3">
-            <History /> Mi Historial de Análisis
-          </h1>
-          <p className="text-muted-foreground mt-2">Cargando tus análisis guardados...</p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {[...Array(4)].map((_, i) => (
-            <Card key={i}>
-              <CardHeader>
-                <Skeleton className="rounded-lg object-cover aspect-square w-full" />
-                <Skeleton className="h-6 w-3/4 mt-4" />
-                <Skeleton className="h-5 w-1/2" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-6 w-1/3" />
-              </CardContent>
-              <CardFooter><Skeleton className="h-10 w-full" /></CardFooter>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Error al Cargar el Historial</AlertTitle>
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
-    );
-  }
+function HistoryCard({ r }: { r: Row }) {
+  const vino = r.wineName ?? "Vino";
+  const anio = r.year ?? "—";
+  const fecha = r?.createdAt?.seconds
+    ? new Date(r.createdAt.seconds * 1000).toLocaleDateString()
+    : (typeof r.createdAt === "string" ? new Date(r.createdAt).toLocaleDateString() : "—");
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-4xl font-bold tracking-tight text-primary flex items-center gap-3">
-          <History /> Mi Historial de Análisis
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          Aquí puedes encontrar todos los análisis de productos que has realizado.
-        </p>
+    <Card className="h-full overflow-hidden">
+      <CardHeader className="pb-2">
+        <div className="mb-3">
+          <div className="inline-flex h-14 w-14 items-center justify-center rounded-xl bg-muted border">
+            <Wine className="h-7 w-7 opacity-80" />
+          </div>
+        </div>
+        <CardTitle className="leading-snug">{vino}</CardTitle>
+        <div className="text-sm opacity-80">Año: {anio}</div>
+      </CardHeader>
+
+      <CardContent className="flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs">
+            <Calendar className="mr-1 h-3 w-3" />
+            Analizado: {fecha}
+          </Badge>
+        </div>
+
+        <div className="mt-2">
+          <Link href={`/history/${r.id}`}>
+            <Button className="w-full justify-between">
+              Ver detalle <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function HistoryListPage() {
+  const { user } = useAuth();
+  const [items, setItems] = useState<Row[]>([]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    const q = query(
+      collection(db, "history"),
+      where("uid", "==", user.uid),
+      orderBy("createdAt", "desc"),
+      limit(50),
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      setItems(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
+    });
+    return () => unsub();
+  }, [user?.uid]);
+
+  const isEmpty = !!user?.uid && items.length === 0;
+
+  return (
+    <div className="mx-auto max-w-6xl p-6 space-y-5">
+      <div className="flex items-center gap-3">
+        <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-yellow-500/10 border border-yellow-500/30">
+          <Wine className="h-5 w-5 text-yellow-400" />
+        </span>
+        <h1 className="text-4xl font-bold tracking-tight text-yellow-300">Mi Historial de Análisis</h1>
       </div>
 
-      {analyses.length === 0 ? (
-        <Card className="text-center p-12">
-          <CardTitle>Tu historial está vacío</CardTitle>
-          <CardDescription className="mt-2">Aún no has realizado ningún análisis. ¡Prueba SommelierPro AI!</CardDescription>
-          <Button asChild className="mt-4">
-            <Link href="/">Realizar mi primer análisis</Link>
-          </Button>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {analyses.map((analysis) => (
-            <Card key={analysis.id} className="flex flex-col">
-              <CardHeader>
-                {analysis.imageUrl ? (
-                  <Image
-                    src={analysis.imageUrl}
-                    alt={`Imagen de ${analysis.wineName}`}
-                    width={400}
-                    height={400}
-                    className="rounded-lg object-cover aspect-square w-full"
-                    data-ai-hint="wine bottle"
-                  />
-                ) : (
-                  <div className="bg-muted rounded-lg aspect-square w-full flex items-center justify-center">
-                    <ImageIcon className="size-16 text-muted-foreground" />
-                  </div>
-                )}
-                <CardTitle className="mt-4 pt-2">{analysis.wineName}</CardTitle>
-                <CardDescription>{analysis.grapeVariety || "N/A"} - {analysis.year}</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-grow">
-                <Badge variant="outline">
-                  Analizado: {new Date(analysis.createdAt).toLocaleDateString()}
-                </Badge>
-              </CardContent>
-              <CardFooter>
-                <Button asChild className="w-full">
-                  <Link href={`/history/${analysis.id}`}>Ver Detalle</Link>
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
+      {!user?.uid && (
+        <div className="rounded-md border border-blue-500/30 bg-blue-500/10 p-3 text-sm flex items-start gap-2">
+          <Info className="h-4 w-4 mt-0.5" />
+          <div>Inicia sesión para ver tus análisis guardados.</div>
         </div>
       )}
+
+      {isEmpty && (
+        <div className="rounded-md border border-blue-500/30 bg-blue-500/10 p-3 text-sm flex items-start gap-2">
+          <Info className="h-4 w-4 mt-0.5" />
+          <div>
+            Aún no tienes registros en <code>history</code>. Cuando realices tu primer Análisis Sensorial,
+            aparecerá aquí automáticamente.
+          </div>
+        </div>
+      )}
+
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {items.map((r) => (
+          <HistoryCard key={r.id} r={r} />
+        ))}
+      </div>
     </div>
   );
 }

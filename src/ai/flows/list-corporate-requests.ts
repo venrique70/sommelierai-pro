@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 'use server';
 /**
@@ -36,7 +37,7 @@ const listCorporateRequestsFlow = ai.defineFlow(
       // 1. Verify the requesting user is an admin
       const adminUserDoc = await dbAdmin.collection('users').doc(adminUid).get();
       if (!adminUserDoc.exists || adminUserDoc.data()?.role !== 'admin') {
-        return { error: 'Acción no autorizada. Se requieren permisos de administrador.' };
+        return { error: 'AcciÃ³n no autorizada. Se requieren permisos de administrador.' };
       }
 
       // 2. Fetch all corporate requests
@@ -67,7 +68,7 @@ const listCorporateRequestsFlow = ai.defineFlow(
 
     } catch (e: any) {
       console.error('Error in listCorporateRequestsFlow:', e);
-      return { error: `Ocurrió un error inesperado en el servidor: ${e.message}` };
+      return { error: `OcurriÃ³ un error inesperado en el servidor: ${e.message}` };
     }
   }
 );

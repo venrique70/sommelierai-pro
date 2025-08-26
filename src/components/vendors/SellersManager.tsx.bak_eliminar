@@ -1,0 +1,233 @@
+﻿"use client";
+
+import * as React from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { RefreshCw, Plus, CheckCircle, XCircle } from "lucide-react";
+
+/* ========= Tipos ========= */
+type VendorStatus = "pending" | "approved" | "rejected" | "suspended";
+export type Vendor = { id: string; name: string; email: string; phone?: string; docId?: string; status: VendorStatus; createdAt: string; };
+export type VendorRequest = { id: string; name: string; email: string; phone?: string; docId?: string; status: "pending" | "approved" | "rejected"; createdAt: string; };
+
+type Props = { initialVendors?: Vendor[]; initialRequests?: VendorRequest[]; };
+
+function statusBadge(s: VendorStatus) {
+  const map: Record<VendorStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+    approved: { label: "Aprobado", variant: "default" },
+    pending:  { label: "Pendiente", variant: "outline" },
+    rejected: { label: "Rechazado", variant: "destructive" },
+    suspended:{ label: "Suspendido", variant: "secondary" },
+  };
+  return map[s];
+}
+
+export default function SellersManager({ initialVendors = [], initialRequests = [] }: Props) {
+  const router = useRouter();
+  const [tab, setTab] = useState<"list" | "requests">("list");
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [requests, setRequests] = useState<VendorRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState(""); const [status, setStatus] = useState<VendorStatus | "all">("all");
+  const [selected, setSelected] = useState<Vendor | null>(null);
+  const [newName, setNewName] = useState(""); const [newEmail, setNewEmail] = useState("");
+  const [newPhone, setNewPhone] = useState(""); const [newDoc, setNewDoc] = useState("");
+
+  useEffect(() => { setVendors(initialVendors); setRequests(initialRequests); setLoading(false); }, [initialVendors, initialRequests]);
+
+  const filtered = useMemo(() => {
+    let list = vendors.slice();
+    if (q.trim()) {
+      const t = q.trim().toLowerCase();
+      list = list.filter(v => v.name.toLowerCase().includes(t) || v.email.toLowerCase().includes(t) || (v.docId ?? "").toLowerCase().includes(t));
+    }
+    if (status !== "all") list = list.filter(v => v.status === status);
+    return list;
+  }, [vendors, q, status]);
+
+  function refreshAll() { router.refresh(); }
+
+  async function createVendorReal() {
+    if (!newName.trim() || !newEmail.trim()) return;
+    await fetch("/api/vendors/create", { method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ name:newName.trim(), email:newEmail.trim(), phone:newPhone.trim()||undefined, docId:newDoc.trim()||undefined, status:"approved" })
+    });
+    setNewName(""); setNewEmail(""); setNewPhone(""); setNewDoc(""); router.refresh();
+  }
+
+  async function changeStatus(v: Vendor, s: VendorStatus) {
+  await fetch("/api/vendors/status", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ vendorId: v.id, status: s }),
+  });
+  router.refresh();
+}
+
+  async function removeVendor(v: Vendor) {
+  if (!confirm(¿Eliminar definitivamente a \? Esta acción no se puede deshacer.)) return;
+  await fetch("/api/vendors/delete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ vendorId: v.id }),
+  });
+  router.refresh();
+}? Esta acción no se puede deshacer.`)) return;
+    await fetch("/api/vendors/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ vendorId: v.id }),
+    });
+    router.refresh();
+  },
+      body: JSON.stringify({ vendorId: v.id, status: s })
+    });
+    router.refresh();
+  }
+
+  async function approveRequest(r: VendorRequest) {
+    await fetch("/api/vendors/approve", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ requestId: r.id }) });
+    router.refresh();
+  }
+  async function rejectRequest(r: VendorRequest) {
+    await fetch("/api/vendors/reject", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ requestId: r.id, reason: "Rejected by admin" }) });
+    router.refresh();
+  }
+
+  return (
+    <Card className="border">
+      <CardHeader className="flex items-center justify-between gap-2 md:flex-row">
+        <div><CardTitle>Gestión de Vendedores</CardTitle><CardDescription>Administra vendedores aprobados y solicitudes de ingreso.</CardDescription></div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={refreshAll} disabled={loading}>{loading ? <>Cargando…</> : (<><RefreshCw className="mr-2 h-4 w-4" /> Refrescar</>)}</Button>
+          <Button variant={tab === "list" ? "default" : "outline"} onClick={()=>setTab("list")}>Lista</Button>
+          <Button variant={tab === "requests" ? "default" : "outline"} onClick={()=>setTab("requests")}>Solicitudes</Button>
+        </div>
+      </CardHeader>
+
+      <CardContent>
+        {tab === "list" && (
+          <div className="mb-4 grid gap-3 md:grid-cols-3">
+            <div className="md:col-span-2"><label className="block text-sm mb-1">Buscar</label>
+              <Input placeholder="Nombre, email, ID / Pasaporte…" value={q} onChange={(e)=>setQ(e.target.value)} /></div>
+            <div><label className="block text-sm mb-1">Estado</label>
+              <select className="w-full rounded border bg-transparent px-3 py-2 text-sm" value={status} onChange={(e)=>setStatus(e.target.value as VendorStatus | "all")}>
+                <option value="all">Todos</option><option value="approved">Aprobado</option><option value="pending">Pendiente</option><option value="rejected">Rechazado</option><option value="suspended">Suspendido</option>
+              </select></div>
+          </div>
+        )}
+
+        {tab === "list" && (
+          <div className="space-y-6">
+            <div className="overflow-x-auto rounded border">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40"><tr>
+                  <th className="px-3 py-2 text-left">Vendedor</th>
+                  <th className="px-3 py-2 text-left">Email</th>
+                  <th className="px-3 py-2 text-left">ID / Pasaporte</th>
+                  <th className="px-3 py-2 text-left">Estado</th>
+                  <th className="px-3 py-2 text-right">Acciones</th>
+                </tr></thead>
+                <tbody>
+                  {loading ? (<tr><td className="px-3 py-4" colSpan={5}>Cargando…</td></tr>) :
+                   filtered.length === 0 ? (<tr><td className="px-3 py-10 text-center opacity-70" colSpan={5}>Sin resultados.</td></tr>) :
+                   filtered.map(v => {
+                    const b = statusBadge(v.status);
+                    return (
+                      <tr key={v.id} className="hover:bg-muted/30">
+                        <td className="px-3 py-2"><button className="underline underline-offset-2" onClick={()=>setSelected(v)}>{v.name}</button></td>
+                        <td className="px-3 py-2">{v.email}</td>
+                        <td className="px-3 py-2">{v.docId ?? "—"}</td>
+                        <td className="px-3 py-2"><Badge variant={b.variant}>{b.label}</Badge></td>
+                        <td className="px-3 py-2 text-right">
+                          <div className="inline-flex gap-2">
+                            <Button size="sm" variant="outline" onClick={()=>changeStatus(v,"approved")}>Aprobar</Button>
+                            <Button size="sm" variant="secondary" onClick={()=>changeStatus(v,"suspended")}>Suspender</Button>
+                            <Button size="sm" variant="destructive" onClick={()=>changeStatus(v,"rejected")}>Rechazar</Button>
+                              <Button size="sm" variant="destructive" onClick={()=>removeVendor(v)}>Eliminar</Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );})}
+                </tbody>
+              </table>
+            </div>
+
+            {selected && (
+              <div className="rounded border p-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold">Detalle de vendedor</h3>
+                  <Button variant="ghost" onClick={()=>setSelected(null)}>Cerrar</Button>
+                </div>
+                <div className="mt-3 grid gap-2 text-sm">
+                  <div><span className="font-medium">Nombre:</span> {selected.name}</div>
+                  <div><span className="font-medium">Email:</span> {selected.email}</div>
+                  <div><span className="font-medium">ID / Pasaporte:</span> {selected.docId ?? "—"}</div>
+                  <div><span className="font-medium">Estado:</span> <Badge variant={statusBadge(selected.status).variant}>{selected.status}</Badge></div>
+                  <div><span className="font-medium">Creado:</span> {new Date(selected.createdAt).toLocaleString()}</div>
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <Button variant="outline" onClick={()=>changeStatus(selected,"approved")}><CheckCircle className="mr-2 h-4 w-4" />Aprobar</Button>
+                  <Button variant="secondary" onClick={()=>changeStatus(selected,"suspended")}>Suspender</Button>
+                  <Button variant="destructive" onClick={()=>changeStatus(selected,"rejected")}><XCircle className="mr-2 h-4 w-4" />Rechazar</Button>
+                </div>
+              </div>
+            )}
+
+            <div className="rounded border p-4">
+              <h3 className="font-semibold mb-2">Nuevo vendedor</h3>
+              <div className="grid gap-3 md:grid-cols-2">
+                <Input placeholder="Nombre *" value={newName} onChange={(e)=>setNewName(e.target.value)} />
+                <Input placeholder="Email *" type="email" value={newEmail} onChange={(e)=>setNewEmail(e.target.value)} />
+                <Input placeholder="Teléfono" value={newPhone} onChange={(e)=>setNewPhone(e.target.value)} />
+                <Input placeholder="ID / Pasaporte N° (opcional)" value={newDoc} onChange={(e)=>setNewDoc(e.target.value)} />
+              </div>
+              <div className="mt-3"><Button onClick={createVendorReal}><Plus className="mr-2 h-4 w-4" />Guardar</Button></div>
+            </div>
+          </div>
+        )}
+
+        {tab === "requests" && (
+          <div className="overflow-x-auto rounded border">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40"><tr>
+                <th className="px-3 py-2 text-left">Nombre</th>
+                <th className="px-3 py-2 text-left">Email</th>
+                <th className="px-3 py-2 text-left">ID / Pasaporte</th>
+                <th className="px-3 py-2 text-left">Estado</th>
+                <th className="px-3 py-2 text-right">Acciones</th>
+              </tr></thead>
+              <tbody>
+                {loading ? (<tr><td className="px-3 py-4" colSpan={5}>Cargando…</td></tr>) :
+                 requests.length === 0 ? (<tr><td className="px-3 py-10 text-center opacity-70" colSpan={5}>No hay solicitudes.</td></tr>) :
+                 requests.map(r => (
+                  <tr key={r.id} className="hover:bg-muted/30">
+                    <td className="px-3 py-2">{r.name}</td>
+                    <td className="px-3 py-2">{r.email}</td>
+                    <td className="px-3 py-2">{r.docId ?? "—"}</td>
+                    <td className="px-3 py-2"><Badge variant="outline">Pendiente</Badge></td>
+                    <td className="px-3 py-2 text-right">
+                      <div className="inline-flex gap-2">
+                        <Button size="sm" variant="outline" onClick={()=>approveRequest(r)}>Aprobar</Button>
+                        <Button size="sm" variant="destructive" onClick={()=>rejectRequest(r)}>Rechazar</Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+
+
+
