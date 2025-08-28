@@ -217,17 +217,44 @@ export const analyzeWineFlow = async (
   } else {
     const A = output.analysis;
 
-    // Fallbacks y límites para prompts de imagen
-    const visSrc = A.visualDescriptionEn || `Wine glass, ${trim(A.visual?.description, 240)}`;
-    const olfSrc = A.olfactoryAnalysisEn || `Abstract aromas, ${trim(A.olfactory?.description, 240)}`;
-    const gusSrc = A.gustatoryPhaseEn || `Abstract flavors, ${trim(A.gustatory?.description, 240)}`;
+   // Fallbacks y límites para prompts de imagen
+const visSrc = A.visualDescriptionEn || `wine glass, ${trim(A.visual?.description, 240)}`;
+const olfSrc = A.olfactoryAnalysisEn || `Abstract aromas, ${trim(A.olfactory?.description, 240)}`;
+const gusSrc = A.gustatoryPhaseEn || `Abstract flavors, ${trim(A.gustatory?.description, 240)}`;
 
-    const visEn = clampBytes(visSrc, 3000);
-    const olfEn = clampBytes(olfSrc, 3000);
-    const gusEn = clampBytes(gusSrc, 3000);
-    const glassType = clampBytes(A.suggestedGlassType, 200);
+const visEn = clampBytes(visSrc, 3000);
+const olfEn = clampBytes(olfSrc, 3000);
+const gusEn = clampBytes(gusSrc, 3000);
+const glassType = clampBytes(A.suggestedGlassType, 200);
 
-    const imagePromises = [
-      ai.generate({
-        model: imageGenerationModel,
-        prompt: `Hyper-realistic product photo of a wine glass. ${visEn}. Studio lightin
+// ------ bloque robusto y bien cerrado ------
+const imagePromises = [
+  ai.generate({
+    model: imageGenerationModel,
+    prompt: `Hyper-realistic product photo of a wine glass. ${visEn}. Studio lighting, white background.`,
+    config: imageGenerationConfig,
+  }),
+  // Descomenta si los necesitas (están bien cerrados):
+  // ai.generate({
+  //   model: imageGenerationModel,
+  //   prompt: `Abstract aromas. ${olfEn}. No text, no glass.`,
+  //   config: imageGenerationConfig,
+  // }),
+  // ai.generate({
+  //   model: imageGenerationModel,
+  //   prompt: `Abstract flavors. ${gusEn}. No text, no glass.`,
+  //   config: imageGenerationConfig,
+  // }),
+];
+
+const results = await Promise.allSettled(imagePromises);
+
+// Helper para obtener URL si fue fulfilled
+const getUrl = (r: PromiseSettledResult<any>) =>
+  r.status === "fulfilled" ? r.value?.media?.url : undefined;
+
+const glassUrl = getUrl(results[0]);
+// const aromaUrl = getUrl(results[1]);
+// const flavorUrl = getUrl(results[2]);
+
+// ------ fin del bloque ------
