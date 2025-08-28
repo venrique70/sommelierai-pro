@@ -1,0 +1,18 @@
+﻿export const runtime = "nodejs";
+
+import CorporateManager from "@/components/corporate/CorporateManager";
+import { getCorporateAccounts, listCorporateInvites } from "@/lib/actions/corporate";
+
+export const metadata = { title: "Corporativo | Admin" };
+
+export default async function Page() {
+  const [accounts, invites] = await Promise.all([
+    getCorporateAccounts(),
+    listCorporateInvites(),
+  ]);
+  return (
+    <main className="mx-auto max-w-6xl p-6">
+      <CorporateManager initialAccounts={accounts} initialInvites={invites} />
+    </main>
+  );
+}

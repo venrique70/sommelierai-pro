@@ -1,0 +1,86 @@
+﻿export const runtime = "nodejs";
+
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { adminDb } from "@/lib/firebase-admin";
+
+export const metadata = { title: "Afiliados | Admin" };
+
+export default async function Page() {
+  const db = adminDb();
+  let affiliates: any[] = [];
+
+  // 1) affiliates
+  try {
+    const snap = await db.collection("affiliates").limit(100).get();
+    if (!snap.empty) affiliates = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch {}
+
+  // 2) users.affiliate.active == true
+  if (affiliates.length === 0) {
+    try {
+      const snap = await db.collection("users")
+        .where("affiliate.active","==",true)
+        .limit(100).get();
+      if (!snap.empty) affiliates = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch {}
+  }
+
+  // 3) referrals fallback
+  if (affiliates.length === 0) {
+    try {
+      const snap = await db.collection("referrals").limit(100).get();
+      if (!snap.empty) affiliates = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch {}
+  }
+
+  return (
+    <main className="mx-auto max-w-6xl p-6">
+      {/* NAV ADMIN */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        <Link href="/admin/vendors"><Button variant="outline">Vendedores</Button></Link>
+        <Link href="/admin/corporate"><Button variant="outline">Corporativo</Button></Link>
+        <Link href="/admin/affiliates"><Button variant="default">Afiliados</Button></Link>
+      </div>
+
+      {affiliates.length === 0 ? (
+        <div className="rounded-md border p-4 text-sm text-muted-foreground">
+          No hay datos de afiliados detectados. Si tu programa usa otra colección
+          (p.ej. <code>commissions</code> o <code>partners</code>), lo adapto en 1 minuto.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="text-sm text-muted-foreground">
+            Afiliados encontrados: <span className="font-semibold">{affiliates.length}</span>
+          </div>
+          <div className="overflow-x-auto rounded-lg border">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left">
+                  <th className="p-3">Nombre / Email</th>
+                  <th className="p-3">Código / ID</th>
+                  <th className="p-3">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {affiliates.map((a:any) => {
+                  const name  = a.name ?? a.displayName ?? a.fullName ?? "—";
+                  const email = a.email ?? a.contactEmail ?? "—";
+                  const code  = a.code ?? a.refCode ?? a.id ?? "—";
+                  const active = (a.active ?? (a.affiliate && a.affiliate.active)) ?? (a.status === "active");
+                  return (
+                    <tr key={a.id} className="border-t">
+                      <td className="p-3">{name}{email !== "—" ? (" — " + email) : ""}</td>
+                      <td className="p-3">{code}</td>
+                      <td className="p-3">{active ? "Activo" : "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}

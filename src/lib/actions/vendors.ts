@@ -1,0 +1,63 @@
+﻿import { adminDb } from "@/lib/firebase-admin";
+export type VendorStatus = "pending" | "approved" | "rejected" | "suspended";
+
+export type Vendor = { id: string; name: string; email: string; phone?: string; docId?: string; status: VendorStatus; createdAt: string; updatedAt?: string; };
+export type VendorRequest = { id: string; name: string; email: string; phone?: string; docId?: string; status: "pending" | "approved" | "rejected"; createdAt: string; updatedAt?: string; };
+
+const COL = "vendors";
+const COL_REQ = "vendor_requests";
+
+export async function getVendors(): Promise<Vendor[]> {
+  const snap = await adminDb().collection(COL).orderBy("createdAt","desc").get();
+  return snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+}
+
+/** Listar solicitudes: sin índice compuesto: si hay status, no usamos orderBy y ordenamos en memoria */
+export async function listVendorRequests(params?: { status?: "pending" | "approved" | "rejected" }): Promise<VendorRequest[]> {
+  let q: FirebaseFirestore.Query = adminDb().collection(COL_REQ);
+  if (params?.status) {
+    q = q.where("status","==", params.status);
+    const snap = await q.get();
+    const rows = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as VendorRequest[];
+    rows.sort((a,b)=> String(b.createdAt ?? "").localeCompare(String(a.createdAt ?? "")));
+    return rows;
+  } else {
+    const snap = await q.orderBy("createdAt","desc").get();
+    return snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as VendorRequest[];
+  }
+}
+
+export async function createVendor(data: Partial<Vendor>): Promise<Vendor> {
+  const payload = {
+    name: data.name!, email: data.email!, phone: data.phone ?? null, docId: data.docId ?? null,
+    status: (data.status ?? "approved") as VendorStatus,
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+  };
+  const ref = await adminDb().collection(COL).add(payload);
+  return { id: ref.id, ...(payload as any) };
+}
+
+export async function updateVendorStatus(arg: { vendorId: string; status: VendorStatus }) {
+  await adminDb().collection(COL).doc(arg.vendorId).update({ status: arg.status, updatedAt: new Date().toISOString() });
+}
+
+export async function deleteVendor(arg: { vendorId: string }) {
+  await adminDb().collection(COL).doc(arg.vendorId).delete();
+}
+
+export async function approveVendorRequest(arg: { requestId: string }) {
+  const reqRef = adminDb().collection(COL_REQ).doc(arg.requestId);
+  const reqDoc = await reqRef.get();
+  if (!reqDoc.exists) return;
+  const r = reqDoc.data() as VendorRequest;
+  await adminDb().collection(COL).add({
+    name: r.name, email: r.email, phone: r.phone ?? null, docId: r.docId ?? null,
+    status: "approved", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+  });
+  await reqRef.update({ status: "approved", updatedAt: new Date().toISOString() });
+}
+
+export async function rejectVendorRequest(arg: { requestId: string; reason?: string }) {
+  const reqRef = adminDb().collection(COL_REQ).doc(arg.requestId);
+  await reqRef.update({ status: "rejected", reason: arg.reason ?? null, updatedAt: new Date().toISOString() });
+}
