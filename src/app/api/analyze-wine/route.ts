@@ -9,7 +9,7 @@ import { WineAnalysisClientSchema } from "@/lib/schemas";
 import { adminDb, FieldValue } from "@/lib/firebase-admin";
 import { analyzeWineFlow } from "@/ai/flows/analyze-wine";
 
-// Helper para respuesta JSON estándar
+// Helper para respuesta JSON
 function j(res: any, status = 200) {
   return NextResponse.json(res, { status });
 }
@@ -20,7 +20,7 @@ async function saveHistory(uid: string, out: any) {
 
     const docToSave = {
       uid,
-      userId: uid,
+      userId: uid, // compat
       wineName: out?.wineName ?? "Desconocido",
       year: out?.year ?? null,
       imageUrl: out?.imageUrl ?? null,
@@ -40,13 +40,11 @@ async function saveHistory(uid: string, out: any) {
     });
 
     const ref = await db.collection("history").add(docToSave);
-
     console.log("[saveHistory] Documento creado con ID:", ref.id);
     return ref.id;
   } catch (err) {
     console.error("[saveHistory] ERROR guardando historial:", err);
-    // No lanzamos error para no bloquear la respuesta al cliente
-    return null;
+    return null; // no bloquear la respuesta
   }
 }
 
@@ -77,14 +75,14 @@ export async function POST(req: Request) {
       return j({ ok: false, error: "Debes iniciar sesión para analizar un producto" }, 401);
     }
 
-    // 2) Guardas de configuración (acepta GEMINI_API_KEY o GOOGLE_API_KEY)
+    // 2) Chequeo de clave IA
     const aiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     if (!aiKey) {
       console.error("[analyze-wine] Missing GEMINI_API_KEY/GOOGLE_API_KEY");
       return j({ ok: false, error: "Falta configuración del modelo de IA" }, 500);
     }
 
-    // 3) Llamado al flujo de IA con try/catch propio
+    // 3) Ejecutar flujo IA
     let aiRes: any;
     try {
       aiRes = await analyzeWineFlow(input);
@@ -93,7 +91,7 @@ export async function POST(req: Request) {
       return j({ ok: false, error: "No se pudo completar el análisis con IA" }, 500);
     }
 
-    // 4) Normalización de salida (defensive)
+    // 4) Normalizar salida
     const out = {
       ok: true,
       id: aiRes?.id ?? undefined,
@@ -113,23 +111,20 @@ export async function POST(req: Request) {
       imageUrl: aiRes?.analysis?.visual?.imageUrl ?? aiRes?.imageUrl ?? null,
     };
 
-    // 5) Efectos secundarios no bloqueantes (con logs)
-    await Promise.allSettled([
-      (async () => {
-        const savedId = await saveHistory(input.uid, out);
-        if (!savedId) console.warn("[saveHistory] no devolvió ID (revisar logs previos)");
-      })(),
-      bumpUsageIfNotAdmin(input.uid),
-    ]);
+    // 5) Guardar y devolver savedId
+    const savedId = await saveHistory(input.uid, out);
 
-    return j(out, 200);
+    // 6) Contador en background
+    void bumpUsageIfNotAdmin(input.uid);
+
+    // 7) Responder
+    return j({ ...out, savedId }, 200);
   } catch (e: any) {
     if (e instanceof z.ZodError) {
       console.error("[analyze-wine] ZodError:", e.issues);
       return j({ ok: false, error: "Entrada inválida", issues: e.issues }, 400);
     }
     console.error("[analyze-wine] Uncaught:", e?.stack || e?.message || e);
-    // Mensaje neutro para no filtrar detalles en prod
     return j({ ok: false, error: "Error inesperado en el servidor" }, 500);
   }
 }

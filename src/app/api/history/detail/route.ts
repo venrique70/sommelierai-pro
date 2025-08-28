@@ -4,14 +4,15 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 
-function toISO(ts:any){
+function toISO(ts: any) {
   // @ts-ignore
   if (ts?.toDate) return ts.toDate().toISOString();
   if (ts instanceof Date) return ts.toISOString();
   if (typeof ts === "string") return ts;
   return new Date().toISOString();
 }
-function normalize(x:any){
+
+function normalize(x: any) {
   const a = x?.analysis ?? {};
   return {
     wineName: x?.wineName ?? "Análisis",
@@ -51,23 +52,29 @@ export async function POST(req: Request) {
     if (!uid || !id) return NextResponse.json({ error: "uid e id requeridos" }, { status: 400 });
 
     const db = adminDb();
-    // busca primero en /history
-    let doc = await db.collection("history").doc(id).get();
+    // Busca primero en /users/{uid}/history (nueva subcolección)
+    let doc = await db.collection("users").doc(uid).collection("history").doc(id).get();
     if (doc.exists) {
-      const x:any = doc.data();
+      const x: any = doc.data();
+      return NextResponse.json({ item: { id, ...normalize(x) } });
+    }
+    // Luego en /history (compatibilidad)
+    doc = await db.collection("history").doc(id).get();
+    if (doc.exists) {
+      const x: any = doc.data();
       if (x?.userId && x.userId !== uid && x?.uid !== uid) return NextResponse.json({ error: "forbidden" }, { status: 403 });
       return NextResponse.json({ item: { id, ...normalize(x) } });
     }
-    // luego en /wineAnalyses (compat)
+    // Luego en /wineAnalyses (compat)
     doc = await db.collection("wineAnalyses").doc(id).get();
     if (doc.exists) {
-      const x:any = doc.data();
+      const x: any = doc.data();
       if (x?.userId && x.userId !== uid && x?.uid !== uid) return NextResponse.json({ error: "forbidden" }, { status: 403 });
       return NextResponse.json({ item: { id, ...normalize(x) } });
     }
 
     return NextResponse.json({ error: "not_found" }, { status: 404 });
-  } catch (e:any) {
+  } catch (e: any) {
     return NextResponse.json({ error: String(e?.message || e) }, { status: 500 });
   }
 }

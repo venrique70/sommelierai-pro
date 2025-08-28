@@ -1,12 +1,12 @@
-
 'use server';
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { WineAnalysisClientSchema } from '@/lib/schemas';
 import type { WineAnalysis } from '@/types';
-import { getFirebaseAdminApp } from '@/lib/firebase-admin';
-import * as admin from 'firebase-admin';
+
+// ✅ usa tu wrapper coherente con el resto del proyecto
+import { adminDb, FieldValue } from '@/lib/firebase-admin';
 
 // This file contains the internal logic for the wine analysis.
 // It is NOT directly called by the client. It is called by the Server Action in actions.ts.
@@ -35,7 +35,7 @@ const AiResponseSchema = z.object({
       description: z.string().describe("A complex olfactory analysis. Differentiate clearly between primary (fruit, floral), secondary (from fermentation/aging, e.g., vanilla, toast, butter), and tertiary (from evolution, e.g., leather, tobacco) aromas. Comment on the aromatic intensity and complexity."),
     }).describe("Olfactory analysis of the wine."),
     gustatory: z.object({
-      description: z.string().describe("A thorough gustatory description. Describe the attack (initial impression), the evolution on the palate, and the finish. Detail the acidity, alcohol, body, and tannin structure. Explain how these elements are balanced and what the texture feels like (e.g., silky, astringent)."),
+      description: z.string().describe("A thorough gustatory description. Describe the attack (initial impression), the evolution on the residents, and the finish. Detail the acidity, alcohol, body, and tannin structure. Explain how these elements are balanced and what the texture feels like (e.g., silky, astringent)."),
     }).describe("Gustatory analysis of the wine."),
     body: z.string().describe("Description of the wine's body."),
     finalSensations: z.string().describe("Description of the final sensations of the wine."),
@@ -60,7 +60,6 @@ const AiResponseSchema = z.object({
     gustatoryPhaseEn: z.string().describe("Gustatory description in English for image generation."),
   }).optional().describe("The detailed sensory analysis."),
 });
-
 
 export const analyzeWinePrompt = ai.definePrompt({
   name: 'analyzeWinePrompt',
@@ -97,28 +96,71 @@ export const analyzeWinePrompt = ai.definePrompt({
 {{#if foodToPair}}- Dish to pair: {{{foodToPair}}}{{/if}}`,
 });
 
+/** Guarda en `wineAnalyses` SIN IMÁGENES (historial liviano y robusto) */
 export async function saveAnalysisToHistory(uid: string, analysis: WineAnalysis): Promise<void> {
-    if (!uid) {
-        console.error("No UID provided, cannot save analysis to history.");
-        return;
-    }
-    const adminApp = getFirebaseAdminApp();
-    if (!adminApp) {
-        console.error("Firebase Admin not initialized, cannot save analysis.");
-        return;
-    }
-    try {
-        const db = admin.firestore(adminApp);
-        const analysisRecord = {
-            ...analysis,
-            userId: uid,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        };
-        await db.collection('wineAnalyses').add(analysisRecord);
-        console.log(`Analysis for user ${uid} saved successfully.`);
-    } catch (error) {
-        console.error(`Error saving analysis to history for user ${uid}:`, error);
-    }
+  if (!uid) {
+    console.error("[FLOW] No UID provided, cannot save analysis.");
+    return;
+  }
+
+  try {
+    const db = adminDb();
+    db.settings?.({ ignoreUndefinedProperties: true });
+
+    // --- Limpieza profunda: sin undefined/funciones/promesas y sin imágenes ---
+    const STRIP_KEYS = /^(imageUrl|image_urls|suggestedGlassTypeImageUrl)$/i;
+
+    const scrub = (v: any): any => {
+      if (v === undefined || typeof v === "function" || v instanceof Promise) return null;
+      if (v === null) return null;
+      if (typeof v === "string") {
+        // Si viniera un data URI/base64 gigante, no lo guardamos
+        if (v.startsWith("data:")) return null;
+        return v;
+      }
+      if (Array.isArray(v)) return v.map(scrub);
+      if (v && typeof v === "object") {
+        const out: any = {};
+        for (const k of Object.keys(v)) {
+          if (STRIP_KEYS.test(k)) continue; // 👈 elimina cualquier *imageUrl*
+          const sv = scrub(v[k]);
+          if (sv !== undefined) out[k] = sv;
+        }
+        return out;
+      }
+      return v; // number | boolean | Date
+    };
+
+    // Eliminamos imágenes profundas del bloque analysis
+    const safeAnalysis = scrub((analysis as any)?.analysis);
+
+    // Documento minimal y consistente para el historial
+    const docToSave: any = {
+      uid,                 // Mi Historial filtra por este campo
+      userId: uid,         // compat reglas antiguas
+      wineName: analysis?.wineName ?? null,
+      year: analysis?.year ?? null,
+      imageUrl: null,      // 👈 nunca guardamos imagen en historial
+      analysis: safeAnalysis ?? null,
+      notes: (analysis as any)?.notes ?? "",
+      pairingRating: (analysis as any)?.pairingRating ?? null,
+      pairingNotes: (analysis as any)?.pairingNotes ?? null,
+      country: (analysis as any)?.country ?? null,
+      wineryName: (analysis as any)?.wineryName ?? null,
+      createdAt: FieldValue.serverTimestamp(),
+    };
+
+    console.log("[FLOW] Writing to 'wineAnalyses' (no images):", {
+      uid,
+      wineName: docToSave.wineName,
+      year: docToSave.year,
+    });
+
+    await db.collection("wineAnalyses").add(docToSave);
+    console.log(`[FLOW] ✅ Wrote doc in 'wineAnalyses' OK for uid=${uid}`);
+  } catch (err) {
+    console.error(`[FLOW] ❌ Write failed for uid=${uid}:`, err);
+  }
 }
 
 export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClientSchema>): Promise<WineAnalysis> => {
@@ -197,9 +239,16 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
       };
     }
 
-    if(userInput.uid) {
+    console.log(
+      "[FLOW] Saving analysis to wineAnalyses for user:",
+      userInput.uid,
+      "wine:",
+      (result as any)?.wineName,
+      "year:",
+      (result as any)?.year
+    );
+    if (userInput.uid) {
       await saveAnalysisToHistory(userInput.uid, result);
     }
-
     return result;
 }
