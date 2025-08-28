@@ -227,7 +227,18 @@ export const analyzeWineFlow = async (
     const gusEn = clampBytes(gusSrc, 3000);
     const glassType = clampBytes(A.suggestedGlassType, 200);
 
-    const imagePromises = [
-      ai.generate({
-        model: imageGenerationModel,
-        prompt: `Hyper-realistic product photo of a wine glass. ${visEn}. Studio lightin
+   const imagePromises = [
+  ai.generate({
+    model: imageGenerationModel,
+    prompt: `Hyper-realistic product photo of a wine glass. ${visEn}. Studio lighting, white background.`,
+    config: imageGenerationConfig,
+  }),
+  // puedes añadir más elementos si los necesitas:
+  // ai.generate({ model: imageGenerationModel, prompt: `Abstract aromas. ${olfEn}.`, config: imageGenerationConfig }),
+  // ai.generate({ model: imageGenerationModel, prompt: `Abstract flavors. ${gusEn}.`, config: imageGenerationConfig }),
+]; // 👈 cerramos el array con corchete
+
+// Ejemplo de uso (si abajo haces Promise.allSettled):
+const results = await Promise.allSettled(imagePromises);
+// const getUrl = (r: PromiseSettledResult<any>) => r.status === 'fulfilled' ? r.value?.media?.url : undefined;
+// const glassUrl = getUrl(results[0]);
