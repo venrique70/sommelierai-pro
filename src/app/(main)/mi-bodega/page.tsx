@@ -1,353 +1,380 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
-import { Archive, PlusCircle, MoreHorizontal, Wine, Loader2, Info, Edit, Trash2 } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import {
+  collection, query, getDocs, where, setDoc, doc,
+  serverTimestamp, FirestoreError, deleteDoc
+} from "firebase/firestore";
+import { useRouter } from "next/navigation";
+import { auth, db } from "@/lib/firebase";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  WineInCellarClientSchema,
-  type WineInCellar,
-  type WineInCellarFormValues,
-} from "@/lib/schemas";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useRouter } from "next/navigation";
-import { addWineAction, updateWineAction, deleteWineAction, listWinesAction } from './actions';
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Loader2, Upload, PlusCircle, ChevronRight, Trash2 } from "lucide-react";
 
-const LoadingSkeleton = () => (
-  <div className="space-y-8">
-    <div className="flex justify-between items-start">
-      <div>
-        <Skeleton className="h-10 w-80" />
-        <Skeleton className="h-5 w-96 mt-2" />
-      </div>
-      <Skeleton className="h-12 w-32" />
-    </div>
-    <Card>
-      <CardHeader>
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-5 w-64 mt-2" />
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
-        </div>
-      </CardContent>
-    </Card>
-  </div>
-);
+/* ───────── Estado automático (heurística inicial; luego la IA lo refina) ───────── */
+function inferEstado(
+  name?: string, variety?: string, year?: number
+): "Listo para Beber" | "En su punto" | "Necesita Guarda" {
+  const n = (name ?? "").toLowerCase();
+  const v = (variety ?? "").toLowerCase();
+  if (/\b(whisk|ron|gin|tequil|vodka|pisco|mezcal|bourbon|scotch|rum)\b/.test(n + " " + v)) return "Listo para Beber";
+  const Y = new Date().getFullYear();
+  if (!year || year < 1900 || year > Y + 1) return "Listo para Beber";
+  const age = Y - year;
 
-const AddWineDialog = ({ open, onOpenChange, onWineAdded }: { open: boolean, onOpenChange: (open: boolean) => void, onWineAdded: () => void }) => {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const [isPending, startTransition] = useTransition();
+  const heavies = /\b(cabernet|malbec|nebbiolo|barolo|syrah|shiraz|tempranillo|bordeaux|tannat|sagrantino|mourv|petit verdot)\b/;
+  const mediums = /\b(pinot noir|merlot|sangiovese|chianti|grenache|garnacha|carmenere|monastrell)\b/;
+  const whites  = /\b(sauvignon|chardonnay|riesling|albari|verdejo|viognier|chenin|godello|pinot gris|pinot grigio)\b/;
+  const roseSpk = /\b(ros[ée]|rosado|sparkling|champagne|cava|prosecco|espumante)\b/;
 
-  const form = useForm<WineInCellarFormValues>({
-    resolver: zodResolver(WineInCellarClientSchema),
-    defaultValues: { name: "", variety: "", year: new Date().getFullYear(), quantity: 1, status: "Listo para Beber" }
-  });
+  let start = 1, end = 3;
+  if (roseSpk.test(n + " " + v)) { start = 0; end = 2; }
+  else if (whites.test(n + " " + v)) { start = 1; end = 3; }
+  else if (mediums.test(n + " " + v)) { start = 2; end = 6; }
+  else if (heavies.test(n + " " + v)) { start = 4; end = 12; }
+  else { start = 1; end = 5; }
 
-  const onSubmit = (data: WineInCellarFormValues) => {
-    if (!user) {
-      toast({ title: "Error de autenticación", description: "Debes iniciar sesión para añadir un vino.", variant: "destructive" });
-      return;
-    }
-    startTransition(async () => {
-      try {
-        const result = await addWineAction({ uid: user.uid, ...data });
-        if (result.success) {
-          onWineAdded();
-          toast({ title: "¡Vino Añadido!", description: `${data.name} ha sido guardado en tu bodega.` });
-          onOpenChange(false);
-          form.reset();
-        } else {
-          throw new Error(result.error || "No se pudo añadir el vino.");
-        }
-      } catch (e: any) {
-        toast({ title: "Error", description: e.message, variant: "destructive" });
-      }
-    });
-  };
-  
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Añadir un Nuevo Vino</DialogTitle><DialogDescription>Completa los detalles del vino que quieres catalogar.</DialogDescription></DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-            <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nombre del Vino</FormLabel><FormControl><Input placeholder="ej. Catena Zapata Malbec" {...field} /></FormControl><FormMessage /></FormItem>)} />
-            <FormField control={form.control} name="variety" render={({ field }) => (<FormItem><FormLabel>Cepa / Variedad</FormLabel><FormControl><Input placeholder="ej. Malbec" {...field} /></FormControl><FormMessage /></FormItem>)} />
-            <div className="grid grid-cols-2 gap-4">
-              <FormField control={form.control} name="year" render={({ field }) => (<FormItem><FormLabel>Año</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <FormField control={form.control} name="quantity" render={({ field }) => (<FormItem><FormLabel>Cantidad</FormLabel><FormControl><Input type="number" min="1" {...field} /></FormControl><FormMessage /></FormItem>)} />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
-              <Button type="submit" disabled={isPending}>{isPending ? <Loader2 className="animate-spin" /> : 'Guardar Vino'}</Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
-  );
+  if (age < start) return "Necesita Guarda";
+  if (age <= end) return "En su punto";
+  return "Listo para Beber";
+}
+
+/* ───────── Hook inline (sin imports externos) ───────── */
+type CellarItem = {
+  id: string;
+  name: string;
+  variety?: string;
+  year?: number;
+  quantity?: number;
+  status?: string;
 };
 
-const EditWineDialog = ({ wine, open, onOpenChange, onWineUpdated }: { wine: WineInCellar | null, open: boolean, onOpenChange: (open: boolean) => void, onWineUpdated: () => void }) => {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const [isPending, startTransition] = useTransition();
-
-  const form = useForm<WineInCellarFormValues>({ resolver: zodResolver(WineInCellarClientSchema) });
-
-  useEffect(() => {
-    if (wine) {
-      form.reset(wine);
-    }
-  }, [wine, form]);
-
-  const onSubmit = (data: WineInCellarFormValues) => {
-    if (!user || !wine) {
-      toast({ title: "Error de autenticación", description: "Debes iniciar sesión para actualizar un vino.", variant: "destructive" });
-      return;
-    }
-    
-    startTransition(async () => {
-      try {
-        const result = await updateWineAction({ uid: user.uid, wineId: wine.id, ...data });
-        if (result.success) {
-          onWineUpdated();
-          toast({ title: "¡Vino Actualizado!", description: `${data.name} ha sido actualizado.` });
-          onOpenChange(false);
-        } else {
-          throw new Error(result.error || "No se pudo actualizar el vino.");
-        }
-      } catch (e: any) {
-        toast({ title: "Error", description: e.message, variant: "destructive" });
-      }
-    });
-  };
-  
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Editar Vino</DialogTitle><DialogDescription>Actualiza los detalles de este vino en tu bodega.</DialogDescription></DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-            <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nombre del Vino</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-            <FormField control={form.control} name="variety" render={({ field }) => (<FormItem><FormLabel>Cepa / Variedad</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-            <div className="grid grid-cols-2 gap-4">
-              <FormField control={form.control} name="year" render={({ field }) => (<FormItem><FormLabel>Año</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <FormField control={form.control} name="quantity" render={({ field }) => (<FormItem><FormLabel>Cantidad</FormLabel><FormControl><Input type="number" min="0" {...field} /></FormControl><FormMessage /></FormItem>)} />
-            </div>
-            <FormField control={form.control} name="status" render={({ field }) => (<FormItem><FormLabel>Estado</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Listo para Beber">Listo para Beber</SelectItem><SelectItem value="Necesita Guarda">Necesita Guarda</SelectItem><SelectItem value="En su punto">En su punto</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
-            <DialogFooter>
-              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
-              <Button type="submit" disabled={isPending}>{isPending ? <Loader2 className="animate-spin" /> : 'Guardar Cambios'}</Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default function MiBodegaPage() {
-  const [wines, setWines] = useState<WineInCellar[]>([]);
-  const [isAddFormOpen, setIsAddFormOpen] = useState(false);
-  const [isEditFormOpen, setIsEditFormOpen] = useState(false);
-  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
-  const [selectedWine, setSelectedWine] = useState<WineInCellar | null>(null);
+function useCellarInline() {
+  const [uid, setUid] = useState<string | null>(null);
+  const [items, setItems] = useState<CellarItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { toast } = useToast();
-  const { user, profile, loading: authLoading } = useAuth();
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-
-  const fetchWines = async () => {
-    if (!user) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await listWinesAction({ uid: user.uid });
-      if (result.error) {
-        setError(result.error);
-      } else {
-        // Convierte el resultado completo a un objeto plano para eliminar prototipos no serializables
-        const plainResult = JSON.parse(JSON.stringify(result));
-        // Mapea los datos devueltos para que coincidan con WineInCellar
-        const mappedWines: WineInCellar[] = (plainResult.wines || []).map((wine: any) => ({
-          id: wine.id || "",
-          name: wine.name || "",
-          variety: wine.variety || "",
-          year: wine.year || new Date().getFullYear(),
-          quantity: wine.quantity || 0,
-          status: wine.status || "Listo para Beber",
-          dateAdded: wine.dateAdded || wine.addedAt || new Date().toISOString(),
-        }));
-        setWines(mappedWines);
-      }
-    } catch (e: any) {
-      setError(e.message || "Error al cargar los vinos.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-    fetchWines();
-  }, [user, authLoading, router]);
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      setUid(u?.uid ?? null);
+      setLoading(true);
+      setError(null);
+      setItems([]);
 
-  const handleDeleteWine = async () => {
-    if (!user || !selectedWine) return;
-    startTransition(async () => {
+      if (!u?.uid) { setLoading(false); return; }
+
+      async function read(path: string) {
+        const snap = await getDocs(query(collection(db, path)));
+        return snap.docs.map(d => {
+          const x: any = d.data();
+          return {
+            id: d.id,
+            name: x.name ?? x.wineName ?? "Producto",
+            variety: x.variety ?? x.grapeVariety ?? "",
+            year: typeof x.year === "number" ? x.year : (x.year ? Number(x.year) : undefined),
+            quantity: typeof x.quantity === "number" ? x.quantity : (x.quantity ? Number(x.quantity) : 1),
+            status: x.status ?? inferEstado(x.name ?? x.wineName, x.variety ?? x.grapeVariety, (typeof x.year === "number" ? x.year : Number(x.year))),
+          } as CellarItem;
+        });
+      }
+
       try {
-        const result = await deleteWineAction({ uid: user.uid, wineId: selectedWine.id });
-        if (result.success) {
-          toast({ title: "Vino Eliminado", description: `${selectedWine.name} fue eliminado de tu bodega.` });
-          fetchWines(); // Re-fetch wines after deletion
-        } else {
-          throw new Error(result.error || "No se pudo eliminar el vino.");
-        }
+        let rows = await read(`cellars/${u.uid}/wines`);
+        if (!rows.length) rows = await read(`users/${u.uid}/cellar`);
+        setItems(rows);
       } catch (e: any) {
-        toast({ title: "Error", description: e.message, variant: "destructive" });
+        setError(e?.message || String(e));
       } finally {
-        setSelectedWine(null);
+        setLoading(false);
       }
     });
+    return () => unsub();
+  }, []);
+
+  return { uid, items, loading, error };
+}
+
+/* ───────── Página ───────── */
+export default function MiBodegaPage() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const router = useRouter();
+  const { uid, items, loading, error } = useCellarInline();
+  const [isPending, startTransition] = useTransition();
+
+  // sólo una vez
+  const autoSyncedRef = useRef(false);
+
+  // diagnóstico del import
+  const [importStats, setImportStats] = useState<string | null>(null);
+
+  /* Añadir (genérico) */
+  const [name, setName] = useState("");
+  const [variety, setVariety] = useState("");
+  const [year, setYear] = useState<number | "">("");
+  const [quantity, setQuantity] = useState<number | "">("");
+
+  function slugify(s: any) {
+    return String(s ?? "")
+      .toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/gi, "_")
+      .replace(/^_+|_+$/g, "");
+  }
+
+  async function writeCellarDoc(uid: string, key: string, data: any) {
+    try {
+      await setDoc(doc(db, `cellars/${uid}/wines/${key}`), data, { merge: true });
+    } catch (e) {
+      const err = e as FirestoreError;
+      if (err.code === "permission-denied") {
+        await setDoc(doc(db, `users/${uid}/cellar/${key}`), data, { merge: true });
+      } else {
+        throw e;
+      }
+    }
+  }
+
+  const addItem = async () => {
+    if (!user?.uid) { toast({ title: "Debes iniciar sesión", variant: "destructive" }); return; }
+    if (!name.trim()) { toast({ title: "Ingresa el nombre del producto", variant: "destructive" }); return; }
+
+    startTransition(() => { (async () => {
+      try {
+        const estado = inferEstado(name, variety, year === "" ? undefined : Number(year));
+        const key = `${slugify(name)}__${year === "" ? "" : Number(year)}`;
+        await writeCellarDoc(user.uid, key, {
+          name: name.trim(),
+          variety: variety.trim(),
+          year: year === "" ? null : Number(year),
+          quantity: quantity === "" ? 1 : Number(quantity),
+          status: estado,
+          createdAt: serverTimestamp(),
+        });
+        setName(""); setVariety(""); setYear(""); setQuantity("");
+        toast({ title: "Añadido", description: "Producto agregado a tu bodega." });
+        router.refresh();
+      } catch (e: any) {
+        toast({ title: "No se pudo añadir", description: e?.message || String(e), variant: "destructive" });
+      }
+    })(); });
   };
 
-  const openEditDialog = (wine: WineInCellar) => {
-    setSelectedWine(wine);
-    setIsEditFormOpen(true);
-  };
-  
-  const openDeleteDialog = (wine: WineInCellar) => {
-    setSelectedWine(wine);
-    setIsDeleteAlertOpen(true);
-  };
-    
-  if (authLoading || loading) return <LoadingSkeleton />;
-  if (!user) { router.push('/login'); return <LoadingSkeleton />; }
+  /* Importar desde Historial — SOLO CLIENTE (sin Admin) */
+  const runImportFromHistory = async () => {
+    if (!user?.uid) { toast({ title: "Debes iniciar sesión", variant: "destructive" }); return; }
 
+    startTransition(() => { (async () => {
+      try {
+        let upserts = 0;
+        const seen = new Set<string>();
+        const sources = { wa: 0, uhis: 0, his_uid: 0, his_userId: 0 };
+
+        // normalizador de esquemas
+        const extract = (h: any) => {
+          const name = (h?.wineName ??
+                        h?.analysis?.wineName ??
+                        h?.analysis?.wine?.name ??
+                        "").toString().trim();
+          let year: any = h?.year ?? h?.vintage ?? null;
+          if (typeof year === "string") {
+            const m = year.match(/\d{4}/); year = m ? Number(m[0]) : null;
+          }
+          if (typeof year !== "number") year = null;
+          const variety = h?.grapeVariety ?? h?.analysis?.grapeVariety ?? "";
+          return { name, year, variety };
+        };
+
+        const process = async (h: any) => {
+          const { name, year, variety } = extract(h);
+          if (!name) return;
+          const key = `${slugify(name)}__${year ?? ""}`;
+          if (seen.has(key)) return;
+          seen.add(key);
+
+          await writeCellarDoc(user.uid, key, {
+            name, variety, year,
+            quantity: 1,
+            status: inferEstado(name, variety, year ?? undefined),
+            createdAt: serverTimestamp(),
+          });
+          upserts++;
+        };
+
+        // 1) wineAnalyses por uid (lo que muestra Mi Historial)
+        const wa = await getDocs(query(collection(db, "wineAnalyses"), where("uid", "==", user.uid)));
+        sources.wa = wa.size;
+        for (const d of wa.docs) await process(d.data());
+
+        // 2) users/{uid}/history
+        const uhis = await getDocs(collection(db, `users/${user.uid}/history`));
+        sources.uhis = uhis.size;
+        for (const d of uhis.docs) await process(d.data());
+
+        // 3) /history por uid y por userId (compat)
+        const his1 = await getDocs(query(collection(db, "history"), where("uid", "==", user.uid)));
+        sources.his_uid = his1.size;
+        for (const d of his1.docs) await process(d.data());
+
+        const his2 = await getDocs(query(collection(db, "history"), where("userId", "==", user.uid)));
+        sources.his_userId = his2.size;
+        for (const d of his2.docs) await process(d.data());
+
+        setImportStats(`WA:${sources.wa} · uHist:${sources.uhis} · hist(uid):${sources.his_uid} · hist(userId):${sources.his_userId} · Importados:${upserts}`);
+
+        if (upserts === 0) {
+          toast({
+            title: "No se encontraron análisis",
+            description: "No hay documentos visibles en wineAnalyses / users/{uid}/history / history para tu usuario.",
+            variant: "destructive",
+          });
+        } else {
+          toast({ title: "Importación completada", description: `Se sincronizaron ${upserts} elemento(s).` });
+          router.refresh();
+        }
+      } catch (e:any) {
+        toast({ title: "Error importando", description: e?.message || String(e), variant: "destructive" });
+      }
+    })(); });
+  };
+
+  // Autoimport una sola vez si está vacía
+  useEffect(() => {
+    if (!autoSyncedRef.current && user?.uid && !loading && items.length === 0) {
+      autoSyncedRef.current = true;
+      runImportFromHistory().catch(() => {});
+    }
+  }, [user?.uid, loading, items.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* Eliminar */
+  const deleteItem = async (id: string) => {
+    if (!user?.uid) { toast({ title: "Debes iniciar sesión", variant: "destructive" }); return; }
+    if (!confirm("¿Eliminar este producto de tu bodega?")) return;
+
+    startTransition(() => { (async () => {
+      try {
+        await deleteDoc(doc(db, `cellars/${user.uid}/wines/${id}`)).catch(() => {});
+        await deleteDoc(doc(db, `users/${user.uid}/cellar/${id}`)).catch(() => {});
+        toast({ title: "Eliminado", description: "Se quitó de tu bodega." });
+        router.refresh();
+      } catch (e:any) {
+        toast({ title: "No se pudo eliminar", description: e?.message || String(e), variant: "destructive" });
+      }
+    })(); });
+  };
+
+  /* UI */
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-start">
+    <div className="max-w-6xl mx-auto p-6 space-y-6">
+      <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight text-primary flex items-center gap-3"><Archive /> Mi Bodega Personal</h1>
-          <p className="text-muted-foreground mt-2 max-w-2xl">Aquí puedes gestionar tu colección de vinos. Añade botellas, lleva un registro y pronto recibirás recomendaciones personalizadas.</p>
+          <h1 className="text-3xl font-extrabold">Mi Bodega Personal</h1>
+          <p className="text-sm text-muted-foreground mt-2 max-w-3xl">
+            Inventario digital de tu cava. Añade productos (vino, whisky u otros) con <b>Producto</b>, <b>Cepa/Característica</b>, <b>Año</b> y <b>Cantidad</b>.
+            El <b>Estado</b> lo determina automáticamente la app (SommelierPro AI). Tú no lo eliges.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2 text-xs">
+            <Badge variant="outline">uid: {uid ?? "–"}</Badge>
+            <Badge variant="outline">items: {items.length}</Badge>
+            {importStats ? <Badge variant="outline">{importStats}</Badge> : null}
+            {loading ? <Badge variant="outline">cargando…</Badge> : null}
+            {error ? <Badge variant="destructive">error</Badge> : null}
+          </div>
         </div>
-        <Button size="lg" onClick={() => setIsAddFormOpen(true)}><PlusCircle className="mr-2" />Añadir Vino</Button>
+        <div className="flex gap-2">
+          <Button onClick={runImportFromHistory} disabled={isPending || !user}>
+            <Upload className="mr-2 h-4 w-4" /> Importar del Historial
+          </Button>
+          <Button onClick={addItem} disabled={isPending || !user}>
+            {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+            Añadir
+          </Button>
+        </div>
       </div>
 
+      {/* Formulario “Añadir” (sin estado manual) */}
       <Card>
-        <CardHeader><CardTitle>Tu Colección</CardTitle><CardDescription>{wines.length > 0 ? `Tienes ${wines.length} tipos de vino diferentes.` : "Tu bodega está vacía."}</CardDescription></CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader><TableRow><TableHead className="w-[40%]">Vino</TableHead><TableHead>Año</TableHead><TableHead className="text-center">Cantidad</TableHead><TableHead>Estado</TableHead><TableHead><span className="sr-only">Acciones</span></TableHead></TableRow></TableHeader>
-            <TableBody>
-              {error && <TableRow><TableCell colSpan={5}><Alert variant="destructive"><AlertTitle>Error</AlertTitle><AlertDescription>{error}</AlertDescription></Alert></TableCell></TableRow>}
-              {wines.length > 0 ? (
-                wines.map((wine) => (
-                  <TableRow key={wine.id}>
-                    <TableCell className="font-medium"><div className="flex items-center gap-3"><Wine className="text-primary/70" /><div><p>{wine.name}</p><p className="text-sm text-muted-foreground">{wine.variety}</p></div></div></TableCell>
-                    <TableCell>{wine.year}</TableCell>
-                    <TableCell className="text-center">{wine.quantity}</TableCell>
-                    <TableCell><Badge variant={wine.status === 'En su punto' ? 'default' : 'secondary'} className={wine.status === 'En su punto' ? "bg-green-600/80 text-white" : ""}>{wine.status}</Badge></TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => openEditDialog(wine)}><Edit className="mr-2 h-4 w-4" />Editar</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => openDeleteDialog(wine)} className="text-destructive focus:text-destructive"><Trash2 className="mr-2 h-4 w-4" />Eliminar</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow><TableCell colSpan={5} className="h-48 text-center"><p className="font-semibold">Tu bodega está esperando.</p><p className="text-muted-foreground">Usa el botón "Añadir Vino" para empezar.</p></TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
+        <CardHeader>
+          <CardTitle>Añadir producto</CardTitle>
+          <CardDescription>Rellena y pulsa “Añadir”. El estado lo calcula la app.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid md:grid-cols-5 gap-3">
+          <div className="md:col-span-2">
+            <label className="text-sm">Producto / Vino</label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="ej. Catena Zapata Malbec / Glenfiddich 12" />
+          </div>
+          <div className="md:col-span-1">
+            <label className="text-sm">Cepa o característica</label>
+            <Input value={variety} onChange={(e) => setVariety(e.target.value)} placeholder="ej. Malbec / Single Malt" />
+          </div>
+          <div>
+            <label className="text-sm">Año</label>
+            <Input type="number" value={year as any} onChange={(e) => setYear(e.target.value ? Number(e.target.value) : "")} />
+          </div>
+          <div>
+            <label className="text-sm">Cantidad</label>
+            <Input type="number" min={1} value={quantity as any} onChange={(e) => setQuantity(e.target.value ? Number(e.target.value) : "")} />
+          </div>
         </CardContent>
       </Card>
-      
-      <AddWineDialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen} onWineAdded={fetchWines} />
-      <EditWineDialog wine={selectedWine} open={isEditFormOpen} onOpenChange={setIsEditFormOpen} onWineUpdated={fetchWines} />
 
-      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>¿Estás seguro?</AlertDialogTitle><AlertDialogDescription>Esta acción no se puede deshacer. Esto eliminará permanentemente el vino "{selectedWine?.name}" de tu bodega.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setSelectedWine(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteWine} disabled={isPending} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {isPending ? <Loader2 className="animate-spin" /> : "Sí, eliminar"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Tabla */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Tu Colección</CardTitle>
+          <CardDescription>Tienes {items.length} {items.length === 1 ? "producto" : "productos"} en tu bodega.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="text-sm opacity-70">Cargando…</div>
+          ) : items.length === 0 ? (
+            <div className="text-sm opacity-70">Tu bodega está vacía. Se importará automáticamente desde tu Historial si hay análisis.</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Producto</TableHead>
+                  <TableHead>Año</TableHead>
+                  <TableHead>Cantidad</TableHead>
+                  <TableHead>Estado (app)</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {items.map((w) => (
+                  <TableRow key={w.id}>
+                    <TableCell className="font-medium">
+                      {w.name}
+                      {w.variety ? <div className="text-xs opacity-70">{w.variety}</div> : null}
+                    </TableCell>
+                    <TableCell>{w.year ?? "-"}</TableCell>
+                    <TableCell>{w.quantity ?? 1}</TableCell>
+                    <TableCell><Badge>{w.status ?? inferEstado(w.name, w.variety, w.year)}</Badge></TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" title="Recomendación IA" onClick={() => router.push("/sommelier")}>
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" title="Eliminar" onClick={() => deleteItem(w.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
