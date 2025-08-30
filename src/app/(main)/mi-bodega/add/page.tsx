@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Plus } from "lucide-react";
+import { addWineAction } from "../actions";  // ✅ importamos la server action
 
 export default function AddBottlePage() {
   const { user, loading } = useAuth();
@@ -28,25 +29,28 @@ export default function AddBottlePage() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
     if (!form.wineName.trim()) {
       setError("El nombre es obligatorio.");
       return;
     }
+    if (!user) {
+      setError("Debes iniciar sesión.");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const res = await fetch("/api/cellar/add", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          uid: user?.uid,
-          wineName: form.wineName,
-          year: form.year ? Number(form.year) : undefined,
-          country: form.country || undefined,
-          grapeVariety: form.grapeVariety || undefined,
-        }),
+      const result = await addWineAction({
+        uid: user.uid,
+        name: form.wineName,
+        variety: form.grapeVariety || "",
+        year: form.year ? Number(form.year) : undefined,
+        quantity: 1,
+        status: "Listo para Beber",
       });
-      const json = await res.json();
-      if (!res.ok || !json?.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+
+      if (!result.success) throw new Error(result.error || "No se pudo guardar la botella.");
 
       // volver a la lista y refrescar
       router.push("/mi-bodega");
@@ -62,7 +66,9 @@ export default function AddBottlePage() {
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Añadir botella</h1>
-        <Button asChild variant="outline"><Link href="/mi-bodega">Volver</Link></Button>
+        <Button asChild variant="outline">
+          <Link href="/mi-bodega">Volver</Link>
+        </Button>
       </div>
 
       {error && (
@@ -117,7 +123,11 @@ export default function AddBottlePage() {
             </div>
             <CardFooter className="p-0">
               <Button type="submit" className="w-full" disabled={submitting}>
-                {submitting ? "Guardando…" : (<span className="inline-flex items-center gap-2"><Plus className="h-4 w-4" />Guardar</span>)}
+                {submitting ? "Guardando…" : (
+                  <span className="inline-flex items-center gap-2">
+                    <Plus className="h-4 w-4" />Guardar
+                  </span>
+                )}
               </Button>
             </CardFooter>
           </form>
