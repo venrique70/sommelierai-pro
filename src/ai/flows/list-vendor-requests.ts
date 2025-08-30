@@ -250,5 +250,5 @@ export const analyzeWineFlow = async (
 
   } // cierra el else
 
-  return result;
+  return result; 
 }; // cierra analyzeWineFlow
