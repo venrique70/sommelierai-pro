@@ -28,11 +28,12 @@ export async function GET() {
     parseError = true;
   }
 
+  // Por seguridad, solo mostramos el final del correo
   return NextResponse.json({
     ok: true,
     present,
     parseError,
     projectId,
-    clientEmail: clientEmail?.slice(-20) ?? null, // solo los últimos 20 chars por seguridad
+    clientEmailTail: clientEmail ? clientEmail.slice(-20) : null,
   });
 }
