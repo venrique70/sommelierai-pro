@@ -39,7 +39,7 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
     "embla-carousel-react": "^8.1.5",
-    "firebase": "^12.1.0",
+    "firebase": "^12.2.1",
     "firebase-admin": "^12.2.0",
     "firebase-functions": "^5.0.1",
     "firebase-functions-test": "^3.2.0",
