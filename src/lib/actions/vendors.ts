@@ -1,4 +1,7 @@
-﻿import { adminDb } from "@/lib/firebase-admin";
+// src/lib/actions/vendors.ts
+"use server";
+import "server-only";
+import { adminDb } from "@/lib/firebase-admin";
 export type VendorStatus = "pending" | "approved" | "rejected" | "suspended";
 
 export type Vendor = { id: string; name: string; email: string; phone?: string; docId?: string; status: VendorStatus; createdAt: string; updatedAt?: string; };
