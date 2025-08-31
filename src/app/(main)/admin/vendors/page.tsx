@@ -22,7 +22,7 @@ sampleVendor:
 ${JSON.stringify(vendors?.[0] ?? null, null, 2)}
 
 sampleRequest:
-${JSON.stringify(requests?.[0] ?? null, null, 2)}
+${JSON.stringify(requests?.[0] ?? null, 2)}
 `}
       </pre>
     );
