@@ -16,8 +16,8 @@ export default async function Page() {
 
   return (
     <main className="mx-auto max-w-6xl p-6">
-      {/* NAV ADMIN (tabs) */}
-      <div className="mb-4 flex flex-wrap gap-2">
+      {/* ⬇️ barra de tabs por encima de cualquier overlay de la página */}
+      <div className="mb-4 flex flex-wrap gap-2 relative z-50">
         <Button asChild variant="default">
           <Link href="/admin/vendors">Vendedores</Link>
         </Button>
@@ -25,15 +25,12 @@ export default async function Page() {
           <Link href="/admin/corporate">Corporativo</Link>
         </Button>
         <Button asChild variant="outline">
-          <Link
-            href={{ pathname: "/admin/corporate", query: { tab: "affiliates" } }}
-          >
+          <Link href={{ pathname: "/admin/corporate", query: { tab: "affiliates" } }}>
             Afiliados
           </Link>
         </Button>
       </div>
 
-      {/* UI principal */}
       <SellersManager vendors={vendors} requests={requests} />
     </main>
   );
