@@ -8,7 +8,8 @@ import Link from "next/link";
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-black text-white">
-      <header className="border-b border-white/10">
+      {/* header elevado, sin llamadas a Admin/Firestore */}
+      <header className="border-b border-white/10 relative z-[9999]">
         <div className="mx-auto max-w-7xl px-6 h-14 flex items-center justify-between">
           <Link href="/" className="font-semibold hover:underline">SommelierPro AI</Link>
           <nav className="flex items-center gap-4 text-sm">
@@ -18,6 +19,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </nav>
         </div>
       </header>
+
       <main className="mx-auto max-w-7xl p-6">{children}</main>
     </div>
   );
