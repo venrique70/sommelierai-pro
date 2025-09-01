@@ -16,8 +16,7 @@ export default async function Page() {
 
   return (
     <main className="mx-auto max-w-6xl p-6">
-      {/* NAV ADMIN (tabs) */}
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="mb-4 flex flex-wrap gap-2 relative z-50">
         <Button asChild variant="outline">
           <Link href="/admin/vendors">Vendedores</Link>
         </Button>
