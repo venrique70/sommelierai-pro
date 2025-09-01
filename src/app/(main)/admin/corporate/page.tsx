@@ -19,16 +19,10 @@ export default async function Page() {
 
   return (
     <main className="mx-auto max-w-6xl p-6">
-      <div className="mb-4 flex flex-wrap gap-2 relative z-50 pointer-events-auto">
-        <Link href="/admin/vendors" className={tab}>
-          Vendedores
-        </Link>
-        <Link href="/admin/corporate" className={`${tab} bg-yellow-500/20 text-yellow-200`}>
-          Corporativo
-        </Link>
-        <Link href="/admin/affiliates" className={tab}>
-          Afiliados
-        </Link>
+      <div className="mb-4 flex flex-wrap gap-2 sticky top-[56px] z-[9999] isolate pointer-events-auto bg-black/50 backdrop-blur rounded-md p-1">
+        <Link href="/admin/vendors" className={tab}>Vendedores</Link>
+        <Link href="/admin/corporate" className={`${tab} bg-yellow-500/20 text-yellow-200`}>Corporativo</Link>
+        <Link href="/admin/affiliates" className={tab}>Afiliados</Link>
       </div>
 
       <CorporateManager initialAccounts={accounts} initialInvites={invites} />
