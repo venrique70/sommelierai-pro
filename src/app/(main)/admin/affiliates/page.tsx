@@ -1,4 +1,5 @@
-﻿export const runtime = "nodejs";
+// src/app/(main)/admin/affiliates/page.tsx
+export const runtime = "nodejs";
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -70,11 +71,17 @@ export default async function Page() {
 
   return (
     <main className="mx-auto max-w-6xl p-6">
-      {/* NAV ADMIN */}
+      {/* NAV ADMIN (tabs) */}
       <div className="mb-4 flex flex-wrap gap-2">
-        <Link href="/admin/vendors"><Button variant="outline">Vendedores</Button></Link>
-        <Link href="/admin/corporate"><Button variant="outline">Corporativo</Button></Link>
-        <Link href="/admin/affiliates"><Button variant="default">Afiliados</Button></Link>
+        <Button asChild variant="outline">
+          <Link href="/admin/vendors">Vendedores</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href="/admin/corporate">Corporativo</Link>
+        </Button>
+        <Button asChild variant="default">
+          <Link href="/admin/affiliates">Afiliados</Link>
+        </Button>
       </div>
 
       {rows.length === 0 ? (
@@ -102,7 +109,9 @@ export default async function Page() {
               <tbody>
                 {rows.map((r, i) => (
                   <tr key={i} className="border-t">
-                    <td className="p-3">{r.name}{r.email !== "" ? ("  " + r.email) : ""}</td>
+                    <td className="p-3">
+                      {r.name}{r.email ? `  ${r.email}` : ""}
+                    </td>
                     <td className="p-3">{r.code}</td>
                     <td className="p-3">{r.plan}</td>
                     <td className="p-3">{r.refCount}</td>
