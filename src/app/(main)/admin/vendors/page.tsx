@@ -1,3 +1,4 @@
+// src/app/(main)/admin/vendors/page.tsx
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -14,13 +15,25 @@ export default async function Page() {
   ]);
 
   return (
-    <main>
+    <main className="mx-auto max-w-6xl p-6">
+      {/* NAV ADMIN (tabs) */}
       <div className="mb-4 flex flex-wrap gap-2">
-        <Link href="/admin/vendors"><Button variant="default">Vendedores</Button></Link>
-        <Link href="/admin/corporate"><Button variant="outline">Corporativo</Button></Link>
-        <Link href="/admin/corporate?tab=affiliates"><Button variant="outline">Afiliados</Button></Link>
+        <Button asChild variant="default">
+          <Link href="/admin/vendors">Vendedores</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href="/admin/corporate">Corporativo</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link
+            href={{ pathname: "/admin/corporate", query: { tab: "affiliates" } }}
+          >
+            Afiliados
+          </Link>
+        </Button>
       </div>
 
+      {/* UI principal */}
       <SellersManager vendors={vendors} requests={requests} />
     </main>
   );
