@@ -19,18 +19,11 @@ export default async function Page() {
 
   return (
     <main className="mx-auto max-w-6xl p-6">
-      {/* NAV ADMIN (tabs) */}
-      <div className="mb-4 flex flex-wrap gap-2 relative z-50 pointer-events-auto">
-        <Link href="/admin/vendors" className={`${tab} bg-yellow-500/20 text-yellow-200`}>
-          Vendedores
-        </Link>
-        <Link href="/admin/corporate" className={tab}>
-          Corporativo
-        </Link>
-        <Link
-          href={{ pathname: "/admin/corporate", query: { tab: "affiliates" } }}
-          className={tab}
-        >
+      {/* NAV elevado para evitar overlays */}
+      <div className="mb-4 flex flex-wrap gap-2 sticky top-[56px] z-[9999] isolate pointer-events-auto bg-black/50 backdrop-blur rounded-md p-1">
+        <Link href="/admin/vendors" className={`${tab} bg-yellow-500/20 text-yellow-200`}>Vendedores</Link>
+        <Link href="/admin/corporate" className={tab}>Corporativo</Link>
+        <Link href={{ pathname: "/admin/corporate", query: { tab: "affiliates" } }} className={tab}>
           Afiliados
         </Link>
       </div>
