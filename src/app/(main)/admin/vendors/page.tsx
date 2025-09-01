@@ -10,7 +10,7 @@ import { getVendors, listVendorRequests } from "@/lib/actions/vendors";
 export default async function Page() {
   const [vendors, requests] = await Promise.all([
     getVendors(),
-    listVendorRequests({ status: "pending" }), // cambia si quieres ver aprobados/rechazados
+    listVendorRequests({ status: "pending" }),
   ]);
 
   return (
