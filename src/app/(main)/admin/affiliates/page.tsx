@@ -12,11 +12,13 @@ export default async function Page() {
   const db = adminDb();
   let raw: any[] = [];
 
+  // 1) "affiliates"
   try {
     const s = await db.collection("affiliates").limit(100).get();
     if (!s.empty) raw = s.docs.map(d => ({ id: d.id, ...d.data() }));
   } catch {}
 
+  // 2) users.affiliate.active == true
   if (raw.length === 0) {
     try {
       const s = await db.collection("users").where("affiliate.active","==",true).limit(100).get();
@@ -24,6 +26,7 @@ export default async function Page() {
     } catch {}
   }
 
+  // 3) referrals
   if (raw.length === 0) {
     try {
       const s = await db.collection("referrals").limit(100).get();
@@ -31,6 +34,7 @@ export default async function Page() {
     } catch {}
   }
 
+  // enriquecer vendor
   const vendorIdSet = new Set<string>();
   for (const a of raw) {
     const vid = pick(a.vendorId, a.sellerId, a?.vendor?.id, a.ownerVendorId);
@@ -44,8 +48,8 @@ export default async function Page() {
     }));
     docs.forEach((doc, idx) => {
       if (doc && doc.exists) {
-        const data = doc.data() || {};
-        vendorNames[ids[idx]] = (data.name || data.displayName || data.fullName || data.email || ids[idx]);
+        const d = doc.data() || {};
+        vendorNames[ids[idx]] = d.name || d.displayName || d.fullName || d.email || ids[idx];
       }
     });
   }
@@ -68,7 +72,7 @@ export default async function Page() {
 
   return (
     <main className="mx-auto max-w-6xl p-6">
-      <div className="mb-4 flex flex-wrap gap-2 relative z-50 pointer-events-auto">
+      <div className="mb-4 flex flex-wrap gap-2 sticky top-[56px] z-[9999] isolate pointer-events-auto bg-black/50 backdrop-blur rounded-md p-1">
         <Link href="/admin/vendors" className={tab}>Vendedores</Link>
         <Link href="/admin/corporate" className={tab}>Corporativo</Link>
         <Link href="/admin/affiliates" className={`${tab} bg-yellow-500/20 text-yellow-200`}>Afiliados</Link>
@@ -110,7 +114,7 @@ export default async function Page() {
               </tbody>
             </table>
           </div>
-        </div>  {/* ⬅ cierre que faltaba */}
+        </div>  {/* cierre del wrapper */}
       )}
     </main>
   );
