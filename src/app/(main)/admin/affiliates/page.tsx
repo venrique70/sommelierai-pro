@@ -1,8 +1,8 @@
 // src/app/(main)/admin/affiliates/page.tsx
 export const runtime = "nodejs";
 
+import Link from "next/link";
 import { adminDb } from "@/lib/firebase-admin";
-import AdminTabs from "@/components/admin/AdminTabs";
 
 export const metadata = { title: "Afiliados | Admin" };
 
@@ -12,25 +12,31 @@ export default async function Page() {
   const db = adminDb();
   let raw: any[] = [];
 
+  // 1) affiliates
   try {
     const s = await db.collection("affiliates").limit(100).get();
     if (!s.empty) raw = s.docs.map(d => ({ id: d.id, ...d.data() }));
   } catch {}
 
+  // 2) users.affiliate.active == true
   if (raw.length === 0) {
     try {
-      const s = await db.collection("users").where("affiliate.active","==",true).limit(100).get();
-      if (!s.empty) raw = s.docs.map(d => ({ id: d.id, ...d.data(), _fromUsers:true }));
+      const s = await db.collection("users")
+        .where("affiliate.active","==",true)
+        .limit(100).get();
+      if (!s.empty) raw = s.docs.map(d => ({ id: d.id, ...d.data(), _fromUsers: true }));
     } catch {}
   }
 
+  // 3) referrals
   if (raw.length === 0) {
     try {
       const s = await db.collection("referrals").limit(100).get();
-      if (!s.empty) raw = s.docs.map(d => ({ id: d.id, ...d.data(), _fromReferrals:true }));
+      if (!s.empty) raw = s.docs.map(d => ({ id: d.id, ...d.data(), _fromReferrals: true }));
     } catch {}
   }
 
+  // enriquecer vendor
   const vendorIdSet = new Set<string>();
   for (const a of raw) {
     const vid = pick(a.vendorId, a.sellerId, a?.vendor?.id, a.ownerVendorId);
@@ -40,7 +46,8 @@ export default async function Page() {
   if (vendorIdSet.size > 0) {
     const ids = Array.from(vendorIdSet);
     const docs = await Promise.all(ids.map(async (id) => {
-      try { return await db.collection("vendors").doc(id).get(); } catch { return null; }
+      try { return await db.collection("vendors").doc(id).get(); }
+      catch { return null; }
     }));
     docs.forEach((doc, idx) => {
       if (doc && doc.exists) {
@@ -64,12 +71,32 @@ export default async function Page() {
 
   return (
     <main className="mx-auto max-w-6xl p-6">
-      <AdminTabs active="affiliates" />
+      {/* NAV elevado y sin overlays */}
+      <div className="mb-4 flex flex-wrap gap-2 sticky top-[56px] z-[9999] isolate pointer-events-auto bg-black/50 backdrop-blur rounded-md p-1">
+        <Link
+          href="/admin/vendors"
+          className="inline-flex items-center rounded-md border border-white/10 px-3 py-2 text-sm hover:bg-white/5"
+        >
+          Vendedores
+        </Link>
+        <Link
+          href="/admin/corporate"
+          className="inline-flex items-center rounded-md border border-white/10 px-3 py-2 text-sm hover:bg-white/5"
+        >
+          Corporativo
+        </Link>
+        <Link
+          href="/admin/affiliates"
+          className="inline-flex items-center rounded-md border border-white/10 px-3 py-2 text-sm bg-yellow-500/20 text-yellow-200 hover:bg-white/5"
+        >
+          Afiliados
+        </Link>
+      </div>
 
       {rows.length === 0 ? (
         <div className="rounded-md border p-4 text-sm text-muted-foreground">
           No hay datos de afiliados detectados. Si tu programa usa otra colección
-          (p. ej. <code>commissions</code> o <code>partners</code>), dime el nombre y lo adapto.
+          (p.ej. <code>commissions</code> o <code>partners</code>), dime el nombre y lo adapto.
         </div>
       ) : (
         <div className="space-y-3">
