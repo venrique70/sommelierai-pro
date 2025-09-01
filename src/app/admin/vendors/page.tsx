@@ -12,7 +12,6 @@ export default async function Page() {
     getVendors(),
     listVendorRequests({ status: "pending" }),
   ]);
-
   return (
     <main className="mx-auto max-w-6xl p-6">
       <div className="mb-4 flex flex-wrap gap-2">
