@@ -1,8 +1,8 @@
 // src/app/(main)/admin/affiliates/page.tsx
 export const runtime = "nodejs";
 
-import Link from "next/link";
 import { adminDb } from "@/lib/firebase-admin";
+import AdminTabs from "@/components/admin/AdminTabs";
 
 export const metadata = { title: "Afiliados | Admin" };
 
@@ -12,13 +12,11 @@ export default async function Page() {
   const db = adminDb();
   let raw: any[] = [];
 
-  // 1) "affiliates"
   try {
     const s = await db.collection("affiliates").limit(100).get();
     if (!s.empty) raw = s.docs.map(d => ({ id: d.id, ...d.data() }));
   } catch {}
 
-  // 2) users.affiliate.active == true
   if (raw.length === 0) {
     try {
       const s = await db.collection("users").where("affiliate.active","==",true).limit(100).get();
@@ -26,7 +24,6 @@ export default async function Page() {
     } catch {}
   }
 
-  // 3) referrals
   if (raw.length === 0) {
     try {
       const s = await db.collection("referrals").limit(100).get();
@@ -34,7 +31,6 @@ export default async function Page() {
     } catch {}
   }
 
-  // enriquecer vendor
   const vendorIdSet = new Set<string>();
   for (const a of raw) {
     const vid = pick(a.vendorId, a.sellerId, a?.vendor?.id, a.ownerVendorId);
@@ -66,22 +62,14 @@ export default async function Page() {
     return { name, email, code, plan, refCount, vendor, active };
   });
 
-  const tab =
-    "inline-flex items-center rounded-md border border-white/10 px-3 py-2 text-sm " +
-    "hover:bg-white/5 transition-colors";
-
   return (
     <main className="mx-auto max-w-6xl p-6">
-      <div className="mb-4 flex flex-wrap gap-2 sticky top-[56px] z-[9999] isolate pointer-events-auto bg-black/50 backdrop-blur rounded-md p-1">
-        <Link href="/admin/vendors" className={tab}>Vendedores</Link>
-        <Link href="/admin/corporate" className={tab}>Corporativo</Link>
-        <Link href="/admin/affiliates" className={`${tab} bg-yellow-500/20 text-yellow-200`}>Afiliados</Link>
-      </div>
+      <AdminTabs active="affiliates" />
 
       {rows.length === 0 ? (
         <div className="rounded-md border p-4 text-sm text-muted-foreground">
           No hay datos de afiliados detectados. Si tu programa usa otra colección
-          (p.ej. <code>commissions</code> o <code>partners</code>), dime el nombre y lo adapto.
+          (p. ej. <code>commissions</code> o <code>partners</code>), dime el nombre y lo adapto.
         </div>
       ) : (
         <div className="space-y-3">
@@ -114,7 +102,7 @@ export default async function Page() {
               </tbody>
             </table>
           </div>
-        </div>  {/* cierre del wrapper */}
+        </div>
       )}
     </main>
   );
