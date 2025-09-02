@@ -1,4 +1,3 @@
-
 export type Translation = typeof es;
 
 const es = {
@@ -7,15 +6,23 @@ const es = {
   pro: 'PRO',
   close: 'Cerrar',
   beta: 'BETA',
+
+  // Frases legales (nuevas)
+  continueAccept: 'Al continuar, aceptas nuestros',
+  terms: 'Términos y Condiciones',
+  legal: 'Legal',
+
   // Main Page Header
   discoverWineSecrets: 'Descubre los Secretos del Vino',
   detailedNotes: 'Notas Detalladas',
   sensoryAnalysis: 'Análisis Sensorial',
   perfectPairings: 'Maridajes Perfectos',
+
   // Tabs
   analyzeWine: 'Analizar Vino',
   recommendWine: 'Recomendar Vino',
   dinnerPairing: 'Cena Maridaje',
+
   // Recommend Wine Tab
   recommendWineByCountry: 'Recomendación de Vinos por País',
   recommendWineByCountryDescription: 'Describe tu platillo, dinos en qué país te encuentras y la IA te dará sugerencias expertas.',
@@ -25,11 +32,12 @@ const es = {
   wineCountryPlaceholder: 'ej. Perú',
   searchingWines: 'Buscando vinos...',
   couldNotGetRecommendation: 'No se pudo obtener la recomendación.',
-aiRecommendation: 'Recomendaciones de la IA',
+  aiRecommendation: 'Recomendaciones de la IA',
   recommendedWines: 'Vinos Recomendados',
   reasoning: 'Justificación Experta',
   waitingForYourDish: 'Esperando tu platillo...',
   recommendationsWillAppearHere: 'Las recomendaciones aparecerán aquí.',
+
   // Dinner Pairing Tab
   evaluateDinnerPairing: 'Evaluar Cena Maridaje',
   evaluateDinnerPairingDescription: 'Introduce tu maridaje y nuestro Sommelier IA te dará su experta opinión y te sugerirá alternativas superiores si es necesario.',
@@ -51,6 +59,7 @@ aiRecommendation: 'Recomendaciones de la IA',
   evaluationWillAppearHere: 'La evaluación aparecerá aquí.',
   alternativeSuggestion: 'Sugerencias del Sommelier',
   pairingReason: 'Razón del Maridaje',
+
   // Wine Analysis Tab
   wineAnalysisAndPairing: 'Análisis de Vino y Maridaje',
   wineAnalysisAndPairingDescription: 'Introduce los detalles de un vino para obtener un análisis sensorial completo. Opcionalmente, describe un plato para recibir una recomendación de maridaje específica.',
@@ -90,6 +99,7 @@ aiRecommendation: 'Recomendaciones de la IA',
   feedbackHelpsUsImprove: 'Tu opinión nos ayuda a mejorar la aplicación.',
   feedbackSentSuccessfully: 'Tu opinión ha sido enviada con éxito.',
   sendFeedback: 'Enviar Comentarios',
+
   // Detail Labels
   wineType: "Tipo de Vino",
   qualityLevel: "Nivel de Calidad",
@@ -103,10 +113,12 @@ aiRecommendation: 'Recomendaciones de la IA',
   relevantCulturalOrRegionalNotes: "Notas Culturales/Regionales",
   appellation: "Denominación de Origen",
   wineryLocation: "Origen / Ubicación",
+
   // Monetization
   proFeature: 'Función PRO',
   proFeatureDescription: '¡Desbloquea la evaluación de menús completos! Actualiza a PRO para analizar múltiples maridajes en una sola cena y recibir insights aún más profundos.',
   upgradeToPro: 'Actualizar a PRO',
+
   // API Errors
   notConfigured: 'La IA no está configurada. Por favor, añade tu clave de API de Google AI en las variables de entorno.',
   quota: 'Se ha superado la cuota de la API. Por favor, comprueba tu plan de facturación de Google AI.',
@@ -124,15 +136,23 @@ const en = {
   pro: 'PRO',
   close: 'Close',
   beta: 'BETA',
+
+  // Legal phrases (new)
+  continueAccept: 'By continuing, you agree to our',
+  terms: 'Terms & Conditions',
+  legal: 'Legal',
+
   // Main Page Header
   discoverWineSecrets: 'Discover the Secrets of Wine',
   detailedNotes: 'Detailed Notes',
   sensoryAnalysis: 'Sensory Analysis',
   perfectPairings: 'Perfect Pairings',
+
   // Tabs
   analyzeWine: 'Analyze Wine',
   recommendWine: 'Recommend Wine',
   dinnerPairing: 'Dinner Pairing',
+
   // Recommend Wine Tab
   recommendWineByCountry: 'Wine Recommendation by Country',
   recommendWineByCountryDescription: 'Describe your dish, tell us which country you are in, and the AI will give you expert suggestions.',
@@ -147,6 +167,7 @@ const en = {
   reasoning: 'Expert Reasoning',
   waitingForYourDish: 'Waiting for your dish...',
   recommendationsWillAppearHere: 'Recommendations will appear here.',
+
   // Dinner Pairing Tab
   evaluateDinnerPairing: 'Evaluate Dinner Pairing',
   evaluateDinnerPairingDescription: 'Enter your pairing, and our AI Sommelier will give you its expert opinion and suggest superior alternatives if needed.',
@@ -161,13 +182,14 @@ const en = {
   evaluating: 'Evaluating...',
   evaluateMyDinner: 'Evaluate My Pairing',
   couldNotEvaluatePairing: 'Could not evaluate the pairing.',
-  sommelierEvaluation: 'Sommelier\'s Evaluation',
+  sommelierEvaluation: "Sommelier's Evaluation",
   rating: 'Rating',
   expertAnalysis: 'Expert Analysis',
   waitingForPairings: 'Waiting for your pairing...',
   evaluationWillAppearHere: 'The evaluation will appear here.',
-  alternativeSuggestion: 'Sommelier\'s Suggestions',
+  alternativeSuggestion: "Sommelier's Suggestions",
   pairingReason: 'Pairing Reason',
+
   // Wine Analysis Tab
   wineAnalysisAndPairing: 'Wine Analysis and Pairing',
   wineAnalysisAndPairingDescription: 'Enter the details of a wine to get a complete sensory analysis. Optionally, describe a dish to receive a specific pairing recommendation.',
@@ -207,6 +229,7 @@ const en = {
   feedbackHelpsUsImprove: 'Your feedback helps us improve the application.',
   feedbackSentSuccessfully: 'Your feedback has been sent successfully.',
   sendFeedback: 'Send Feedback',
+
   // Detail Labels
   wineType: "Wine Type",
   qualityLevel: "Quality Level",
@@ -220,10 +243,12 @@ const en = {
   relevantCulturalOrRegionalNotes: "Cultural/Regional Notes",
   appellation: "Appellation",
   wineryLocation: "Origin / Location",
+
   // Monetization
   proFeature: 'PRO Feature',
   proFeatureDescription: 'Unlock full menu evaluation! Upgrade to PRO to analyze multiple pairings in a single dinner and receive even deeper insights.',
   upgradeToPro: 'Upgrade to PRO',
+
   // API Errors
   notConfigured: 'The AI is not configured. Please add your Google AI API key to the environment variables.',
   quota: 'The API quota has been exceeded. Please check your Google AI billing plan.',
@@ -234,7 +259,6 @@ const en = {
   verificationError: 'The wine verification tool failed.',
   missingAnalysisFields: 'Required fields for analysis are missing (wine, grape, or year).',
 };
-
 
 export const translations = { es, en };
 export type Language = keyof typeof translations;
