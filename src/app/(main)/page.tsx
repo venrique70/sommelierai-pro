@@ -38,7 +38,7 @@ export default function SommelierHomePage() {
             SommelierPro AI
           </h1>
           <Badge className="text-lg" variant="outline">
-            BETA
+            {t.beta}
           </Badge>
         </div>
 
@@ -58,7 +58,7 @@ export default function SommelierHomePage() {
       <Tabs defaultValue="analyze" className="w-full">
         <TabsList className="grid w-full grid-cols-3 max-w-2xl mx-auto">
           <TabsTrigger value="analyze">
-            <Wine className="mr-2" /> Análisis Sensorial
+            <Wine className="mr-2" /> {t.analyzeWine}
           </TabsTrigger>
           <TabsTrigger value="recommend">
             <Lightbulb className="mr-2" /> {t.recommendWine}
@@ -69,11 +69,14 @@ export default function SommelierHomePage() {
         </TabsList>
 
         <p className="mt-2 text-xs opacity-70 text-center">
-          Al continuar, aceptas nuestros{" "}
+          {t.continueAccept}{" "}
           <Link href="/legal#terminos" className="underline">
-            Términos y Condiciones
+            {t.terms}
           </Link>{" "}
-          y <Link href="/legal" className="underline">Legal</Link>.
+          {language === "es" ? "y" : "and"}{" "}
+          <Link href="/legal" className="underline">
+            {t.legal}
+          </Link>.
         </p>
 
         <TabsContent value="analyze" className="mt-6">
@@ -89,4 +92,3 @@ export default function SommelierHomePage() {
     </div>
   );
 }
-
