@@ -2,20 +2,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-import Link from "next/link";
-import { headers } from "next/headers";
+import AdminNav from "@/components/admin/AdminNav";
 import SellersManager from "@/components/vendors/SellersManager";
 import { getVendors, listVendorRequests } from "@/lib/actions/vendors";
 
 export default async function Page() {
-  const accept = headers().get("accept-language")?.toLowerCase() || "";
-  const isEs = accept.startsWith("es");
-  const t = {
-    vendors: isEs ? "Vendedores" : "Vendors",
-    corporate: isEs ? "Corporativo" : "Corporate",
-    affiliates: isEs ? "Afiliados" : "Affiliates",
-  };
-
   const [vendors, requests] = await Promise.all([
     getVendors(),
     listVendorRequests({ status: "pending" }),
@@ -23,35 +14,10 @@ export default async function Page() {
 
   return (
     <main className="relative z-0 mx-auto max-w-6xl p-6 pt-16">
-      {/* NAV fijo por encima de todo */}
-      <div
-        className="
-          fixed top-[56px] left-1/2 -translate-x-1/2 w-fit
-          z-[2147483647] pointer-events-auto
-          mb-4 flex flex-wrap gap-2
-          bg-black/50 backdrop-blur rounded-md p-1
-        "
-      >
-        <Link
-          href="/admin/vendors"
-          className="inline-flex items-center rounded-md border border-white/10 px-3 py-2 text-sm bg-yellow-500/20 text-yellow-200 hover:bg-white/5"
-        >
-          {t.vendors}
-        </Link>
-        <Link
-          href="/admin/corporate"
-          className="inline-flex items-center rounded-md border border-white/10 px-3 py-2 text-sm hover:bg-white/5"
-        >
-          {t.corporate}
-        </Link>
-        <Link
-          href="/admin/affiliates"
-          className="inline-flex items-center rounded-md border border-white/10 px-3 py-2 text-sm hover:bg-white/5"
-        >
-          {t.affiliates}
-        </Link>
-      </div>
+      {/* Nav bilingüe y clickeable (centralizado) */}
+      <AdminNav current="vendors" />
 
+      {/* UI principal */}
       <SellersManager initialVendors={vendors} initialRequests={requests} />
     </main>
   );
