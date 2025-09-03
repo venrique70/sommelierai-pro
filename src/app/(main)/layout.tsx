@@ -9,9 +9,6 @@ import { Toaster } from "@/components/ui/toaster";
 import Footer from "@/components/Footer";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 
-// ⬇️ NUEVO: import del mini-nav
-import TopRightAdminNav from "@/components/admin/TopRightAdminNav";
-
 function Shell({ children }: { children: React.ReactNode }) {
   const { loading, user, error } = useAuth();
   const [giveUp, setGiveUp] = useState(false);
