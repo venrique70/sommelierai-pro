@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Wine, Lightbulb, UtensilsCrossed } from "lucide-react";
 import Link from "next/link";
 
@@ -27,9 +27,27 @@ export default function SommelierHomePage() {
   const [language, setLanguage] = useState<Language>("es");
   const t = translations[language];
 
+  // ✅ Lee idioma guardado
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("spai_lang") as Language | null;
+      if (saved === "es" || saved === "en") setLanguage(saved);
+    } catch {}
+  }, []);
+
+  // ✅ Guarda y avisa a toda la app cuando cambie
+  const handleSetLanguage = (next: Language) => {
+    setLanguage(next);
+    try {
+      window.localStorage.setItem("spai_lang", next);
+      window.dispatchEvent(new CustomEvent("spai:lang", { detail: next }));
+    } catch {}
+  };
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
-      <LanguageSwitcher language={language} setLanguage={setLanguage} />
+      {/* ⬇️ Usa nuestro handler */}
+      <LanguageSwitcher language={language} setLanguage={handleSetLanguage} />
 
       <div className="text-center space-y-4">
         <div className="flex justify-center items-center gap-4">
