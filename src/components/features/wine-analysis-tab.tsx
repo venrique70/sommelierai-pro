@@ -126,6 +126,7 @@ const Corrections = ({
   return (
     <Alert variant="default" className="border-primary/30 bg-primary/10">
       <Edit className="h-4 w-4 text-primary" />
+      {/* Título fijo; si luego quieres lo hacemos bilingüe pasando t */}
       <AlertTitle className="text-primary">Nota del Sommelier IA</AlertTitle>
       <AlertDescription>
         {notes && <p className="mb-2">{notes}</p>}
@@ -206,8 +207,11 @@ export function WineAnalysisTab({
   const onSubmit = async (data: z.infer<typeof WineAnalysisClientSchema>) => {
     if (!user || !profile) {
       toast({
-        title: "Error de autenticación",
-        description: "Debes iniciar sesión para analizar un producto.",
+        title: language === "es" ? "Error de autenticación" : "Authentication error",
+        description:
+          language === "es"
+            ? "Debes iniciar sesión para analizar un producto."
+            : "You must sign in to analyze a product.",
         variant: "destructive",
       });
       return;
@@ -230,14 +234,16 @@ export function WineAnalysisTab({
 
       if (reachedLimit) {
         toast({
-          title: "Límite de Análisis Alcanzado",
+          title: language === "es" ? "Límite de Análisis Alcanzado" : "Analysis Limit Reached",
           description:
-            "Has agotado tus análisis gratuitos para este mes. ¡Sube de plan para seguir explorando!",
+            language === "es"
+              ? "Has agotado tus análisis gratuitos para este mes. ¡Sube de plan para seguir explorando!"
+              : "You've used all your analyses for this month. Upgrade to keep exploring!",
           variant: "destructive",
           duration: 8000,
           action: (
             <Button asChild size="sm">
-              <Link href="/planes">Ver Planes</Link>
+              <Link href="/planes">{language === "es" ? "Ver Planes" : "See Plans"}</Link>
             </Button>
           ),
         });
@@ -264,7 +270,9 @@ export function WineAnalysisTab({
         toast({
           title: t.unexpectedError,
           description:
-            "La IA no ha devuelto ninguna respuesta. Por favor, inténtelo de nuevo.",
+            language === "es"
+              ? "La IA no ha devuelto ninguna respuesta. Por favor, inténtelo de nuevo."
+              : "AI did not return a response. Please try again.",
           variant: "destructive",
           duration: 8000,
         });
@@ -285,7 +293,10 @@ export function WineAnalysisTab({
       const errorMessage = error instanceof Error ? error.message : t.generic;
       toast({
         title: t.unexpectedError,
-        description: `${t.generic}: ${errorMessage}`,
+        description:
+          language === "es"
+            ? `${t.generic}: ${errorMessage}`
+            : `Unexpected error: ${errorMessage}`,
         variant: "destructive",
       });
     } finally {
@@ -314,23 +325,46 @@ export function WineAnalysisTab({
     return (
       <div className="flex justify-center items-center py-16">
         <Loader2 className="animate-spin mr-2" />
-        Cargando perfil de usuario...
+        {language === "es" ? "Cargando perfil de usuario..." : "Loading user profile..."}
       </div>
     );
   }
 
+  // labels auxiliares bilingües para textos que no están en el diccionario
+  const analysisBadge = result?.isAiGenerated
+    ? language === "es"
+      ? "Análisis Genérico"
+      : "Generic Analysis"
+    : language === "es"
+    ? "Análisis Verificado"
+    : "Verified Analysis";
+
+  const pairingRatingLabel =
+    language === "es" ? "Calificación del maridaje:" : "Pairing rating:";
+
+  const awardsLabel = language === "es" ? "Premios" : "Awards";
+  const world50BestLabel =
+    language === "es" ? "Está en los 50 Best & Michelin" : "Listed in 50 Best & Michelin";
+
+  // cuota mensual (usa la plantilla del diccionario)
+  const quotaText =
+    profile && usageLimit !== Infinity
+      ? t.analysisQuotaStatus
+          .replace("{left}", String(Math.max(0, remaining)))
+          .replace("{total}", String(usageLimit))
+      : null;
+
   return (
     <div className="space-y-6">
       <CardHeader>
-        <CardTitle>Análisis Sensorial</CardTitle>
+        <CardTitle>{t.analyzeWine}</CardTitle>
         {profile && usageLimit !== Infinity && (
           <Alert className="mt-4">
             <Info className="h-4 w-4" />
-            <AlertTitle>Plan {planName}</AlertTitle>
-            <AlertDescription>
-              Te quedan {Math.max(0, remaining)} de {usageLimit} análisis este
-              mes.
-            </AlertDescription>
+            <AlertTitle>
+              {(language === "es" ? "Plan" : "Plan") + " " + planName}
+            </AlertTitle>
+            <AlertDescription>{quotaText}</AlertDescription>
           </Alert>
         )}
       </CardHeader>
@@ -344,12 +378,9 @@ export function WineAnalysisTab({
                 name="wineName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nombre del Producto</FormLabel>
+                    <FormLabel>{t.productName}</FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="ej. Catena Zapata, Whisky Grants..."
-                        {...field}
-                      />
+                      <Input placeholder={t.wineNamePlaceholder} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -360,12 +391,9 @@ export function WineAnalysisTab({
                 name="grapeVariety"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Cepa / Atributo Principal</FormLabel>
+                    <FormLabel>{t.mainAttribute}</FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="ej. 12 Años, Cabernet Sauvignon"
-                        {...field}
-                      />
+                      <Input placeholder={t.grapeVarietyPlaceholder} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -376,7 +404,7 @@ export function WineAnalysisTab({
                 name="year"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Año (Cosecha/Embotellado)</FormLabel>
+                    <FormLabel>{t.yearHarvestBottling}</FormLabel>
                     <FormControl>
                       <Input type="number" placeholder={t.yearPlaceholder} {...field} />
                     </FormControl>
@@ -392,12 +420,9 @@ export function WineAnalysisTab({
                 name="wineryName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Bodega / Destilería (Opcional)</FormLabel>
+                    <FormLabel>{t.wineryOrDistilleryOptional}</FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="ej. Bodega Catena Zapata"
-                        {...field}
-                      />
+                      <Input placeholder={t.wineryPlaceholder} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -425,11 +450,7 @@ export function WineAnalysisTab({
                 <FormItem>
                   <FormLabel>{t.foodToPairOptional}</FormLabel>
                   <FormControl>
-                    <Textarea
-                      placeholder={t.foodToPairPlaceholder}
-                      rows={3}
-                      {...field}
-                    />
+                    <Textarea placeholder={t.foodToPairPlaceholder} rows={3} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -438,12 +459,8 @@ export function WineAnalysisTab({
 
             <div className="flex flex-col items-center gap-2 pt-4">
               <Button type="submit" variant="destructive" disabled={loading} size="lg">
-                {loading ? (
-                  <Loader2 className="mr-2 animate-spin" />
-                ) : (
-                  <Sparkles className="mr-2" />
-                )}
-                {loading ? t.analyzing : "Analizar Producto"}
+                {loading ? <Loader2 className="mr-2 animate-spin" /> : <Sparkles className="mr-2" />}
+                {loading ? t.analyzing : t.analyzeProduct}
               </Button>
             </div>
           </form>
@@ -498,11 +515,8 @@ export function WineAnalysisTab({
 
           <Card>
             <CardHeader>
-              <Badge
-                variant="secondary"
-                className="w-fit mb-2 bg-green-500/20 text-green-300"
-              >
-                {result.isAiGenerated ? "Análisis Genérico" : "Análisis Verificado"}
+              <Badge variant="secondary" className="w-fit mb-2 bg-green-500/20 text-green-300">
+                {analysisBadge}
               </Badge>
               <CardTitle className="text-3xl font-bold">
                 {result.wineName} {result.year}
@@ -526,7 +540,7 @@ export function WineAnalysisTab({
             <Card className="flex flex-col">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Wine className="size-6" /> Fase Visual
+                  <Wine className="size-6" /> {t.visualAnalysis}
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex-grow flex flex-col gap-4">
@@ -544,16 +558,14 @@ export function WineAnalysisTab({
                     <ImageIcon className="size-16 text-muted-foreground" />
                   </div>
                 )}
-                <p className="text-muted-foreground">
-                  {result.analysis.visual?.description}
-                </p>
+                <p className="text-muted-foreground">{result.analysis.visual?.description}</p>
               </CardContent>
             </Card>
 
             <Card className="flex flex-col">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Leaf className="size-6" /> Fase Olfativa
+                  <Leaf className="size-6" /> {t.olfactoryAnalysis}
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex-grow flex flex-col gap-4">
@@ -571,16 +583,14 @@ export function WineAnalysisTab({
                     <ImageIcon className="size-16 text-muted-foreground" />
                   </div>
                 )}
-                <p className="text-muted-foreground">
-                  {result.analysis.olfactory?.description}
-                </p>
+                <p className="text-muted-foreground">{result.analysis.olfactory?.description}</p>
               </CardContent>
             </Card>
 
             <Card className="flex flex-col">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Utensils className="size-6" /> Fase Gustativa
+                  <Utensils className="size-6" /> {t.gustatoryAnalysis}
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex-grow flex flex-col gap-4">
@@ -598,9 +608,7 @@ export function WineAnalysisTab({
                     <ImageIcon className="size-16 text-muted-foreground" />
                   </div>
                 )}
-                <p className="text-muted-foreground">
-                  {result.analysis.gustatory?.description}
-                </p>
+                <p className="text-muted-foreground">{result.analysis.gustatory?.description}</p>
               </CardContent>
             </Card>
           </div>
@@ -608,11 +616,11 @@ export function WineAnalysisTab({
           {result.foodToPair && (
             <Card>
               <CardHeader>
-                <CardTitle>Maridaje con: {result.foodToPair}</CardTitle>
+                <CardTitle>
+                  {t.pairingWith} {result.foodToPair}
+                </CardTitle>
                 <div className="flex items-center gap-2 pt-2">
-                  <span className="text-muted-foreground">
-                    Calificación del maridaje:
-                  </span>
+                  <span className="text-muted-foreground">{pairingRatingLabel}</span>
                   <StarRating rating={result.pairingRating} />
                 </div>
               </CardHeader>
@@ -624,12 +632,12 @@ export function WineAnalysisTab({
 
           <Card>
             <CardHeader>
-              <CardTitle>Maridajes Recomendados</CardTitle>
+              <CardTitle>{t.recommendedPairings}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-8 md:grid-cols-2 pt-6">
               <div>
                 <h3 className="font-semibold text-lg flex items-center gap-2 text-green-400">
-                  <ThumbsUp /> Combinaciones Ideales
+                  <ThumbsUp /> {t.ideal}
                 </h3>
                 <div className="mt-2 text-sm">
                   <PairingList text={result.analysis.recommendedPairings} />
@@ -637,7 +645,7 @@ export function WineAnalysisTab({
               </div>
               <div>
                 <h3 className="font-semibold text-lg flex items-center gap-2 text-destructive">
-                  <ThumbsDown /> Evitar Combinar con
+                  <ThumbsDown /> {t.avoid}
                 </h3>
                 <p className="text-muted-foreground whitespace-pre-line mt-2">
                   {result.analysis.avoidPairings}
@@ -648,7 +656,7 @@ export function WineAnalysisTab({
 
           <Card>
             <CardHeader>
-              <CardTitle>El Alma del Vino</CardTitle>
+              <CardTitle>{t.additionalDetails}</CardTitle>
             </CardHeader>
             <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-10 pt-6">
               <DetailItem icon={Wine} label={t.wineType} value={result.analysis.wineType} />
@@ -660,11 +668,19 @@ export function WineAnalysisTab({
               <DetailItem icon={Users} label={t.targetAudience} value={result.analysis.targetAudience} />
               <DetailItem icon={Info} label={t.barrelInfo} value={result.analysis.barrelInfo} />
               <DetailItem icon={Wine} label={t.grapeVarieties} value={result.analysis.grapeVariety} />
-              <DetailItem icon={Info} label={t.servingTemperature} value={result.analysis.servingTemperature} />
-              <DetailItem icon={GlassWater} label={t.decanterRecommendation} value={result.analysis.decanterRecommendation} />
+              <DetailItem
+                icon={Info}
+                label={t.servingTemperature}
+                value={result.analysis.servingTemperature}
+              />
+              <DetailItem
+                icon={GlassWater}
+                label={t.decanterRecommendation}
+                value={result.analysis.decanterRecommendation}
+              />
               <DetailItem icon={Calendar} label={t.agingPotential} value={result.analysis.agingPotential} />
               <DetailItem icon={Leaf} label={t.tanninLevel} value={result.analysis.tanninLevel} />
-              <DetailItem icon={Award} label="Premios" value={result.analysis.awards} />
+              <DetailItem icon={Award} label={awardsLabel} value={result.analysis.awards} />
               <div className="space-y-2">
                 <p className="font-semibold text-muted-foreground">{t.suggestedGlassType}</p>
                 <p className="text-foreground">{result.analysis.suggestedGlassType}</p>
@@ -681,18 +697,12 @@ export function WineAnalysisTab({
                   </div>
                 )}
               </div>
-              <DetailItem
-                icon={Award}
-                label="Está en los 50 Best & Michelin"
-                value={result.analysis.world50BestRestaurants}
-              />
+              <DetailItem icon={Award} label={world50BestLabel} value={result.analysis.world50BestRestaurants} />
             </CardContent>
           </Card>
 
           <div className="py-6 text-center">
-            <p className="font-signature text-4xl text-primary/90">
-              Court of Master Sommeliers
-            </p>
+            <p className="font-signature text-4xl text-primary/90">Court of Master Sommeliers</p>
           </div>
 
           <Card>
@@ -704,19 +714,14 @@ export function WineAnalysisTab({
               {feedbackSubmitted ? (
                 <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed bg-accent/20 p-8 text-center">
                   <Star className="size-10 text-yellow-400 fill-yellow-400 mb-4" />
-                  <p className="text-lg font-semibold text-primary">
-                    {t.thankYouForFeedback}
-                  </p>
+                  <p className="text-lg font-semibold text-primary">{t.thankYouForFeedback}</p>
                   <p className="text-muted-foreground">{t.feedbackSentSuccessfully}</p>
                 </div>
               ) : (
                 <div className="space-y-6">
                   <div>
                     <Label className="text-base font-semibold">{t.overallRating}</Label>
-                    <InteractiveStarRating
-                      rating={feedbackRating}
-                      setRating={setFeedbackRating}
-                    />
+                    <InteractiveStarRating rating={feedbackRating} setRating={setFeedbackRating} />
                   </div>
                   <div>
                     <Label htmlFor="feedback-comment" className="text-base font-semibold">
@@ -744,10 +749,9 @@ export function WineAnalysisTab({
 
       {result && !result.analysis && (
         <Card className="text-center p-8">
-          <CardTitle>Análisis Incompleto</CardTitle>
+          <CardTitle>{t.incompleteAnalysis}</CardTitle>
           <CardDescription className="mt-2 max-w-prose mx-auto">
-            La IA no pudo generar un análisis sensorial detallado en esta ocasión,
-            pero aquí está la conclusión del sommelier.
+            {t.incompleteAnalysisDescription}
           </CardDescription>
           <CardContent className="mt-4 text-left">
             <Corrections corrections={result.corrections} notes={result.notes} />
