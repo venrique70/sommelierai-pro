@@ -2,22 +2,14 @@
 
 import { useEffect, useState, useTransition, useMemo } from "react";
 import { Users, DollarSign, TrendingUp, Award, Check, Info, ExternalLink, Building } from "lucide-react";
-import {
-  Card, CardContent, CardDescription, CardHeader, CardTitle,
-} from "@/components/ui/card";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
-} from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 
@@ -29,10 +21,11 @@ import {
   type VendorMetrics,
   type VendorLevel,
 } from "./actions";
-import {
-  RegisterCorporateSaleSchema,
-  type RegisterCorporateSaleInput,
-} from "@/lib/schemas";
+import { RegisterCorporateSaleSchema, type RegisterCorporateSaleInput } from "@/lib/schemas";
+
+// i18n
+import { useLang } from "@/lib/use-lang";
+import { translations } from "@/lib/translations";
 
 /* ───────────────────────── VendorOnboarding (inline) ───────────────────────── */
 
@@ -55,7 +48,7 @@ function VendorOnboardingInline({
   onRequestApproval: () => void | Promise<void>;
   savingLink?: boolean;
 }) {
-  // ✅ Solo permite solicitar si está en "none" y hay email (sesión)
+  const lang = useLang("es");
   const canRequest = useMemo(() => vendorStatus === "none" && !!email, [vendorStatus, email]);
 
   return (
@@ -63,40 +56,43 @@ function VendorOnboardingInline({
       <CardHeader>
         <CardTitle className="text-primary flex items-center gap-2">
           <Info className="h-4 w-4 text-primary" />
-          Tu Onboarding
+          {lang === "es" ? "Tu Onboarding" : "Your Onboarding"}
         </CardTitle>
-        <CardDescription>Te tomará un minuto.</CardDescription>
+        <CardDescription>{lang === "es" ? "Te tomará un minuto." : "It takes one minute."}</CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-6">
         {/* 1) Solicitar aprobación */}
         <div className="rounded-md border p-4">
-          <div className="font-semibold mb-1">1) Solicitar Aprobación</div>
+          <div className="font-semibold mb-1">{lang === "es" ? "1) Solicitar Aprobación" : "1) Request Approval"}</div>
           <p className="text-sm text-muted-foreground">
-            Al enviar tu solicitud, un admin revisará tu cuenta ({email ?? "tu email"}).
-            Recibirás el estado en este mismo panel.
+            {lang === "es"
+              ? <>Al enviar tu solicitud, un admin revisará tu cuenta ({email ?? "tu email"}). Recibirás el estado en este mismo panel.</>
+              : <>After you send your request, an admin will review your account ({email ?? "your email"}). You’ll see the status here.</>}
           </p>
           <div className="mt-3">
             <Button onClick={onRequestApproval} disabled={!canRequest} aria-disabled={!canRequest}>
-              {canRequest ? "Solicitar aprobación" : vendorStatus === "pending" ? "En revisión…" : "Aprobado ✔"}
+              {canRequest
+                ? (lang === "es" ? "Solicitar aprobación" : "Request approval")
+                : vendorStatus === "pending"
+                ? (lang === "es" ? "En revisión…" : "Under review…")
+                : (lang === "es" ? "Aprobado ✔" : "Approved ✔")}
             </Button>
           </div>
         </div>
 
         {/* 2) Crear cuenta en Lemon */}
         <div className="rounded-md border p-4">
-          <div className="font-semibold mb-1">2) Crear tu cuenta de afiliado</div>
+          <div className="font-semibold mb-1">{lang === "es" ? "2) Crear tu cuenta de afiliado" : "2) Create your affiliate account"}</div>
           <p className="text-sm text-muted-foreground">
-            Abre el portal público y créate una cuenta. Ahí configurarás tus datos de pago.
+            {lang === "es"
+              ? "Abre el portal público y créate una cuenta. Ahí configurarás tus datos de pago."
+              : "Open the public portal and create an account. Configure your payout details there."}
           </p>
           <div className="mt-3">
             <Button asChild variant="secondary">
-              <a
-                href="https://sommelierproai.lemonsqueezy.com/affiliates"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Ir al portal de afiliados <ExternalLink className="ml-2 h-4 w-4" />
+              <a href="https://sommelierproai.lemonsqueezy.com/affiliates" target="_blank" rel="noopener noreferrer">
+                {lang === "es" ? "Ir al portal de afiliados" : "Go to affiliate portal"} <ExternalLink className="ml-2 h-4 w-4" />
               </a>
             </Button>
           </div>
@@ -104,29 +100,32 @@ function VendorOnboardingInline({
 
         {/* 3) Guardar enlace */}
         <div className="rounded-md border p-4">
-          <div className="font-semibold mb-1">3) Guarda tu enlace de afiliado</div>
+          <div className="font-semibold mb-1">{lang === "es" ? "3) Guarda tu enlace de afiliado" : "3) Save your affiliate link"}</div>
           <p className="text-sm text-muted-foreground">
-            Pega aquí tu enlace único de Lemon. Lo usaremos para cruzar ventas.
+            {lang === "es"
+              ? "Pega aquí tu enlace único de Lemon. Lo usaremos para cruzar ventas."
+              : "Paste your unique Lemon link here. We’ll use it to match sales."}
           </p>
 
           <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
             <Input
               value={affiliateLink}
               onChange={(e) => onAffiliateLinkChange(e.target.value)}
-              placeholder="https://tu-subdominio.lemonsqueezy.com/checkout/XXXX"
+              placeholder={lang === "es" ? "https://tu-subdominio.lemonsqueezy.com/checkout/XXXX" : "https://your-subdomain.lemonsqueezy.com/checkout/XXXX"}
             />
             <Button onClick={onSaveAffiliateLink} disabled={!!savingLink}>
-              {savingLink ? "Guardando…" : "Guardar enlace"}
+              {savingLink ? (lang === "es" ? "Guardando…" : "Saving…") : (lang === "es" ? "Guardar enlace" : "Save link")}
             </Button>
           </div>
         </div>
 
         {/* 4) Qué sigue */}
         <div className="rounded-md border p-4">
-          <div className="font-semibold mb-1">¿Qué sigue?</div>
+          <div className="font-semibold mb-1">{lang === "es" ? "¿Qué sigue?" : "What’s next?"}</div>
           <p className="text-sm text-muted-foreground">
-            Cuando un admin te apruebe, verás tu panel completo con métricas,
-            registro de ventas corporativas y más.
+            {lang === "es"
+              ? "Cuando un admin te apruebe, verás tu panel completo con métricas, registro de ventas corporativas y más."
+              : "Once an admin approves you, you’ll see your full dashboard with metrics, corporate sales logging and more."}
           </p>
         </div>
       </CardContent>
@@ -137,15 +136,17 @@ function VendorOnboardingInline({
 /* ─────────────────────── CommissionsSection (inline) ─────────────────────── */
 
 function CommissionsSectionInline({ currentLevel }: { currentLevel?: VendorLevel }) {
+  const lang = useLang("es");
+
   const COMMISSIONS_BY_USER = [
-    { level: "Nuevo",    requirement: "0-4 Referidos",   iniciado: "0%",  unaCopa: "0%",  copaPremium: "0%",  sibarita: "0%"  },
-    { level: "Pregrado", requirement: "5-9 Referidos",   iniciado: "5%",  unaCopa: "8%",  copaPremium: "10%", sibarita: "15%" },
-    { level: "Bachelor", requirement: "10-19 Referidos", iniciado: "7%",  unaCopa: "10%", copaPremium: "12%", sibarita: "17%" },
-    { level: "Pro",      requirement: "20-29 Referidos", iniciado: "9%",  unaCopa: "12%", copaPremium: "15%", sibarita: "18%" },
-    { level: "Master",   requirement: "30+ Referidos",   iniciado: "11%", unaCopa: "15%", copaPremium: "17%", sibarita: "20%" },
+    { level: lang === "es" ? "Nuevo" : "New",    requirement: lang === "es" ? "0-4 Referidos" : "0-4 Referrals",   iniciado: "0%",  unaCopa: "0%",  copaPremium: "0%",  sibarita: "0%"  },
+    { level: "Pregrado", requirement: lang === "es" ? "5-9 Referidos" : "5-9 Referrals",   iniciado: "5%",  unaCopa: "8%",  copaPremium: "10%", sibarita: "15%" },
+    { level: "Bachelor", requirement: lang === "es" ? "10-19 Referidos" : "10-19 Referrals", iniciado: "7%",  unaCopa: "10%", copaPremium: "12%", sibarita: "17%" },
+    { level: "Pro",      requirement: lang === "es" ? "20-29 Referidos" : "20-29 Referrals", iniciado: "9%",  unaCopa: "12%", copaPremium: "15%", sibarita: "18%" },
+    { level: "Master",   requirement: lang === "es" ? "30+ Referidos" : "30+ Referrals",   iniciado: "11%", unaCopa: "15%", copaPremium: "17%", sibarita: "20%" },
   ] as const;
 
-  const highlight = currentLevel ?? "Bachelor";
+  const highlight = currentLevel ?? (lang === "es" ? "Bachelor" : "Bachelor");
 
   return (
     <div className="grid grid-cols-1 gap-8">
@@ -153,16 +154,20 @@ function CommissionsSectionInline({ currentLevel }: { currentLevel?: VendorLevel
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="text-primary" />
-            Comisiones por Planes de Usuario
+            {lang === "es" ? "Comisiones por Planes de Usuario" : "Commissions by User Plans"}
           </CardTitle>
-          <CardDescription>Tu comisión por referidos individuales se basa en tu nivel y el plan del referido.</CardDescription>
+          <CardDescription>
+            {lang === "es"
+              ? "Tu comisión por referidos individuales se basa en tu nivel y el plan del referido."
+              : "Your commission for individual referrals depends on your level and the referred user’s plan."}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nivel</TableHead>
-                <TableHead>Requisito</TableHead>
+                <TableHead>{lang === "es" ? "Nivel" : "Level"}</TableHead>
+                <TableHead>{lang === "es" ? "Requisito" : "Requirement"}</TableHead>
                 <TableHead>Iniciado</TableHead>
                 <TableHead>Una Copa</TableHead>
                 <TableHead>Copa Premium</TableHead>
@@ -176,7 +181,11 @@ function CommissionsSectionInline({ currentLevel }: { currentLevel?: VendorLevel
                   <TableRow key={row.level} className={isMe ? "bg-accent" : ""}>
                     <TableCell className="font-medium">
                       {row.level}
-                      {isMe && <span className="ml-2 rounded border px-2 py-0.5 text-xs">Tu Nivel</span>}
+                      {isMe && (
+                        <span className="ml-2 rounded border px-2 py-0.5 text-xs">
+                          {lang === "es" ? "Tu Nivel" : "Your Level"}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>{row.requirement}</TableCell>
                     <TableCell>{row.iniciado}</TableCell>
@@ -195,15 +204,19 @@ function CommissionsSectionInline({ currentLevel }: { currentLevel?: VendorLevel
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Building className="text-primary" />
-            Comisiones por Planes Corporativos
+            {lang === "es" ? "Comisiones por Planes Corporativos" : "Commissions for Corporate Plans"}
           </CardTitle>
-          <CardDescription>Comisiones especiales por la venta de planes corporativos por volumen.</CardDescription>
+          <CardDescription>
+            {lang === "es"
+              ? "Comisiones especiales por la venta de planes corporativos por volumen."
+              : "Special commissions for selling corporate plans in volume."}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Volumen (Suscripciones)</TableHead>
+                <TableHead>{lang === "es" ? "Volumen (Suscripciones)" : "Volume (Subscriptions)"}</TableHead>
                 <TableHead>Copa Premium</TableHead>
                 <TableHead>Sibarita</TableHead>
               </TableRow>
@@ -231,6 +244,7 @@ function CommissionsSectionInline({ currentLevel }: { currentLevel?: VendorLevel
 /* ───────────────────────────── Page ───────────────────────────── */
 
 export default function AffiliateDashboardPage() {
+  const lang = useLang("es");
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -255,21 +269,29 @@ export default function AffiliateDashboardPage() {
   const handleSaveAffiliateLink = async () => {
     if (!user?.uid) {
       toast({
-        title: "Inicia sesión",
-        description: "Debes iniciar sesión para guardar tu enlace de afiliado.",
+        title: lang === "es" ? "Inicia sesión" : "Sign in",
+        description:
+          lang === "es"
+            ? "Debes iniciar sesión para guardar tu enlace de afiliado."
+            : "You must sign in to save your affiliate link.",
         variant: "destructive",
       });
       return;
     }
     const link = affiliateLink.trim();
     if (!link) {
-      toast({ title: "Falta el enlace", description: "Pega tu enlace de afiliado de Lemon Squeezy.", variant: "destructive" });
+      toast({
+        title: lang === "es" ? "Falta el enlace" : "Missing link",
+        description:
+          lang === "es" ? "Pega tu enlace de afiliado de Lemon Squeezy." : "Paste your Lemon Squeezy affiliate link.",
+        variant: "destructive",
+      });
       return;
     }
     startSavingLink(async () => {
       const res = await saveAffiliateLink(user.uid!, link);
       toast({
-        title: res.success ? "Enlace guardado" : "No se pudo guardar",
+        title: res.success ? (lang === "es" ? "Enlace guardado" : "Link saved") : (lang === "es" ? "No se pudo guardar" : "Could not save"),
         description: res.message,
         variant: res.success ? "default" : "destructive",
       });
@@ -279,15 +301,16 @@ export default function AffiliateDashboardPage() {
   const handleRequestApproval = async () => {
     if (!user?.uid) {
       toast({
-        title: "Inicia sesión",
-        description: "Debes iniciar sesión para solicitar aprobación.",
+        title: lang === "es" ? "Inicia sesión" : "Sign in",
+        description:
+          lang === "es" ? "Debes iniciar sesión para solicitar aprobación." : "You must sign in to request approval.",
         variant: "destructive",
       });
       return;
     }
     const res = await requestVendorApproval(user.uid);
     toast({
-      title: res.success ? "Solicitud enviada" : "No se pudo enviar",
+      title: res.success ? (lang === "es" ? "Solicitud enviada" : "Request sent") : (lang === "es" ? "No se pudo enviar" : "Could not send"),
       description: res.message,
       variant: res.success ? "default" : "destructive",
     });
@@ -300,19 +323,23 @@ export default function AffiliateDashboardPage() {
 
   const onSaleSubmit = async (data: Omit<RegisterCorporateSaleInput, "vendedorUid">) => {
     if (!user) {
-      toast({ title: "Error", description: "Debes iniciar sesión para registrar una venta.", variant: "destructive" });
+      toast({
+        title: lang === "es" ? "Error" : "Error",
+        description: lang === "es" ? "Debes iniciar sesión para registrar una venta." : "You must sign in to register a sale.",
+        variant: "destructive",
+      });
       return;
     }
     const result = await registerCorporateSale({ vendedorUid: user.uid, ...data });
     toast({
-      title: result.success ? "Venta registrada" : "Error al registrar",
+      title: result.success ? (lang === "es" ? "Venta registrada" : "Sale registered") : (lang === "es" ? "Error al registrar" : "Registration error"),
       description: result.message,
       variant: result.success ? "default" : "destructive",
     });
     if (result.success) form.reset();
   };
 
-  const level: VendorLevel = metrics?.level ?? "Nuevo";
+  const level: VendorLevel = metrics?.level ?? (lang === "es" ? "Nuevo" : "New");
   const activeReferrals = metrics?.activeReferrals ?? 0;
   const pendingCommission = metrics?.pendingCommission ?? 0;
   const nextPayoutDate = metrics?.nextPayoutDate ?? "—";
@@ -321,9 +348,14 @@ export default function AffiliateDashboardPage() {
     <div className="space-y-8">
       {/* Título */}
       <div>
-        <h1 className="text-4xl font-bold tracking-tight text-primary">Portal de Afiliados</h1>
+        <h1 className="text-4xl font-bold tracking-tight text-primary">
+          {lang === "es" ? "Portal de Afiliados" : "Affiliate Portal"}
+        </h1>
         <p className="text-muted-foreground mt-2">
-          {user?.email ? `Bienvenido, ${user.email}.` : "Bienvenido."} Aquí tienes un resumen de tu actividad.
+          {user?.email
+            ? (lang === "es" ? `Bienvenido, ${user.email}.` : `Welcome, ${user.email}.`)
+            : (lang === "es" ? "Bienvenido." : "Welcome.")}{" "}
+          {lang === "es" ? "Aquí tienes un resumen de tu actividad." : "Here’s a summary of your activity."}
         </p>
       </div>
 
@@ -331,45 +363,53 @@ export default function AffiliateDashboardPage() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tu Nivel Actual</CardTitle>
+            <CardTitle className="text-sm font-medium">{lang === "es" ? "Tu Nivel Actual" : "Your Current Level"}</CardTitle>
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{level}</div>
-            <p className="text-xs text-muted-foreground">¡Sigue así para alcanzar el siguiente nivel!</p>
+            <p className="text-xs text-muted-foreground">
+              {lang === "es" ? "¡Sigue así para alcanzar el siguiente nivel!" : "Keep it up to reach the next level!"}
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Referidos Activos</CardTitle>
+            <CardTitle className="text-sm font-medium">{lang === "es" ? "Referidos Activos" : "Active Referrals"}</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{activeReferrals}</div>
-            <p className="text-xs text-muted-foreground">Usuarios con suscripción activa.</p>
+            <p className="text-xs text-muted-foreground">
+              {lang === "es" ? "Usuarios con suscripción activa." : "Users with an active subscription."}
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Comisión Estimada</CardTitle>
+            <CardTitle className="text-sm font-medium">{lang === "es" ? "Comisión Estimada" : "Estimated Commission"}</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">${pendingCommission.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">Calculada para el último periodo.</p>
+            <p className="text-xs text-muted-foreground">
+              {lang === "es" ? "Calculada para el último periodo." : "Calculated for the last period."}
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Próximo Pago (Estimado)</CardTitle>
+            <CardTitle className="text-sm font-medium">{lang === "es" ? "Próximo Pago (Estimado)" : "Next Payout (Estimated)"}</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{nextPayoutDate}</div>
-            <p className="text-xs text-muted-foreground">Fecha gestionada por Lemon Squeezy.</p>
+            <p className="text-xs text-muted-foreground">
+              {lang === "es" ? "Fecha gestionada por Lemon Squeezy." : "Date managed by Lemon Squeezy."}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -393,8 +433,10 @@ export default function AffiliateDashboardPage() {
       {/* Registrar venta corporativa */}
       <Card>
         <CardHeader>
-          <CardTitle>Registrar Venta Corporativa</CardTitle>
-          <CardDescription>Introduce los datos para registrar y calcular tu comisión.</CardDescription>
+          <CardTitle>{lang === "es" ? "Registrar Venta Corporativa" : "Register Corporate Sale"}</CardTitle>
+          <CardDescription>
+            {lang === "es" ? "Introduce los datos para registrar y calcular tu comisión." : "Enter the data to register and calculate your commission."}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -404,7 +446,7 @@ export default function AffiliateDashboardPage() {
                 name="accessCode"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Código de Acceso de la Empresa</FormLabel>
+                    <FormLabel>{lang === "es" ? "Código de Acceso de la Empresa" : "Company Access Code"}</FormLabel>
                     <FormControl><Input placeholder="CORP-XXXXXX" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -415,7 +457,7 @@ export default function AffiliateDashboardPage() {
                 name="plan"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Plan Vendido</FormLabel>
+                    <FormLabel>{lang === "es" ? "Plan Vendido" : "Plan Sold"}</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>
@@ -432,7 +474,7 @@ export default function AffiliateDashboardPage() {
                 name="subscriptions"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Número de Suscripciones</FormLabel>
+                    <FormLabel>{lang === "es" ? "Número de Suscripciones" : "Number of Subscriptions"}</FormLabel>
                     <FormControl><Input type="number" min={1} {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -443,12 +485,12 @@ export default function AffiliateDashboardPage() {
                 name="billingCycle"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Ciclo de Facturación</FormLabel>
+                    <FormLabel>{lang === "es" ? "Ciclo de Facturación" : "Billing Cycle"}</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>
-                        <SelectItem value="monthly">Mensual</SelectItem>
-                        <SelectItem value="yearly">Anual</SelectItem>
+                        <SelectItem value="monthly">{lang === "es" ? "Mensual" : "Monthly"}</SelectItem>
+                        <SelectItem value="yearly">{lang === "es" ? "Anual" : "Yearly"}</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -457,7 +499,7 @@ export default function AffiliateDashboardPage() {
               />
               <Button type="submit" className="w-full">
                 <Check className="mr-2" />
-                Registrar Venta
+                {lang === "es" ? "Registrar Venta" : "Register Sale"}
               </Button>
             </form>
           </Form>
@@ -467,25 +509,25 @@ export default function AffiliateDashboardPage() {
       {/* Ventas recientes */}
       <Card>
         <CardHeader>
-          <CardTitle>Ventas Recientes</CardTitle>
-          <CardDescription>Resumen de operaciones registradas.</CardDescription>
+          <CardTitle>{lang === "es" ? "Ventas Recientes" : "Recent Sales"}</CardTitle>
+          <CardDescription>{lang === "es" ? "Resumen de operaciones registradas." : "Summary of recorded operations."}</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Fecha</TableHead>
-                <TableHead>Plan</TableHead>
+                <TableHead>{lang === "es" ? "Fecha" : "Date"}</TableHead>
+                <TableHead>{lang === "es" ? "Plan" : "Plan"}</TableHead>
                 <TableHead>Seats</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Comisión Estimada</TableHead>
+                <TableHead>{lang === "es" ? "Estado" : "Status"}</TableHead>
+                <TableHead>{lang === "es" ? "Comisión Estimada" : "Estimated Commission"}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {metrics?.recentSales?.length ? (
                 metrics.recentSales.map((s) => (
                   <TableRow key={s.id}>
-                    <TableCell>{new Date(s.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>{new Date(s.createdAt).toLocaleDateString(lang === "es" ? "es-PE" : "en-US")}</TableCell>
                     <TableCell>{s.plan}</TableCell>
                     <TableCell>{s.seats}</TableCell>
                     <TableCell>{s.status}</TableCell>
@@ -495,7 +537,7 @@ export default function AffiliateDashboardPage() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted-foreground">
-                    Aún no hay ventas registradas.
+                    {lang === "es" ? "Aún no hay ventas registradas." : "No sales recorded yet."}
                   </TableCell>
                 </TableRow>
               )}
