@@ -9,17 +9,18 @@ import { Toaster } from "@/components/ui/toaster";
 import Footer from "@/components/Footer";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 
+// ⬇️ NUEVO: import del mini-nav
+import TopRightAdminNav from "@/components/admin/TopRightAdminNav";
+
 function Shell({ children }: { children: React.ReactNode }) {
   const { loading, user, error } = useAuth();
   const [giveUp, setGiveUp] = useState(false);
 
-  // ⏱️ fail-open: a los 8s mostramos la UI aunque loading siga true
   useEffect(() => {
     const id = setTimeout(() => setGiveUp(true), 8000);
     return () => clearTimeout(id);
   }, []);
 
-  // Logs de diagnóstico (no visibles al usuario)
   useEffect(() => {
     console.log("[useAuth] loading:", loading, "uid:", user?.uid, "error:", error);
   }, [loading, user, error]);
@@ -33,12 +34,12 @@ function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen grid grid-cols-[auto_1fr] bg-background text-foreground">
-      {/* Sidebar (como antes) */}
+      {/* Sidebar */}
       <aside className="border-r border-white/10">
         <AppSidebar />
       </aside>
 
-      {/* Contenido con overlay no bloqueante */}
+      {/* Contenido */}
       <main className="relative w-full">
         {children}
 
@@ -51,6 +52,9 @@ function Shell({ children }: { children: React.ReactNode }) {
           </div>
         )}
       </main>
+
+      {/* ⬇️ NUEVO: nav fijo arriba-derecha, por fuera de <main> y sobre cualquier overlay */}
+      <TopRightAdminNav />
 
       <Footer />
       <Toaster />
