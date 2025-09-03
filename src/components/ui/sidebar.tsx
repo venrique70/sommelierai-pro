@@ -3,9 +3,25 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { VariantProps, cva } from "class-variance-authority"
-import { BarChart, HandCoins, UserCog, FileText, Utensils, Building, Users, LogOut, Home, History, Beaker, Archive, BookOpenCheck, DollarSign, ShieldCheck } from "lucide-react"
+import {
+  BarChart,
+  HandCoins,
+  UserCog,
+  FileText,
+  Utensils,
+  Building,
+  Users,
+  LogOut,
+  Home,
+  History,
+  Beaker,
+  Archive,
+  BookOpenCheck,
+  DollarSign,
+  ShieldCheck,
+} from "lucide-react"
 import Link from "next/link"
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter } from "next/navigation"
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useAuth } from "@/hooks/use-auth"
@@ -13,6 +29,10 @@ import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { logout } from "@/lib/auth"
 import { useToast } from "@/hooks/use-toast"
+
+// ⬇️ i18n minimal: usamos el idioma actual y diccionario
+import { useLang } from "@/lib/use-lang"
+import { translations } from "@/lib/translations"
 
 /* -------------------- COMPONENTES BASE -------------------- */
 
@@ -24,9 +44,7 @@ const SidebarMenu = React.forwardRef<HTMLUListElement, React.ComponentProps<"ul"
 SidebarMenu.displayName = "SidebarMenu"
 
 const SidebarMenuItem = React.forwardRef<HTMLLIElement, React.ComponentProps<"li">>(
-  ({ className, ...props }, ref) => (
-    <li ref={ref} className={cn("group/menu-item relative", className)} {...props} />
-  )
+  ({ className, ...props }, ref) => <li ref={ref} className={cn("group/menu-item relative", className)} {...props} />
 )
 SidebarMenuItem.displayName = "SidebarMenuItem"
 
@@ -45,14 +63,7 @@ const SidebarMenuButton = React.forwardRef<
   const Comp = asChild ? Slot : "button"
   const { isMobile } = useSidebar()
 
-  const button = (
-    <Comp
-      ref={ref}
-      data-active={isActive}
-      className={cn(sidebarMenuButtonVariants(), className)}
-      {...props}
-    />
-  )
+  const button = <Comp ref={ref} data-active={isActive} className={cn(sidebarMenuButtonVariants(), className)} {...props} />
 
   if (!tooltip) return button
   if (typeof tooltip === "string") tooltip = { children: tooltip }
@@ -94,46 +105,53 @@ const SidebarProvider = ({ children, defaultOpen = true }: { children: React.Rea
 /* -------------------- APP SIDEBAR -------------------- */
 
 const AppSidebar = () => {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { profile, loading: authLoading } = useAuth();
-  const { toast } = useToast();
+  const pathname = usePathname()
+  const router = useRouter()
+  const { profile, loading: authLoading } = useAuth()
+  const { toast } = useToast()
 
+  // ⬇️ idioma actual + diccionario
+  const lang = useLang("es")
+  const t = translations[lang]
+
+  // ⬇️ Menús con labels traducidos (no tocamos rutas)
   const mainNav = [
-    { href: "/", label: "Home", icon: Home, isButton: true },
-    { href: "/history", label: "Mi Historial", icon: History },
-    { href: "/mi-bodega", label: "Mi Bodega", icon: Archive },
-  ];
+    { href: "/", label: t.navHome, icon: Home, isButton: true },
+    { href: "/history", label: t.navHistory, icon: History },
+    { href: "/mi-bodega", label: t.navCellar, icon: Archive },
+  ]
 
   const accountNav = [
-    { href: "/account", label: "Mi Cuenta", icon: UserCog },
-    { href: "/planes", label: "Planes", icon: HandCoins },
-    { href: "/corporate", label: "Planes Corporativos", icon: Building },
-    { href: "/privacy-policy", label: "Legal", icon: ShieldCheck },
-  ];
+    { href: "/account", label: t.navAccount, icon: UserCog },
+    { href: "/planes", label: t.navPlans, icon: HandCoins },
+    { href: "/corporate", label: t.navCorporatePlans, icon: Building },
+    { href: "/privacy-policy", label: t.navLegal, icon: ShieldCheck },
+  ]
 
-  const affiliateNav = [
-    { href: "/dashboard-afiliado", label: "Portal de Afiliados", icon: BarChart },
-  ];
+  const affiliateNav = [{ href: "/dashboard-afiliado", label: t.navAffiliatePortal, icon: BarChart }]
 
   const adminNav = [
-    { href: "/admin/dashboard-afiliado", label: "Dashboard Afiliados", icon: DollarSign },
-    { href: "/admin/vendedores", label: "Gestión de Vendedores", icon: Users },
-    { href: "/admin/webhook-test", label: "Test Webhook", icon: Beaker },
-    { href: "/mi-carta", label: "Mi Carta (Restaurante)", icon: BookOpenCheck },
+    { href: "/admin/dashboard-afiliado", label: t.navAffiliateDashboard, icon: DollarSign },
+    { href: "/admin/vendedores", label: t.navVendorsManagement, icon: Users },
+    { href: "/admin/webhook-test", label: t.navTestWebhook, icon: Beaker },
+    { href: "/mi-carta", label: t.navMyMenu, icon: BookOpenCheck },
   ]
 
   const toolNav = [
-    { href: "/cata-sheet", label: "Análisis por Ficha", icon: FileText },
-    { href: "/course-pairing", label: "Maridaje 6 Tiempos", icon: Utensils },
+    { href: "/cata-sheet", label: t.navSheetAnalysis, icon: FileText },
+    { href: "/course-pairing", label: t.navSixCoursePairing, icon: Utensils },
   ]
 
   const handleHomeClick = () => {
-    if (pathname === '/') window.location.reload();
-    else router.push('/');
-  };
+    if (pathname === "/") window.location.reload()
+    else router.push("/")
+  }
 
-  const NavMenu = ({ items }: { items: { href: string, label: string, icon: React.ElementType, isButton?: boolean }[] }) => (
+  const NavMenu = ({
+    items,
+  }: {
+    items: { href: string; label: string; icon: React.ElementType; isButton?: boolean }[]
+  }) => (
     <SidebarMenu>
       {items.map((item) => (
         <SidebarMenuItem key={item.href}>
@@ -153,14 +171,18 @@ const AppSidebar = () => {
         </SidebarMenuItem>
       ))}
     </SidebarMenu>
-  );
+  )
 
   const handleLogout = async () => {
     try {
-      await logout(router);
-      toast({ title: "Sesión Cerrada", description: "Has cerrado sesión correctamente." });
+      await logout(router)
+      toast({ title: "Sesión Cerrada", description: "Has cerrado sesión correctamente." })
     } catch {
-      toast({ title: "Error al cerrar sesión", description: "No se pudo cerrar la sesión. Inténtalo de nuevo.", variant: "destructive" });
+      toast({
+        title: "Error al cerrar sesión",
+        description: "No se pudo cerrar la sesión. Inténtalo de nuevo.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -173,33 +195,33 @@ const AppSidebar = () => {
         <NavMenu items={mainNav} />
 
         {/* Herramientas IA */}
-        <div className="mt-4 font-semibold text-xs px-4">Herramientas IA</div>
+        <div className="mt-4 font-semibold text-xs px-4">{t.navAiTools}</div>
         <NavMenu items={toolNav} />
 
         {/* Cuenta */}
-        <div className="mt-4 font-semibold text-xs px-4">Cuenta</div>
+        <div className="mt-4 font-semibold text-xs px-4">{t.navAccount}</div>
         <NavMenu items={accountNav} />
 
-        {/* Afiliados (nuevo bloque) */}
-        <div className="mt-4 font-semibold text-xs px-4">Afiliados</div>
+        {/* Afiliados */}
+        <div className="mt-4 font-semibold text-xs px-4">{t.navAffiliatePortal}</div>
         <NavMenu items={affiliateNav} />
 
         {/* Logout */}
         {!authLoading && (
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton onClick={handleLogout} tooltip="Cerrar Sesión">
+              <SidebarMenuButton onClick={handleLogout} tooltip={t.navLogout}>
                 <LogOut />
-                <span>Cerrar Sesión</span>
+                <span>{t.navLogout}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
         )}
 
         {/* Admin */}
-        {profile?.role === 'admin' && (
+        {profile?.role === "admin" && (
           <>
-            <div className="mt-4 font-semibold text-xs px-4">Admin</div>
+            <div className="mt-4 font-semibold text-xs px-4">{t.navAdmin}</div>
             <NavMenu items={adminNav} />
           </>
         )}
