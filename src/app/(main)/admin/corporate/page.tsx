@@ -40,6 +40,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+// ⬇️ NAV (nuevo)
+import AdminNav from "@/components/admin/AdminNav";
+
 // i18n mínimo
 import { useLang } from "@/lib/use-lang";
 
@@ -226,6 +229,16 @@ const CorporateInfoView = () => {
   );
 };
 
+// ⬇️ Frame simple para añadir el NAV sin tocar tu contenido
+function PageFrame({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative z-0 mx-auto max-w-6xl p-6 pt-16">
+      <AdminNav current="corporate" />
+      {children}
+    </div>
+  );
+}
+
 export default function CorporatePage() {
   const lang = useLang("es");
   const [view, setView] = useState<"form" | "success" | "unlocked">("form");
@@ -293,49 +306,123 @@ export default function CorporatePage() {
   };
 
   if (view === "unlocked") {
-    return <CorporateInfoView />;
+    // 👉 añadimos NAV sin tocar tu componente
+    return (
+      <PageFrame>
+        <CorporateInfoView />
+      </PageFrame>
+    );
   }
 
   if (view === "success") {
     return (
-      <div className="flex flex-col items-center justify-center text-center space-y-6 max-w-2xl mx-auto py-12">
-        <div className="p-4 bg-green-500/20 rounded-full">
-          <Check className="size-16 text-green-500" />
+      <PageFrame>
+        {/* --- tu bloque original de success tal cual --- */}
+        <div className="flex flex-col items-center justify-center text-center space-y-6 max-w-2xl mx-auto py-12">
+          <div className="p-4 bg-green-500/20 rounded-full">
+            <Check className="size-16 text-green-500" />
+          </div>
+          <h1 className="text-3xl font-bold text-primary">
+            {lang === "es" ? "¡Solicitud Recibida!" : "Request Received!"}
+          </h1>
+          <p className="text-xl text-muted-foreground">
+            {lang === "es"
+              ? "Hemos enviado un correo electrónico con tu código de acceso único. Por favor, revísalo para ver nuestros planes corporativos."
+              : "We’ve sent you an email with your unique access code. Please check it to view our corporate plans."}
+          </p>
+          <Card className="w-full">
+            <CardHeader>
+              <CardTitle>
+                {lang === "es" ? "¿No recibiste el correo?" : "Didn’t receive the email?"}
+              </CardTitle>
+              <CardDescription>
+                {lang === "es"
+                  ? "Introduce el código que te hemos enviado para desbloquear la información."
+                  : "Enter the code we sent you to unlock the information."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...unlockForm}>
+                <form
+                  onSubmit={unlockForm.handleSubmit(handleUnlockSubmit)}
+                  className="flex items-start gap-4"
+                >
+                  <FormField
+                    control={unlockForm.control}
+                    name="accessCode"
+                    render={({ field }) => (
+                      <FormItem className="flex-grow">
+                        <FormControl>
+                          <Input
+                            placeholder={
+                              lang === "es" ? "Tu código de acceso..." : "Your access code..."
+                            }
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button type="submit" disabled={isLoading}>
+                    {isLoading ? <Loader2 className="animate-spin" /> : null}
+                    {isLoading ? (lang === "es" ? "Desbloqueando…" : "Unlocking…") : (lang === "es" ? "Desbloquear" : "Unlock")}
+                  </Button>
+                </form>
+                {unlockError && (
+                  <p className="text-sm text-destructive mt-2">{unlockError}</p>
+                )}
+              </Form>
+            </CardContent>
+          </Card>
         </div>
-        <h1 className="text-3xl font-bold text-primary">
-          {lang === "es" ? "¡Solicitud Recibida!" : "Request Received!"}
-        </h1>
-        <p className="text-xl text-muted-foreground">
-          {lang === "es"
-            ? "Hemos enviado un correo electrónico con tu código de acceso único. Por favor, revísalo para ver nuestros planes corporativos."
-            : "We’ve sent you an email with your unique access code. Please check it to view our corporate plans."}
-        </p>
-        <Card className="w-full">
+      </PageFrame>
+    );
+  }
+
+  // Vista por defecto (formulario)
+  return (
+    <PageFrame>
+      <div className="space-y-8 max-w-4xl mx-auto">
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight text-primary flex items-center gap-3">
+            <Building />
+            {lang === "es" ? "Planes Corporativos" : "Corporate Plans"}
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            {lang === "es"
+              ? "Potencia a tu equipo o añade valor a tus clientes con SommelierPro AI. Ideal para bodegas, distribuidoras, restaurantes y hoteles."
+              : "Empower your team or add value to your clients with SommelierPro AI. Ideal for wineries, distributors, restaurants and hotels."}
+          </p>
+        </div>
+
+        <Card>
           <CardHeader>
             <CardTitle>
-              {lang === "es" ? "¿No recibiste el correo?" : "Didn’t receive the email?"}
+              {lang === "es" ? "Solicita Información Exclusiva" : "Request Exclusive Information"}
             </CardTitle>
             <CardDescription>
               {lang === "es"
-                ? "Introduce el código que te hemos enviado para desbloquear la información."
-                : "Enter the code we sent you to unlock the information."}
+                ? "Completa el formulario para recibir un código de acceso por correo y ver nuestros planes diseñados para empresas."
+                : "Fill out the form to receive an access code by email and view our plans designed for companies."}
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Form {...unlockForm}>
-              <form
-                onSubmit={unlockForm.handleSubmit(handleUnlockSubmit)}
-                className="flex items-start gap-4"
-              >
+          <CardContent className="space-y-6">
+            <Form {...requestForm}>
+              <form onSubmit={requestForm.handleSubmit(handleRequestSubmit)} className="space-y-6">
+                {/* tu formulario tal cual */}
                 <FormField
-                  control={unlockForm.control}
-                  name="accessCode"
+                  control={requestForm.control}
+                  name="companyName"
                   render={({ field }) => (
-                    <FormItem className="flex-grow">
+                    <FormItem>
+                      <FormLabel>
+                        {lang === "es" ? "Nombre de la Empresa" : "Company Name"}
+                      </FormLabel>
                       <FormControl>
                         <Input
                           placeholder={
-                            lang === "es" ? "Tu código de acceso..." : "Your access code..."
+                            lang === "es" ? "Ej. Restaurante La Cava" : "e.g., La Cava Restaurant"
                           }
                           {...field}
                         />
@@ -344,120 +431,58 @@ export default function CorporatePage() {
                     </FormItem>
                   )}
                 />
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="animate-spin" /> : null}
-                  {isLoading ? (lang === "es" ? "Desbloqueando…" : "Unlocking…") : (lang === "es" ? "Desbloquear" : "Unlock")}
-                </Button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField
+                    control={requestForm.control}
+                    name="contactName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {lang === "es" ? "Nombre del Contacto" : "Contact Name"}
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder={lang === "es" ? "Ej. Juan Pérez" : "e.g., John Smith"}
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={requestForm.control}
+                    name="contactEmail"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {lang === "es" ? "Email del Contacto" : "Contact Email"}
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            type="email"
+                            placeholder={
+                              lang === "es" ? "juan.perez@ejemplo.com" : "john.smith@example.com"
+                            }
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="text-center pt-4">
+                  <Button size="lg" type="submit" disabled={isLoading}>
+                    {isLoading ? <Loader2 className="mr-2 animate-spin" /> : <Send className="mr-2" />}
+                    {isLoading ? (lang === "es" ? "Enviando..." : "Sending...") : (lang === "es" ? "Enviar Solicitud" : "Send Request")}
+                  </Button>
+                </div>
               </form>
-              {unlockError && (
-                <p className="text-sm text-destructive mt-2">{unlockError}</p>
-              )}
             </Form>
           </CardContent>
         </Card>
       </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8 max-w-4xl mx-auto">
-      <div>
-        <h1 className="text-4xl font-bold tracking-tight text-primary flex items-center gap-3">
-          <Building />
-          {lang === "es" ? "Planes Corporativos" : "Corporate Plans"}
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          {lang === "es"
-            ? "Potencia a tu equipo o añade valor a tus clientes con SommelierPro AI. Ideal para bodegas, distribuidoras, restaurantes y hoteles."
-            : "Empower your team or add value to your clients with SommelierPro AI. Ideal for wineries, distributors, restaurants and hotels."}
-        </p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            {lang === "es" ? "Solicita Información Exclusiva" : "Request Exclusive Information"}
-          </CardTitle>
-          <CardDescription>
-            {lang === "es"
-              ? "Completa el formulario para recibir un código de acceso por correo y ver nuestros planes diseñados para empresas."
-              : "Fill out the form to receive an access code by email and view our plans designed for companies."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <Form {...requestForm}>
-            <form onSubmit={requestForm.handleSubmit(handleRequestSubmit)} className="space-y-6">
-              <FormField
-                control={requestForm.control}
-                name="companyName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {lang === "es" ? "Nombre de la Empresa" : "Company Name"}
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder={
-                          lang === "es" ? "Ej. Restaurante La Cava" : "e.g., La Cava Restaurant"
-                        }
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField
-                  control={requestForm.control}
-                  name="contactName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {lang === "es" ? "Nombre del Contacto" : "Contact Name"}
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder={lang === "es" ? "Ej. Juan Pérez" : "e.g., John Smith"}
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={requestForm.control}
-                  name="contactEmail"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {lang === "es" ? "Email del Contacto" : "Contact Email"}
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          type="email"
-                          placeholder={
-                            lang === "es" ? "juan.perez@ejemplo.com" : "john.smith@example.com"
-                          }
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <div className="text-center pt-4">
-                <Button size="lg" type="submit" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="mr-2 animate-spin" /> : <Send className="mr-2" />}
-                  {isLoading ? (lang === "es" ? "Enviando..." : "Sending...") : (lang === "es" ? "Enviar Solicitud" : "Send Request")}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-    </div>
+    </PageFrame>
   );
 }
