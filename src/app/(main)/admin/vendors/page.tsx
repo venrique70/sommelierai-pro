@@ -3,10 +3,19 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 import Link from "next/link";
+import { headers } from "next/headers";
 import SellersManager from "@/components/vendors/SellersManager";
 import { getVendors, listVendorRequests } from "@/lib/actions/vendors";
 
 export default async function Page() {
+  const accept = headers().get("accept-language")?.toLowerCase() || "";
+  const isEs = accept.startsWith("es");
+  const t = {
+    vendors: isEs ? "Vendedores" : "Vendors",
+    corporate: isEs ? "Corporativo" : "Corporate",
+    affiliates: isEs ? "Afiliados" : "Affiliates",
+  };
+
   const [vendors, requests] = await Promise.all([
     getVendors(),
     listVendorRequests({ status: "pending" }),
@@ -27,23 +36,23 @@ export default async function Page() {
           href="/admin/vendors"
           className="inline-flex items-center rounded-md border border-white/10 px-3 py-2 text-sm bg-yellow-500/20 text-yellow-200 hover:bg-white/5"
         >
-          Vendedores
+          {t.vendors}
         </Link>
         <Link
           href="/admin/corporate"
           className="inline-flex items-center rounded-md border border-white/10 px-3 py-2 text-sm hover:bg-white/5"
         >
-          Corporativo
+          {t.corporate}
         </Link>
         <Link
           href="/admin/affiliates"
           className="inline-flex items-center rounded-md border border-white/10 px-3 py-2 text-sm hover:bg-white/5"
         >
-          Afiliados
+          {t.affiliates}
         </Link>
       </div>
 
-      <SellersManager vendors={vendors} requests={requests} />
+      <SellersManager initialVendors={vendors} initialRequests={requests} />
     </main>
   );
 }
