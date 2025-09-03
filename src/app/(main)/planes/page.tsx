@@ -1,399 +1,385 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useAuth } from "@/hooks/use-auth";
-import { Wine, Award, Utensils, User, Calendar, HandCoins, LogOut, Briefcase, Loader2, ExternalLink } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Check, Star, Loader2, Building } from "lucide-react";
+import { useState } from "react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { doc, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { sendPasswordReset, logout } from "@/lib/auth";
+import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // i18n
 import { useLang } from "@/lib/use-lang";
 import { translations } from "@/lib/translations";
 
-function UsageBar({
-  label,
-  icon,
-  current,
-  limit,
-}: {
-  label: string;
-  icon: React.ReactNode;
-  current: number;
-  limit: number;
-}) {
-  const percentage = limit > 0 ? (current / limit) * 100 : 0;
-  const isUnlimited = limit >= 9999;
+type PlanIdentifier = "descubrete" | "iniciado" | "una_copa" | "copa_premium" | "sibarita";
+type BillingCycle = "monthly" | "yearly";
 
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {icon}
-          <span className="font-medium text-sm">{label}</span>
-        </div>
-        <span className="text-sm text-muted-foreground">
-          {isUnlimited ? "Ilimitado" : `${current} / ${limit}`}
-        </span>
-      </div>
-      <Progress value={isUnlimited ? 100 : percentage} />
-    </div>
-  );
-}
+type Plan = {
+  id: PlanIdentifier;
+  name: string;
+  description: string;
+  price: { monthly: number; yearly: number };
+  features: string[];
+  cta: string;
+  isCurrent?: boolean;
+  isPopular?: boolean;
+  lemonSqueezyLink: { monthly: string; yearly: string };
+  payPalPlanId: { monthly: string; yearly: string };
+};
 
-export default function AccountPage() {
+const plansData: Plan[] = [
+  {
+    id: "descubrete",
+    name: "Descúbrete",
+    description:
+      "Atrévete a descubrir el placer de los vinos y licores. Explora tus sentidos y abre la puerta a un mundo de aromas y sensaciones inolvidables.",
+    price: { monthly: 0, yearly: 0 },
+    features: ["5 Análisis Sensoriales al mes", "1 Recomendación de Vino"],
+    cta: "Tu Plan Actual",
+    lemonSqueezyLink: { monthly: "", yearly: "" },
+    payPalPlanId: { monthly: "", yearly: "" },
+  },
+  {
+    id: "iniciado",
+    name: "Iniciado",
+    description:
+      "Empieza tu viaje por el fascinante universo de vinos y licores. Aprende, disfruta y crece con cada copa y cada trago.",
+    price: { monthly: 3.99, yearly: 39.9 },
+    features: ["8 Análisis Sensoriales al mes", "2 Recomendaciones de Vino", "Historial de Uso"],
+    cta: "Subir a Iniciado",
+    lemonSqueezyLink: {
+      monthly: "https://sommelierproai.lemonsqueezy.com/buy/0e3918a9-92af-4b71-a304-6d52c9782cfe",
+      yearly: "https://sommelierproai.lemonsqueezy.com/buy/47fef671-dc74-4693-8ee5-6ecad46a4e2b",
+    },
+    payPalPlanId: { monthly: "P-03451566SM055894PNCEVTYQ", yearly: "P-6C360058FU8751411NCEVI2A" },
+  },
+  {
+    id: "una_copa",
+    name: "Una Copa",
+    description:
+      "Convierte cada copa en una experiencia única. Recomendaciones y maridajes que elevan el sabor de tus vinos y licores favoritos.",
+    price: { monthly: 7.99, yearly: 79.9 },
+    isPopular: true,
+    features: ["12 Análisis Sensoriales al mes", "5 Recomendaciones de Vino", "2 Cenas Maridaje", "Soporte por Email"],
+    cta: "Subir a Una Copa",
+    lemonSqueezyLink: {
+      monthly: "https://sommelierproai.lemonsqueezy.com/buy/cf1cd8c4-9982-4225-a43f-654cfff501c4",
+      yearly: "https://sommelierproai.lemonsqueezy.com/buy/f7e585a7-90fd-4f1a-97ac-568027cfb0f6",
+    },
+    payPalPlanId: { monthly: "P-6V154660MP480493JNCEVZMQ", yearly: "P-73Y70148Y9205371BNCEVPDY" },
+  },
+  {
+    id: "copa_premium",
+    name: "Copa Premium",
+    description:
+      "Sumérgete en la excelencia del vino y el licor con análisis detallados y cenas exclusivas. Para quienes buscan lo mejor en cada sorbo.",
+    price: { monthly: 12.99, yearly: 129.9 },
+    features: ["30 Análisis Sensoriales al mes", "15 Recomendaciones de Vino", "10 Cenas Maridaje"],
+    cta: "Subir a Premium",
+    lemonSqueezyLink: {
+      monthly: "https://sommelierproai.lemonsqueezy.com/buy/783d7bd9-ff48-4795-96fe-9448a7d53f7b",
+      yearly: "https://sommelierproai.lemonsqueezy.com/buy/81880b86-b61e-4128-9b41-1cfaf29de602",
+    },
+    payPalPlanId: { monthly: "P-82K13295DW5680202NCEV2WY", yearly: "P-48C0924078583004PNCEVQBY" },
+  },
+  {
+    id: "sibarita",
+    name: "Sibarita",
+    description:
+      "La experiencia definitiva para los amantes de vinos y licores más exigentes. Maridajes exclusivos, cenas selectas y un mundo de sabores para explorar.",
+    price: { monthly: 19.99, yearly: 199.9 },
+    features: [
+      "60 Análisis Sensoriales al mes",
+      "20 Recomendaciones de Vino",
+      "15 Cenas Maridaje",
+      "Análisis por Ficha",
+      "Mi Bodega Personal",
+      "Mi Historial de Análisis",
+      "Mi Carta (Restaurante)",
+      "Acceso anticipado a funciones beta",
+      "Acumulación de análisis no utilizados",
+      "Reconocimiento como Embajador",
+    ],
+    cta: "Subir a Sibarita",
+    lemonSqueezyLink: {
+      monthly: "https://sommelierproai.lemonsqueezy.com/buy/ac2453f2-88b3-4a8c-8661-09a3ba9d3aab",
+      yearly: "https://sommelierproai.lemonsqueezy.com/buy/3c95f384-e3b1-425b-92b3-77ff01666091",
+    },
+    payPalPlanId: { monthly: "P-0JK36575PD651091NNCEV3RA", yearly: "P-03U55368J9946653MNCEVRLQ" },
+  },
+];
+
+export default function PlanesPage() {
   const lang = useLang("es");
   const t = translations[lang];
 
-  const { profile, loading, user } = useAuth();
-  const [isRequestingVendor, setIsRequestingVendor] = useState(false);
-  const { toast } = useToast();
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const { user, profile, loading: authLoading } = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login");
-    }
-  }, [user, loading, router]);
-
-  const renewalDateString = profile?.subscription?.renewalDate
-    ? new Date(profile.subscription.renewalDate.seconds * 1000).toLocaleDateString(lang === "es" ? "es-ES" : "en-US")
-    : "N/A";
-
-  const handleManageSubscription = () => {
-    router.push("/planes");
+  // EN mappings (solo textos)
+  const descriptionsEN: Record<PlanIdentifier, string> = {
+    descubrete:
+      "Dare to discover the pleasure of wine and spirits. Explore your senses and open the door to a world of aromas and unforgettable sensations.",
+    iniciado:
+      "Begin your journey through the fascinating universe of wine and spirits. Learn, enjoy and grow with every sip.",
+    una_copa:
+      "Turn every glass into a unique experience. Recommendations and pairings that elevate your favorite wines and spirits.",
+    copa_premium:
+      "Dive into excellence with detailed analyses and exclusive dinners. For those who seek the very best.",
+    sibarita:
+      "The ultimate experience for the most demanding wine and spirits lovers. Exclusive pairings, select dinners and a world of flavors to explore.",
   };
 
-  const handlePasswordChange = async () => {
-    if (!profile?.email) return;
-    try {
-      await sendPasswordReset(profile.email);
+  const featuresEN: Record<PlanIdentifier, string[]> = {
+    descubrete: ["5 Sensory Analyses / month", "1 Wine Recommendation"],
+    iniciado: ["8 Sensory Analyses / month", "2 Wine Recommendations", "Usage History"],
+    una_copa: ["12 Sensory Analyses / month", "5 Wine Recommendations", "2 Dinner Pairings", "Email Support"],
+    copa_premium: ["30 Sensory Analyses / month", "15 Wine Recommendations", "10 Dinner Pairings"],
+    sibarita: [
+      "60 Sensory Analyses / month",
+      "20 Wine Recommendations",
+      "15 Dinner Pairings",
+      "Sheet-based Analysis",
+      "My Personal Cellar",
+      "My Analysis History",
+      "My Menu (Restaurant)",
+      "Early access to beta features",
+      "Carry-over of unused analyses",
+      "Recognition as Ambassador",
+    ],
+  };
+
+  const ctaEN: Record<PlanIdentifier, string> = {
+    descubrete: "Current Plan",
+    iniciado: "Upgrade to Iniciado",
+    una_copa: "Upgrade to Una Copa",
+    copa_premium: "Upgrade to Premium",
+    sibarita: "Upgrade to Sibarita",
+  };
+
+  const handleLemonSqueezyCheckout = (plan: Plan) => {
+    if (!user) {
       toast({
-        title: lang === "es" ? "Correo de recuperación enviado" : "Password reset email sent",
+        title: lang === "es" ? "Necesitas una cuenta" : "Account required",
         description:
           lang === "es"
-            ? "Hemos enviado un enlace a tu correo para que puedas cambiar tu contraseña de forma segura."
-            : "We've sent a secure link to your email so you can reset your password.",
+            ? "Por favor, inicia sesión para poder suscribirte a un plan."
+            : "Please sign in to subscribe to a plan.",
+        action: (
+          <Button onClick={() => router.push("/login")} size="sm">
+            {lang === "es" ? "Iniciar Sesión" : "Sign In"}
+          </Button>
+        ),
       });
-    } catch (error) {
-      toast({
-        title: lang === "es" ? "Error al enviar correo" : "Error sending email",
-        description:
-          lang === "es"
-            ? "No se pudo enviar el correo de recuperación. Inténtalo de nuevo."
-            : "Could not send the reset email. Please try again.",
-        variant: "destructive",
-      });
+      return;
     }
+    const checkoutUrl = plan.lemonSqueezyLink[billingCycle];
+    const urlWithEmail = `${checkoutUrl}?checkout[email]=${encodeURIComponent(user.email || "")}`;
+    setLoadingPlan(`lemonsqueezy-${plan.id}`);
+    router.push(urlWithEmail);
   };
 
-  const handleLogout = async () => {
-    try {
-      await logout(router);
-    } catch (error) {
-      toast({
-        title: lang === "es" ? "Error al cerrar sesión" : "Sign out error",
-        description:
-          lang === "es"
-            ? "No se pudo cerrar la sesión. Inténtalo de nuevo."
-            : "Could not sign out. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleVendorRequest = async () => {
-    if (!user || !profile) return;
-    setIsRequestingVendor(true);
-    try {
-      const result = await requestVendorRole();
-      if (result.success) {
-        toast({
-          title: lang === "es" ? "Solicitud Enviada" : "Request Sent",
-          description:
-            lang === "es"
-              ? "Tu solicitud para ser vendedor ha sido enviada. Recibirás una notificación cuando sea revisada."
-              : "Your vendor request has been sent. We'll notify you once it's reviewed.",
-        });
-      } else {
-        throw new Error(result.error || (lang === "es" ? "No se pudo enviar la solicitud." : "Could not send the request."));
-      }
-    } catch (error: any) {
-      toast({
-        title: lang === "es" ? "Error en la Solicitud" : "Request Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsRequestingVendor(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="space-y-8">
-        <div>
-          <Skeleton className="h-10 w-1/3" />
-          <Skeleton className="h-5 w-2/3 mt-2" />
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <Card className="lg:col-span-1">
-            <CardHeader>
-              <Skeleton className="h-8 w-3/4" />
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center gap-3">
-                <Skeleton className="size-6 rounded-full" />
-                <Skeleton className="h-6 w-full" />
-              </div>
-              <div className="flex items-center gap-3">
-                <Skeleton className="size-6 rounded-full" />
-                <Skeleton className="h-6 w-full" />
-              </div>
-              <div className="flex items-center gap-3">
-                <Skeleton className="size-6 rounded-full" />
-                <Skeleton className="h-6 w-full" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <Skeleton className="h-8 w-1/2" />
-            </CardHeader>
-            <CardContent className="space-y-8">
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <Skeleton className="h-5 w-1/4" />
-                    <Skeleton className="h-5 w-1/6" />
-                  </div>
-                  <Skeleton className="h-4 w-full" />
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <Skeleton className="h-5 w-1/4" />
-                    <Skeleton className="h-5 w-1/6" />
-                  </div>
-                  <Skeleton className="h-4 w-full" />
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <Skeleton className="h-5 w-1/4" />
-                    <Skeleton className="h-5 w-1/6" />
-                  </div>
-                  <Skeleton className="h-4 w-full" />
-                </div>
-              </div>
-              <div className="border-t pt-6 flex flex-col sm:flex-row gap-4">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  if (!profile) {
-    return (
-      <div>
-        <h1 className="text-4xl font-bold tracking-tight text-primary">
-          {lang === "es" ? "Error de Cuenta" : "Account Error"}
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          {lang === "es"
-            ? "No se pudo cargar tu perfil. Por favor, intenta cerrar sesión y volver a entrar."
-            : "We couldn't load your profile. Please sign out and sign in again."}
-        </p>
-        <Button onClick={handleLogout} variant="destructive" className="mt-4">
-          <LogOut className="mr-2" />
-          {lang === "es" ? "Cerrar Sesión" : "Sign Out"}
-        </Button>
-      </div>
-    );
-  }
-
-  const { displayName, email, subscription, usage, role, vendorRequestStatus } = profile;
+  const currentPlanId = profile?.subscription?.plan
+    ? profile.subscription.plan.toLowerCase().replace(/ /g, "_")
+    : undefined;
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-4xl font-bold tracking-tight text-primary">
-          {lang === "es" ? "Mi Cuenta" : "My Account"}
+    <div className="flex flex-col items-center w-full max-w-7xl mx-auto p-4 sm:p-6">
+      <div className="text-center space-y-4 mb-12">
+        <h1 className="text-5xl font-extrabold tracking-tight text-primary">
+          {lang === "es" ? "Un Plan Para Cada Paladar" : "A Plan for Every Palate"}
         </h1>
-        <p className="text-muted-foreground mt-2">
+        <p className="text-xl text-muted-foreground max-w-2xl">
           {lang === "es"
-            ? "Gestiona tu perfil, suscripción y consulta tu uso mensual."
-            : "Manage your profile, subscription and check your monthly usage."}
+            ? "Desde el aficionado curioso hasta el sommelier profesional, tenemos el plan perfecto para potenciar tu pasión por el vino."
+            : "From the curious enthusiast to the professional sommelier, we have the perfect plan to boost your passion for wine."}
         </p>
+        <div className="flex items-center justify-center space-x-3 pt-4">
+          <Label htmlFor="billing-cycle" className="font-medium text-lg">
+            {lang === "es" ? "Pago Mensual" : "Monthly Billing"}
+          </Label>
+          <Switch
+            id="billing-cycle"
+            checked={billingCycle === "yearly"}
+            onCheckedChange={(checked) => setBillingCycle(checked ? "yearly" : "monthly")}
+            aria-label={lang === "es" ? "Cambiar a facturación anual" : "Switch to yearly billing"}
+          />
+          <Label htmlFor="billing-cycle" className="font-medium text-lg">
+            {lang === "es" ? "Pago Anual" : "Yearly Billing"}
+            <span className="ml-2 text-xs font-bold text-green-400 bg-green-400/20 px-2 py-1 rounded-full">
+              {lang === "es" ? "AHORRA 2 MESES" : "SAVE 2 MONTHS"}
+            </span>
+          </Label>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="text-2xl">{lang === "es" ? "Perfil de Usuario" : "User Profile"}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-3">
-              <User className="text-primary" />
-              <div>
-                <p className="font-semibold">{displayName}</p>
-                <p className="text-sm text-muted-foreground">{email}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <HandCoins className="text-primary" />
-              <div>
-                <p className="font-semibold">
-                  {lang === "es" ? "Plan" : "Plan"} {subscription?.plan || "N/A"}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {lang === "es" ? "Estado" : "Status"}:{" "}
-                  <span className="text-green-400 font-medium">{subscription?.status || "N/A"}</span>
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <Calendar className="text-primary" />
-              <div>
-                <p className="font-semibold">{lang === "es" ? "Próxima Renovación" : "Next Renewal"}</p>
-                <p className="text-sm text-muted-foreground">{renewalDateString}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 w-full items-stretch">
+        {plansData.map((plan) => {
+          const isCurrent = plan.id === currentPlanId;
+          const isFree = plan.price.monthly === 0;
 
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-2xl">
-              {lang === "es" ? "Consumo del Ciclo Actual" : "Current Cycle Usage"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-8">
-            <div className="space-y-6">
-              <UsageBar
-                label={lang === "es" ? "Análisis de Vino" : "Wine Analyses"}
-                icon={<Wine />}
-                current={usage?.analyzeWine?.current || 0}
-                limit={usage?.analyzeWine?.limit || 0}
-              />
-              <UsageBar
-                label={lang === "es" ? "Recomendaciones" : "Recommendations"}
-                icon={<Award />}
-                current={usage?.recommendWine?.current || 0}
-                limit={usage?.recommendWine?.limit || 0}
-              />
-              <UsageBar
-                label={lang === "es" ? "Cenas Maridaje" : "Dinner Pairings"}
-                icon={<Utensils />}
-                current={usage?.pairDinner?.current || 0}
-                limit={usage?.pairDinner?.limit || 0}
-              />
-            </div>
+          const description = lang === "es" ? plan.description : descriptionsEN[plan.id];
+          const features = lang === "es" ? plan.features : featuresEN[plan.id];
+          const ctaText = isCurrent
+            ? lang === "es"
+              ? "Tu Plan Actual"
+              : "Current Plan"
+            : lang === "es"
+            ? plan.cta
+            : ctaEN[plan.id];
 
-            <div className="border-t pt-6 space-y-4">
-              <h3 className="text-lg font-semibold">
-                {lang === "es" ? "Acciones de la Cuenta" : "Account Actions"}
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
-                <Button onClick={handleManageSubscription} className="w-full">
-                  {lang === "es" ? "Gestionar Suscripción" : "Manage Subscription"}
-                </Button>
-                <Button onClick={handlePasswordChange} variant="secondary" className="w-full">
-                  {lang === "es" ? "Cambiar Contraseña" : "Change Password"}
-                </Button>
-
-                <Button onClick={handleLogout} variant="destructive" className="w-full sm:col-span-2 lg:col-span-2">
-                  <LogOut className="mr-2" />
-                  {lang === "es" ? "Cerrar Sesión" : "Sign Out"}
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {role === "user" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{lang === "es" ? "Conviértete en Afiliado" : "Become an Affiliate"}</CardTitle>
-            <CardDescription>
-              {lang === "es"
-                ? "¿Te gustaría ganar comisiones recomendando SommelierPro AI? Completa nuestro formulario de solicitud."
-                : "Want to earn commissions by recommending SommelierPro AI? Complete our application form."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {vendorRequestStatus === "pending" ? (
-              <Alert variant="default" className="border-primary/30 bg-primary/10">
-                <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                <AlertTitle className="text-primary">
-                  {lang === "es" ? "Solicitud Pendiente" : "Request Pending"}
-                </AlertTitle>
-                <AlertDescription>
-                  {lang === "es"
-                    ? "Hemos recibido tu solicitud para ser vendedor. La revisaremos y te notificaremos pronto. ¡Gracias por tu interés!"
-                    : "We have received your vendor request. We'll review it and notify you soon. Thank you for your interest!"}
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row gap-4 items-center rounded-lg border p-4">
-                  <div className="flex-grow">
-                    <p className="font-semibold">
-                      {lang === "es"
-                        ? "Paso 1: Completa el formulario de solicitud"
-                        : "Step 1: Complete the application form"}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {lang === "es"
-                        ? "Para evaluar tu perfil, por favor completa nuestro formulario de inscripción de referidos. Esto nos ayuda a conocerte mejor."
-                        : "To evaluate your profile, please fill out our referral application form. This helps us know you better."}
-                    </p>
-                  </div>
-                  <Button asChild>
-                    <Link href="https://forms.gle/wbXsjwVfc1QZ3bmF9" target="_blank">
-                      {lang === "es" ? "Ir al Formulario" : "Go to Form"} <ExternalLink className="ml-2" />
-                    </Link>
-                  </Button>
+          return (
+            <Card
+              key={plan.id}
+              className={cn(
+                "flex flex-col rounded-2xl transition-all",
+                plan.isPopular && !isCurrent && "border-primary shadow-primary/20 shadow-2xl scale-105",
+                isCurrent && "bg-accent/50 border-primary"
+              )}
+            >
+              {plan.isPopular && (
+                <div className="bg-primary text-primary-foreground text-center text-sm font-bold py-1 rounded-t-2xl flex items-center justify-center gap-2">
+                  <Star className="size-4" /> {lang === "es" ? "MÁS POPULAR" : "MOST POPULAR"}
                 </div>
-                <div className="flex flex-col sm:flex-row gap-4 items-center rounded-lg border p-4 mt-4">
-                  <div className="flex-grow">
-                    <p className="font-semibold">
-                      {lang === "es" ? "Paso 2: Solicita tu rol en la app" : "Step 2: Request your role in the app"}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {lang === "es"
-                        ? "Una vez que hayas enviado el formulario, haz clic aquí. Verificaremos tu envío y activaremos tu rol de vendedor."
-                        : "Once you have submitted the form, click here. We will verify your submission and activate your vendor role."}
-                    </p>
-                  </div>
+              )}
+              <CardHeader className="text-center">
+                <CardTitle className="text-3xl font-bold">{plan.name}</CardTitle>
+                <CardDescription className="text-base min-h-[60px]">{description}</CardDescription>
+              </CardHeader>
+              <CardContent className="flex-grow space-y-6">
+                <div className="text-center">
+                  <span className="text-5xl font-extrabold">
+                    ${billingCycle === "monthly" ? plan.price.monthly.toFixed(2) : plan.price.yearly.toFixed(2)}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {isFree
+                      ? lang === "es"
+                        ? "/ Gratis"
+                        : "/ Free"
+                      : billingCycle === "monthly"
+                      ? lang === "es"
+                        ? "/mes"
+                        : "/mo"
+                      : lang === "es"
+                      ? "/año"
+                      : "/yr"}
+                  </span>
+                </div>
+                <ul className="space-y-3 text-muted-foreground text-left">
+                  {features.map((feature) => (
+                    <li key={feature} className="flex items-start">
+                      <Check className="size-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+              <CardFooter className="flex-col gap-2">
+                {isCurrent ? (
+                  <Button className="w-full text-lg py-6" disabled>
+                    {lang === "es" ? "Tu Plan Actual" : "Current Plan"}
+                  </Button>
+                ) : isFree ? (
+                  <Button className="w-full text-lg py-6" disabled>
+                    {ctaText}
+                  </Button>
+                ) : (
                   <Button
-                    onClick={handleVendorRequest}
-                    disabled={
-                      isRequestingVendor ||
-                      ((vendorRequestStatus as any) === "pending" || vendorRequestStatus === "approved")
-                    }
-                    variant="secondary"
+                    className="w-full text-lg py-6"
+                    variant="default"
+                    onClick={() => handleLemonSqueezyCheckout(plan)}
+                    disabled={loadingPlan === `lemonsqueezy-${plan.id}`}
                   >
-                    {isRequestingVendor ? <Loader2 className="animate-spin mr-2" /> : <Briefcase className="mr-2" />}
-                    {lang === "es" ? "Solicitar Rol de Vendedor" : "Request Vendor Role"}
+                    {loadingPlan === `lemonsqueezy-${plan.id}` ? (
+                      <Loader2 className="animate-spin" />
+                    ) : lang === "es" ? (
+                      "Pagar con Tarjeta"
+                    ) : (
+                      "Pay with Card"
+                    )}
                   </Button>
-                </div>
+                )}
+              </CardFooter>
+            </Card>
+          );
+        })}
+      </div>
+
+      <div className="w-full max-w-5xl mx-auto mt-20">
+        <Card className="bg-gradient-to-r from-card to-secondary border-primary/30">
+          <div className="grid md:grid-cols-1 items-center">
+            <div className="p-8 text-center">
+              <Building className="size-10 text-primary mb-4 mx-auto" />
+              <h2 className="text-3xl font-bold text-primary">
+                {lang === "es" ? "Plan Corporativo" : "Corporate Plan"}
+              </h2>
+              <p className="text-muted-foreground mt-2 max-w-3xl mx-auto">
+                {lang === "es"
+                  ? "Potencia a tu equipo o añade valor a tus clientes con SommelierPro AI. Ideal para bodegas, distribuidoras, restaurantes y hoteles."
+                  : "Empower your team or add value to your clients with SommelierPro AI. Ideal for wineries, distributors, restaurants and hotels."}
+              </p>
+              <ul className="space-y-2 text-muted-foreground mt-4 inline-block text-left">
+                <li className="flex items-start">
+                  <Check className="size-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+                  <span>{lang === "es" ? "Cuentas para todo tu personal." : "Accounts for your entire staff."}</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="size-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+                  <span>{lang === "es" ? "Límites de uso personalizados." : "Custom usage limits."}</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="size-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+                  <span>{lang === "es" ? "Soporte prioritario y formación." : "Priority support and training."}</span>
+                </li>
+              </ul>
+              <div className="mt-6">
+                <Button asChild size="lg">
+                  <a href="mailto:venrique70@gmail.com">
+                    {lang === "es" ? "Contactar para una Cotización" : "Contact for a Quote"}
+                  </a>
+                </Button>
               </div>
-            )}
-          </CardContent>
+            </div>
+          </div>
         </Card>
-      )}
+      </div>
+
+      <p className="text-center text-muted-foreground mt-12 max-w-md">
+        {lang === "es" ? (
+          <>
+            ¿Necesitas algo más? Para bodegas, distribuidores o requerimientos especiales, el Plan Sibarita es
+            totalmente personalizable.{" "}
+            <Link href="#" className="underline text-primary">
+              Contáctanos para más detalles
+            </Link>
+            .
+          </>
+        ) : (
+          <>
+            Need something else? For wineries, distributors or special requirements, the Sibarita Plan is fully
+            customizable.{" "}
+            <Link href="#" className="underline text-primary">
+              Contact us for more details
+            </Link>
+            .
+          </>
+        )}
+      </p>
     </div>
   );
 }
