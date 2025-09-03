@@ -12,7 +12,6 @@ import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { sendPasswordReset, logout } from "@/lib/auth";
 import { useRouter } from "next/navigation";
-import { requestVendorRole } from "./actions";
 import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
