@@ -128,6 +128,25 @@ const es = {
   detail: 'Detalle: ',
   verificationError: 'La herramienta de verificación de vino falló.',
   missingAnalysisFields: 'Faltan campos obligatorios para el análisis (vino, cepa o año).',
+
+  // --- Navigation (nuevo) ---
+  navHome: "Inicio",
+  navHistory: "Mi Historial",
+  navCellar: "Mi Bodega",
+  navAiTools: "Herramientas IA",
+  navSheetAnalysis: "Análisis por Ficha",
+  navSixCoursePairing: "Maridaje 6 Tiempos",
+  navAccount: "Mi Cuenta",
+  navPlans: "Planes",
+  navCorporatePlans: "Planes Corporativos",
+  navLegal: "Legal",
+  navAffiliatePortal: "Portal de Afiliados",
+  navLogout: "Cerrar Sesión",
+  navAdmin: "Admin",
+  navAffiliateDashboard: "Dashboard Afiliados",
+  navVendorsManagement: "Gestión de Vendedores",
+  navTestWebhook: "Test Webhook",
+  navMyMenu: "Mi Carta (Restaurante)",
 };
 
 const en = {
@@ -181,7 +200,6 @@ const en = {
   addPairing: 'Add Pairing',
   evaluating: 'Evaluating...',
   evaluateMyDinner: 'Evaluate My Pairing',
-  couldNotEvaluatePairing: 'Could not evaluate the pairing.',
   sommelierEvaluation: "Sommelier's Evaluation",
   rating: 'Rating',
   expertAnalysis: 'Expert Analysis',
@@ -258,6 +276,25 @@ const en = {
   detail: 'Detail: ',
   verificationError: 'The wine verification tool failed.',
   missingAnalysisFields: 'Required fields for analysis are missing (wine, grape, or year).',
+
+  // --- Navigation (new) ---
+  navHome: "Home",
+  navHistory: "My History",
+  navCellar: "My Cellar",
+  navAiTools: "AI Tools",
+  navSheetAnalysis: "Sheet-based Analysis",
+  navSixCoursePairing: "6-Course Pairing",
+  navAccount: "My Account",
+  navPlans: "Plans",
+  navCorporatePlans: "Corporate Plans",
+  navLegal: "Legal",
+  navAffiliatePortal: "Affiliate Portal",
+  navLogout: "Sign Out",
+  navAdmin: "Admin",
+  navAffiliateDashboard: "Affiliate Dashboard",
+  navVendorsManagement: "Vendors Management",
+  navTestWebhook: "Test Webhook",
+  navMyMenu: "My Menu (Restaurant)",
 };
 
 export const translations = { es, en };
