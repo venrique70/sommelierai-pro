@@ -50,9 +50,6 @@ function Shell({ children }: { children: React.ReactNode }) {
         )}
       </main>
 
-      {/* ⬇️ NUEVO: nav fijo arriba-derecha, por fuera de <main> y sobre cualquier overlay */}
-      <TopRightAdminNav />
-
       <Footer />
       <Toaster />
     </div>
