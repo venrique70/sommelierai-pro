@@ -164,6 +164,15 @@ export default function PlanesPage() {
     ],
   };
 
+  // ⬇️ Nombres de planes en EN
+  const namesEN: Record<PlanIdentifier, string> = {
+    descubrete: "Discover",
+    iniciado: "Starter",
+    una_copa: "One Glass",
+    copa_premium: "Premium Cup",
+    sibarita: "Connoisseur",
+  };
+
   const ctaEN: Record<PlanIdentifier, string> = {
     descubrete: "Current Plan",
     iniciado: "Upgrade to Iniciado",
@@ -253,18 +262,26 @@ export default function PlanesPage() {
               )}
             >
               {plan.isPopular && (
-                <div className="bg-primary text-primary-foreground text-center text-sm font-bold py-1 rounded-t-2xl flex items-center justify-center gap-2">
+                <div className="bg-primary text-primary-foreground text-center text-sm font-bold py-1 rounded-t-2xl flex items-center justifycenter gap-2">
                   <Star className="size-4" /> {lang === "es" ? "MÁS POPULAR" : "MOST POPULAR"}
                 </div>
               )}
               <CardHeader className="text-center">
-                <CardTitle className="text-3xl font-bold">{plan.name}</CardTitle>
-                <CardDescription className="text-base min-h-[60px]">{description}</CardDescription>
+                <CardTitle className="text-3xl font-bold">
+                  {lang === "es" ? plan.name : namesEN[plan.id]}
+                </CardTitle>
+                <CardDescription className="text-base min-h-[60px]">
+                  {description}
+                </CardDescription>
               </CardHeader>
               <CardContent className="flex-grow space-y-6">
                 <div className="text-center">
                   <span className="text-5xl font-extrabold">
-                    ${billingCycle === "monthly" ? plan.price.monthly.toFixed(2) : plan.price.yearly.toFixed(2)}
+                    ${
+                      billingCycle === "monthly"
+                        ? plan.price.monthly.toFixed(2)
+                        : plan.price.yearly.toFixed(2)
+                    }
                   </span>
                   <span className="text-muted-foreground">
                     {isFree
