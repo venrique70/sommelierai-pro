@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -17,6 +17,10 @@ import {
   limit,
   onSnapshot,
 } from "firebase/firestore";
+
+// ⬇️ i18n
+import { useLang } from "@/lib/use-lang";
+import { translations } from "@/lib/translations";
 
 type Row = {
   id: string;
@@ -42,16 +46,20 @@ const mapDoc = (d: any): Row => {
 };
 
 function HistoryCard({ r, first }: { r: Row; first?: boolean }) {
-  const vino = r.wineName ?? "Vino sin nombre";
+  const lang = useLang("es");
+  const t = translations[lang];
+  const vino = r.wineName ?? (lang === "es" ? "Vino sin nombre" : "Unnamed wine");
   const anio = r.year ?? "—";
+  const locale = lang === "es" ? "es-ES" : "en-US";
+
   const fecha = r.createdAt
     ? typeof r.createdAt === "object" && r.createdAt.seconds
-      ? new Date(r.createdAt.seconds * 1000).toLocaleDateString("es-ES", {
+      ? new Date(r.createdAt.seconds * 1000).toLocaleDateString(locale, {
           year: "numeric",
           month: "long",
           day: "numeric",
         })
-      : new Date(r.createdAt).toLocaleDateString("es-ES", {
+      : new Date(r.createdAt).toLocaleDateString(locale, {
           year: "numeric",
           month: "long",
           day: "numeric",
@@ -82,11 +90,11 @@ function HistoryCard({ r, first }: { r: Row; first?: boolean }) {
           {vino}
         </CardTitle>
         <div className="text-sm opacity-80 text-gray-600 dark:text-gray-300">
-          Año: {anio}
+          {(lang === "es" ? "Año" : "Year")}: {anio}
         </div>
         {r.wineryName && (
           <div className="text-sm opacity-80 text-gray-600 dark:text-gray-300">
-            Bodega: {r.wineryName}
+            {(lang === "es" ? "Bodega" : "Winery")}: {r.wineryName}
           </div>
         )}
       </CardHeader>
@@ -94,13 +102,13 @@ function HistoryCard({ r, first }: { r: Row; first?: boolean }) {
       <CardContent className="p-4 flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-xs border-yellow-500/30 text-yellow-500">
-            <Calendar className="mr-1 h-3 w-3" /> Analizado: {fecha}
+            <Calendar className="mr-1 h-3 w-3" /> {(lang === "es" ? "Analizado" : "Analyzed")}: {fecha}
           </Badge>
         </div>
 
         <Link href={`/history/${r.id}`}>
           <Button className="w-full justify-between bg-yellow-500 hover:bg-yellow-600 text-white">
-            Ver detalle <ArrowRight className="h-4 w-4" />
+            {lang === "es" ? "Ver detalle" : "View details"} <ArrowRight className="h-4 w-4" />
           </Button>
         </Link>
       </CardContent>
@@ -109,6 +117,9 @@ function HistoryCard({ r, first }: { r: Row; first?: boolean }) {
 }
 
 export default function HistoryListPage() {
+  const lang = useLang("es");
+  const t = translations[lang];
+
   const { user } = useAuth();
   const [items, setItems] = useState<Row[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -147,20 +158,20 @@ export default function HistoryListPage() {
       },
       (err) => {
         console.error("Error en history:", err);
-        setError(err.message || "Error al cargar historial");
+        setError(err.message || (lang === "es" ? "Error al cargar historial" : "Failed to load history"));
         setItems([]);
       }
     );
 
     return () => unsub();
-  }, [user?.uid]);
+  }, [user?.uid, lang]);
 
   if (!user?.uid) {
     return (
       <div className="mx-auto max-w-6xl p-6">
         <div className="rounded-md border border-yellow-500/30 bg-yellow-500/10 p-3 text-sm flex items-start gap-2 text-yellow-300">
           <Info className="h-4 w-4 mt-0.5" />
-          <div>Inicia sesión para ver tus análisis guardados.</div>
+          <div>{lang === "es" ? "Inicia sesión para ver tus análisis guardados." : "Sign in to view your saved analyses."}</div>
         </div>
       </div>
     );
@@ -169,7 +180,7 @@ export default function HistoryListPage() {
   if (error) {
     return (
       <div className="mx-auto max-w-6xl p-6 text-sm text-red-500">
-        Error: {error}
+        {(lang === "es" ? "Error" : "Error")}: {error}
       </div>
     );
   }
@@ -183,16 +194,20 @@ export default function HistoryListPage() {
           <Wine className="h-5 w-5 text-yellow-400" />
         </span>
         <h1 className="text-4xl font-bold tracking-tight text-yellow-300">
-          Mi Historial de Análisis
+          {t.navHistory}
         </h1>
       </div>
 
-      {items === null && <div className="text-sm text-muted-foreground">Cargando…</div>}
+      {items === null && (
+        <div className="text-sm text-muted-foreground">
+          {lang === "es" ? "Cargando…" : "Loading…"}
+        </div>
+      )}
 
       {isEmpty && (
         <div className="rounded-md border border-yellow-500/30 bg-yellow-500/10 p-3 text-sm flex items-start gap-2 text-yellow-300">
           <Info className="h-4 w-4 mt-0.5" />
-          <div>Aún no tienes registros.</div>
+          <div>{lang === "es" ? "Aún no tienes registros." : "You don't have any records yet."}</div>
         </div>
       )}
 
