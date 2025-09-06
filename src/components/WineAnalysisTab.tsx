@@ -4,57 +4,102 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import type { z } from "zod";
 import { WineAnalysisClientSchema } from "@/lib/schemas";
+import { useForm } from "react-hook-form";
 
-// ⬇️ Este es tu componente (no toco tu UI; solo te doy el onSubmit correcto)
-export default function WineAnalysisForm(/* tus props si aplica */) {
+type ClientInput = z.infer<typeof WineAnalysisClientSchema>;
+
+export default function WineAnalysisTab() {
   const router = useRouter();
   const { user } = useAuth();
 
-  // Tipar el payload con tu Zod schema ayuda a TS a validar
-  type ClientInput = z.infer<typeof WineAnalysisClientSchema>;
+  const { register, handleSubmit, formState: { isSubmitting } } = useForm<{
+    wineName: string;
+    year: number;
+    grapeVariety?: string;
+    wineryName?: string;
+    country?: string;
+    language?: string;
+  }>({ defaultValues: { language: "es" } });
 
-  // ⬇️ Reemplaza tu onSubmit por este
   async function onSubmit(values: any) {
-    if (!user?.uid) {
-      throw new Error("Debes iniciar sesión para analizar un producto");
-    }
+    if (!user?.uid) throw new Error("Debes iniciar sesión para analizar un producto");
 
-    // "language" DEBE ser literal "es" | "en" (no string genérico)
     const lang: "es" | "en" = values?.language === "en" ? "en" : "es";
 
     const payload: ClientInput = {
-      uid: user.uid,                                   // 👈 imprescindible para guardar
+      uid: user.uid,
       wineName: String(values.wineName ?? "").trim(),
-      year: Number(values.year),
+      year: Number(values.year ?? 0),
       grapeVariety: values?.grapeVariety || undefined,
       wineryName: values?.wineryName || undefined,
       country: values?.country || undefined,
       language: lang,
     };
 
-    // Llamamos a la API que ejecuta IA y GUARDA en 'history'
     const res = await fetch("/api/analyze-wine", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      cache: "no-store",
       body: JSON.stringify(payload),
     });
-
     const data = await res.json();
 
-    if (!res.ok || !data?.ok) {
-      throw new Error(data?.error || "No se pudo completar el análisis");
-    }
+    if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo completar el análisis");
 
-    // Si la API devolvió el ID guardado, vamos directo al detalle
-    if (data.savedId) {
-      router.push(`/history/${data.savedId}`);
-    } else {
-      // Fallback: refrescar la lista si por algún motivo no vino el ID
-      router.push("/history");
-    }
+    if (data.savedId) router.push(`/history/${data.savedId}`);
+    else router.push("/history");
   }
 
-  // ⬇️ Devuelve tu JSX habitual; asegúrate de usar onSubmit en tu <form>
-  // <form onSubmit={handleSubmit(onSubmit)}> ... </form>
-  return null; // ← aquí va tu UI real
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="grid gap-3" autoComplete="off">
+      <input
+        {...register("wineName", { required: true })}
+        placeholder="Nombre del vino"
+        autoComplete="off"
+        className="border rounded px-3 py-2"
+      />
+      <input
+        type="number"
+        {...register("year", { valueAsNumber: true, required: true })}
+        placeholder="Año"
+        autoComplete="off"
+        inputMode="numeric"
+        min={1900}
+        max={2100}
+        className="border rounded px-3 py-2"
+      />
+      <input
+        {...register("grapeVariety")}
+        placeholder="Cepa (opcional)"
+        autoComplete="off"
+        className="border rounded px-3 py-2"
+      />
+      <input
+        {...register("wineryName")}
+        placeholder="Bodega (opcional)"
+        autoComplete="off"
+        className="border rounded px-3 py-2"
+      />
+      <input
+        {...register("country")}
+        placeholder="País (opcional)"
+        autoComplete="off"
+        className="border rounded px-3 py-2"
+      />
+
+      <label className="text-sm">Idioma</label>
+      <select {...register("language")} className="border rounded px-3 py-2 w-fit">
+        <option value="es">Español</option>
+        <option value="en">English</option>
+      </select>
+
+      <button
+        type="submit"
+        disabled={isSubmitting}
+        className="mt-2 rounded bg-yellow-500 text-white px-4 py-2 disabled:opacity-60"
+      >
+        {isSubmitting ? "Analizando…" : "Analizar vino"}
+      </button>
+    </form>
+  );
 }
