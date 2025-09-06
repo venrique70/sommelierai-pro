@@ -30,7 +30,7 @@ export default function WineAnalysisForm() {
     const payload: ClientInput = {
       uid: user.uid,
       wineName: String(values.wineName ?? "").trim(),
-      year: Number(values.year),
+      year: Number(values.year ?? 0),
       grapeVariety: values?.grapeVariety || undefined,
       wineryName: values?.wineryName || undefined,
       country: values?.country || undefined,
@@ -53,31 +53,39 @@ export default function WineAnalysisForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="grid gap-3">
+    <form onSubmit={handleSubmit(onSubmit)} className="grid gap-3" autoComplete="off">
       <input
         {...register("wineName", { required: true })}
-        placeholder="Nombre del vino (ej. Amador Diez)"
+        placeholder="Nombre del vino"
+        autoComplete="off"
         className="border rounded px-3 py-2"
       />
       <input
         type="number"
         {...register("year", { valueAsNumber: true, required: true })}
-        placeholder="Año (ej. 2018)"
+        placeholder="Año"
+        autoComplete="off"
+        inputMode="numeric"
+        min={1900}
+        max={2100}
         className="border rounded px-3 py-2"
       />
       <input
         {...register("grapeVariety")}
         placeholder="Cepa (opcional)"
+        autoComplete="off"
         className="border rounded px-3 py-2"
       />
       <input
         {...register("wineryName")}
         placeholder="Bodega (opcional)"
+        autoComplete="off"
         className="border rounded px-3 py-2"
       />
       <input
         {...register("country")}
         placeholder="País (opcional)"
+        autoComplete="off"
         className="border rounded px-3 py-2"
       />
 
