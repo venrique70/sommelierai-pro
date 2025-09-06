@@ -188,9 +188,9 @@ export function WineAnalysisTab({
     resolver: zodResolver(WineAnalysisClientSchema),
     defaultValues: {
       uid: "",
-      wineName: "AMADOR DIEZ",
-      grapeVariety: "VERDEJO",
-      year: 2018,
+      wineName: "",
+      grapeVariety: "",
+      year: ,
       wineryName: "",
       country: "",
       foodToPair: "",
