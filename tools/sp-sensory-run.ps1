@@ -60,12 +60,12 @@ $uid  = "qa-sensorial-$rand"
 $payloadA = @{
   uid         = $uid
   language    = "es"
-  wineName    = "Amador Diez Verdejo"
-  year        = 2020
-  grapeVariety= "Verdejo"
-  wineryName  = "Bodega Cuatro Rayas"
-  country     = "España"
-  foodToPair  = "Tartar de atun"
+  wineName    = ""
+  year        = ""
+  grapeVariety= ""
+  wineryName  = ""
+  country     = ""
+  foodToPair  = ""
 }
 
 $respA = PostJson "POST /api/analyze-wine (A)" "$base/api/analyze-wine" $payloadA
