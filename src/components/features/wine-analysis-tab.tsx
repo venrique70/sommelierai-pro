@@ -190,7 +190,7 @@ export function WineAnalysisTab({
       uid: "",
       wineName: "",
       grapeVariety: "",
-      year: ,
+      year: 2018,
       wineryName: "",
       country: "",
       foodToPair: "",
