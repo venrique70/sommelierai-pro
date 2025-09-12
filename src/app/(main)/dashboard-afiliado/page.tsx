@@ -26,23 +26,21 @@ import { RegisterCorporateSaleSchema, type RegisterCorporateSaleInput } from "@/
 import { useLang } from "@/lib/use-lang";
 import { translations } from "@/lib/translations";
 
-// ⬇️ schema para el formulario de solicitud
+// ⬇️ esquema del form de solicitud
 import { z } from "zod";
 const ApprovalFormSchema = z.object({
-  firstName: z.string().min(2, "Nombre muy corto"),
-  lastName: z.string().min(2, "Apellido muy corto"),
-  idNumber: z.string().min(4, "Documento inválido"),
-  phone: z.string().min(6, "Teléfono inválido"),
-  country: z.string().min(2, "País inválido"),
-  motivation: z.string().min(10, "Cuéntanos un poco más"),
+  firstName: z.string().min(2),
+  lastName: z.string().min(2),
+  idNumber: z.string().min(3),
+  phone: z.string().min(6),
+  country: z.string().min(2),
+  motivation: z.string().min(10),
 });
-
 type ApprovalForm = z.infer<typeof ApprovalFormSchema>;
-
-/* ───────────────────────── VendorOnboarding (inline) ───────────────────────── */
 
 type VendorStatus = "none" | "pending" | "approved";
 
+/* ───────────────────────── VendorOnboarding (inline) ───────────────────────── */
 function VendorOnboardingInline({
   email,
   vendorStatus = "none",
@@ -61,13 +59,24 @@ function VendorOnboardingInline({
   savingLink?: boolean;
 }) {
   const lang = useLang("es");
-  const canRequest = useMemo(() => vendorStatus === "none" && !!email, [vendorStatus, email]);
 
-  // ⬇️ form react-hook-form
+  // ✅ validamos por formulario, no por vendorStatus/email
   const form = useForm<ApprovalForm>({
     resolver: zodResolver(ApprovalFormSchema),
-    defaultValues: { firstName: "", lastName: "", idNumber: "", phone: "", country: "", motivation: "" },
+    mode: "onChange",
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      idNumber: "",
+      phone: "",
+      country: "",
+      motivation: "",
+    },
   });
+
+  const isSubmitting = form.formState.isSubmitting;
+  const isValid = form.formState.isValid;
+  const disabled = vendorStatus !== "none" || !isValid || isSubmitting;
 
   return (
     <Card className="border-primary/20 bg-card">
@@ -76,7 +85,9 @@ function VendorOnboardingInline({
           <Info className="h-4 w-4 text-primary" />
           {lang === "es" ? "Tu Onboarding" : "Your Onboarding"}
         </CardTitle>
-        <CardDescription>{lang === "es" ? "Te tomará un minuto." : "It takes one minute."}</CardDescription>
+        <CardDescription>
+          {lang === "es" ? "Te tomará un minuto." : "It takes one minute."}
+        </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-6">
@@ -89,16 +100,18 @@ function VendorOnboardingInline({
           <p className="text-sm text-muted-foreground mb-4">
             {lang === "es" ? (
               <>
-                Al enviar tu solicitud, un admin revisará tu cuenta ({email ?? "tu email"}). Recibirás el estado en este mismo panel.
+                Al enviar tu solicitud, un admin revisará tu cuenta ({email ?? "tu email"}). La solicitud se envía a{" "}
+                <strong>vip@sommelierai.pro</strong>. Recibirás el estado en este mismo panel.
               </>
             ) : (
               <>
-                After you send your request, an admin will review your account ({email ?? "your email"}). You’ll see the status here.
+                After you send your request, an admin will review your account ({email ?? "your email"}). The request is
+                sent to <strong>vip@sommelierai.pro</strong>. You’ll see the status here.
               </>
             )}
           </p>
 
-          {/* ⬇️ Formulario de solicitud */}
+          {/* Formulario de solicitud */}
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit(onRequestApproval)}
@@ -190,8 +203,14 @@ function VendorOnboardingInline({
               </div>
 
               <div className="md:col-span-2 mt-2">
-                <Button type="submit" disabled={!canRequest}>
-                  {lang === "es" ? "Enviar solicitud" : "Send request"}
+                <Button type="submit" disabled={disabled}>
+                  {vendorStatus === "pending"
+                    ? lang === "es" ? "En revisión…" : "Under review…"
+                    : vendorStatus === "approved"
+                    ? lang === "es" ? "Aprobado ✔" : "Approved ✔"
+                    : isSubmitting
+                    ? lang === "es" ? "Enviando…" : "Sending…"
+                    : lang === "es" ? "Enviar solicitud" : "Send request"}
                 </Button>
               </div>
             </form>
@@ -406,7 +425,6 @@ export default function AffiliateDashboardPage() {
       return;
     }
     startSavingLink(async () => {
-      // mantiene tu flujo actual
       const res = await saveAffiliateLink(user.uid!, link);
       toast({
         title: res.success ? (lang === "es" ? "Enlace guardado" : "Link saved") : (lang === "es" ? "No se pudo guardar" : "Could not save"),
@@ -416,13 +434,11 @@ export default function AffiliateDashboardPage() {
     });
   };
 
-  // ⬇️ NUEVO: recibe el payload del form y llama a la API para enviar el correo
   const handleRequestApproval = async (data: ApprovalForm) => {
     if (!user?.uid || !user.email) {
       toast({
         title: lang === "es" ? "Inicia sesión" : "Sign in",
-        description:
-          lang === "es" ? "Debes iniciar sesión para solicitar aprobación." : "You must sign in to request approval.",
+        description: lang === "es" ? "Debes iniciar sesión para solicitar aprobación." : "You must sign in to request approval.",
         variant: "destructive",
       });
       return;
@@ -553,7 +569,7 @@ export default function AffiliateDashboardPage() {
       {/* Onboarding */}
       <VendorOnboardingInline
         email={user?.email ?? ""}
-        vendorStatus={vendorStatus}
+        vendorStatus={"none"}
         affiliateLink={affiliateLink}
         onAffiliateLinkChange={setAffiliateLink}
         onSaveAffiliateLink={handleSaveAffiliateLink}
@@ -577,6 +593,8 @@ export default function AffiliateDashboardPage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSaleSubmit)} className="space-y-4">
+              {/* … sin cambios … */}
+              {/* el resto de tu form de ventas corporativas queda igual */}
               <FormField
                 control={form.control}
                 name="accessCode"
