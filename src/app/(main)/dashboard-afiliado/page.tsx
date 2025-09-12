@@ -15,7 +15,6 @@ import { useToast } from "@/hooks/use-toast";
 
 import {
   getVendorMetrics,
-  requestVendorApproval,
   saveAffiliateLink,
   registerCorporateSale,
   type VendorMetrics,
@@ -26,6 +25,19 @@ import { RegisterCorporateSaleSchema, type RegisterCorporateSaleInput } from "@/
 // i18n
 import { useLang } from "@/lib/use-lang";
 import { translations } from "@/lib/translations";
+
+// ⬇️ schema para el formulario de solicitud
+import { z } from "zod";
+const ApprovalFormSchema = z.object({
+  firstName: z.string().min(2, "Nombre muy corto"),
+  lastName: z.string().min(2, "Apellido muy corto"),
+  idNumber: z.string().min(4, "Documento inválido"),
+  phone: z.string().min(6, "Teléfono inválido"),
+  country: z.string().min(2, "País inválido"),
+  motivation: z.string().min(10, "Cuéntanos un poco más"),
+});
+
+type ApprovalForm = z.infer<typeof ApprovalFormSchema>;
 
 /* ───────────────────────── VendorOnboarding (inline) ───────────────────────── */
 
@@ -45,11 +57,17 @@ function VendorOnboardingInline({
   affiliateLink: string;
   onAffiliateLinkChange: (v: string) => void;
   onSaveAffiliateLink: () => void | Promise<void>;
-  onRequestApproval: () => void | Promise<void>;
+  onRequestApproval: (data: ApprovalForm) => void | Promise<void>;
   savingLink?: boolean;
 }) {
   const lang = useLang("es");
   const canRequest = useMemo(() => vendorStatus === "none" && !!email, [vendorStatus, email]);
+
+  // ⬇️ form react-hook-form
+  const form = useForm<ApprovalForm>({
+    resolver: zodResolver(ApprovalFormSchema),
+    defaultValues: { firstName: "", lastName: "", idNumber: "", phone: "", country: "", motivation: "" },
+  });
 
   return (
     <Card className="border-primary/20 bg-card">
@@ -64,21 +82,120 @@ function VendorOnboardingInline({
       <CardContent className="space-y-6">
         {/* 1) Solicitar aprobación */}
         <div className="rounded-md border p-4">
-          <div className="font-semibold mb-1">{lang === "es" ? "1) Solicitar Aprobación" : "1) Request Approval"}</div>
-          <p className="text-sm text-muted-foreground">
-            {lang === "es"
-              ? <>Al enviar tu solicitud, un admin revisará tu cuenta ({email ?? "tu email"}). Recibirás el estado en este mismo panel.</>
-              : <>After you send your request, an admin will review your account ({email ?? "your email"}). You’ll see the status here.</>}
-          </p>
-          <div className="mt-3">
-            <Button onClick={onRequestApproval} disabled={!canRequest} aria-disabled={!canRequest}>
-              {canRequest
-                ? (lang === "es" ? "Solicitar aprobación" : "Request approval")
-                : vendorStatus === "pending"
-                ? (lang === "es" ? "En revisión…" : "Under review…")
-                : (lang === "es" ? "Aprobado ✔" : "Approved ✔")}
-            </Button>
+          <div className="font-semibold mb-3">
+            {lang === "es" ? "1) Solicitar Aprobación" : "1) Request Approval"}
           </div>
+
+          <p className="text-sm text-muted-foreground mb-4">
+            {lang === "es" ? (
+              <>
+                Al enviar tu solicitud, un admin revisará tu cuenta ({email ?? "tu email"}). Recibirás el estado en este mismo panel.
+              </>
+            ) : (
+              <>
+                After you send your request, an admin will review your account ({email ?? "your email"}). You’ll see the status here.
+              </>
+            )}
+          </p>
+
+          {/* ⬇️ Formulario de solicitud */}
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit(onRequestApproval)}
+              className="grid grid-cols-1 md:grid-cols-2 gap-3"
+            >
+              <FormField
+                control={form.control}
+                name="firstName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{lang === "es" ? "Nombre" : "First Name"}</FormLabel>
+                    <FormControl>
+                      <Input placeholder={lang === "es" ? "Juan" : "John"} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="lastName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{lang === "es" ? "Apellido" : "Last Name"}</FormLabel>
+                    <FormControl>
+                      <Input placeholder={lang === "es" ? "Pérez" : "Doe"} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="idNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{lang === "es" ? "Documento de Identidad" : "ID Number"}</FormLabel>
+                    <FormControl>
+                      <Input placeholder={lang === "es" ? "DNI/CE/Pasaporte" : "ID/Passport"} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{lang === "es" ? "Teléfono" : "Phone"}</FormLabel>
+                    <FormControl>
+                      <Input placeholder="+51 999 999 999" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="country"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{lang === "es" ? "País" : "Country"}</FormLabel>
+                    <FormControl>
+                      <Input placeholder={lang === "es" ? "Perú" : "Peru"} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="md:col-span-2">
+                <FormField
+                  control={form.control}
+                  name="motivation"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        {lang === "es"
+                          ? "¿Por qué quieres ser referente de SommelierPro AI?"
+                          : "Why do you want to be a SommelierPro AI advocate?"}
+                      </FormLabel>
+                      <FormControl>
+                        <Input placeholder={lang === "es" ? "Cuéntanos brevemente..." : "Tell us briefly..."} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="md:col-span-2 mt-2">
+                <Button type="submit" disabled={!canRequest}>
+                  {lang === "es" ? "Enviar solicitud" : "Send request"}
+                </Button>
+              </div>
+            </form>
+          </Form>
         </div>
 
         {/* 2) Crear cuenta en Lemon */}
@@ -289,6 +406,7 @@ export default function AffiliateDashboardPage() {
       return;
     }
     startSavingLink(async () => {
+      // mantiene tu flujo actual
       const res = await saveAffiliateLink(user.uid!, link);
       toast({
         title: res.success ? (lang === "es" ? "Enlace guardado" : "Link saved") : (lang === "es" ? "No se pudo guardar" : "Could not save"),
@@ -298,8 +416,9 @@ export default function AffiliateDashboardPage() {
     });
   };
 
-  const handleRequestApproval = async () => {
-    if (!user?.uid) {
+  // ⬇️ NUEVO: recibe el payload del form y llama a la API para enviar el correo
+  const handleRequestApproval = async (data: ApprovalForm) => {
+    if (!user?.uid || !user.email) {
       toast({
         title: lang === "es" ? "Inicia sesión" : "Sign in",
         description:
@@ -308,12 +427,29 @@ export default function AffiliateDashboardPage() {
       });
       return;
     }
-    const res = await requestVendorApproval(user.uid);
-    toast({
-      title: res.success ? (lang === "es" ? "Solicitud enviada" : "Request sent") : (lang === "es" ? "No se pudo enviar" : "Could not send"),
-      description: res.message,
-      variant: res.success ? "default" : "destructive",
-    });
+    try {
+      const res = await fetch("/api/affiliate/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: user.uid,
+          email: user.email,
+          ...data,
+        }),
+      });
+      const j = await res.json();
+      if (!res.ok || !j?.success) throw new Error(j?.message || `HTTP ${res.status}`);
+      toast({
+        title: lang === "es" ? "Solicitud enviada" : "Request sent",
+        description: lang === "es" ? "Te avisaremos por este panel cuando se revise." : "We’ll notify you here once reviewed.",
+      });
+    } catch (e: any) {
+      toast({
+        title: lang === "es" ? "No se pudo enviar" : "Could not send",
+        description: e?.message || "Unexpected error",
+        variant: "destructive",
+      });
+    }
   };
 
   const form = useForm<RegisterCorporateSaleInput>({
