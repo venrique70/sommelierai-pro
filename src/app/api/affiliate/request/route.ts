@@ -1,4 +1,6 @@
+// src/app/api/affiliate/request/route.ts
 import { NextResponse } from "next/server";
+import type { Transporter } from "nodemailer";
 
 type Body = {
   uid: string;
@@ -11,6 +13,53 @@ type Body = {
   motivation: string;
 };
 
+const ADMIN_TO = process.env.AFFILIATE_ADMIN_EMAIL || "vip@sommelierai.pro";
+const FROM      = process.env.EMAIL_FROM || "SommelierPro AI <onboarding@resend.dev>";
+const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
+
+// SMTP (fallback)
+const SMTP_HOST = process.env.SMTP_HOST || "";
+const SMTP_PORT = Number(process.env.SMTP_PORT || 0);
+const SMTP_USER = process.env.SMTP_USER || "";
+const SMTP_PASS = process.env.SMTP_PASS || "";
+
+async function sendViaResend(opts: { to: string; subject: string; html: string; text?: string; replyTo?: string }) {
+  if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY missing");
+  const resp = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },
+    body: JSON.stringify({
+      from: FROM,
+      to: opts.to,
+      subject: opts.subject,
+      html: opts.html,
+      text: opts.text || "",
+      reply_to: opts.replyTo,
+    }),
+  });
+  const json = await resp.json().catch(() => ({} as any));
+  if (!resp.ok) {
+    const msg = json?.error?.message || json?.message || `Resend error HTTP ${resp.status}`;
+    const err = new Error(msg) as any;
+    err.status = resp.status;
+    err.details = json;
+    throw err;
+  }
+  return json;
+}
+
+async function ensureTransport(): Promise<Transporter | null> {
+  if (!SMTP_HOST || !SMTP_PORT || !SMTP_USER || !SMTP_PASS) return null;
+  const nodemailer = await import("nodemailer");
+  const transporter = nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_PORT === 465, // 465 TLS
+    auth: { user: SMTP_USER, pass: SMTP_PASS },
+  });
+  return transporter;
+}
+
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as Body;
@@ -18,19 +67,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: "Missing uid/email" }, { status: 400 });
     }
 
-    const adminTo = process.env.AFFILIATE_ADMIN_EMAIL || "vip@sommelierai.pro";
-    const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
-    const FROM = process.env.EMAIL_FROM || "SommelierPro AI <onboarding@resend.dev>";
-
-    if (!RESEND_API_KEY) {
-      return NextResponse.json(
-        { success: false, message: "Falta RESEND_API_KEY en el entorno." },
-        { status: 500 }
-      );
-    }
-
-    // --- Email al admin ---
-    const adminHtml = `
+    const subjectAdmin = `Nueva solicitud de afiliado: ${body.firstName} ${body.lastName}`;
+    const textAdmin = `
+UID: ${body.uid}
+Email: ${body.email}
+Nombre: ${body.firstName}
+Apellido: ${body.lastName}
+Documento: ${body.idNumber}
+Teléfono: ${body.phone}
+País: ${body.country}
+Motivación: ${body.motivation}
+`.trim();
+    const htmlAdmin = `
       <h2>Nueva solicitud de aprobación (Afiliados)</h2>
       <p><strong>UID:</strong> ${body.uid}</p>
       <p><strong>Email:</strong> ${body.email}</p>
@@ -41,43 +89,53 @@ export async function POST(req: Request) {
       <p><strong>País:</strong> ${body.country}</p>
       <p><strong>Motivación:</strong> ${body.motivation}</p>
     `;
-    const adminResp = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },
-      body: JSON.stringify({
-        from: FROM,
-        to: adminTo,
-        subject: `Nueva solicitud de afiliado: ${body.firstName} ${body.lastName}`,
-        html: adminHtml,
-        reply_to: body.email,
-      }),
-    });
-    const adminJson = await adminResp.json().catch(() => ({}));
-    if (!adminResp.ok) {
-      const msg = adminJson?.error?.message || adminJson?.message || `Resend error HTTP ${adminResp.status}`;
-      return NextResponse.json({ success: false, message: msg, details: adminJson }, { status: adminResp.status });
-    }
 
-    // --- Email de confirmación al solicitante ---
-    const userHtml = `
-      <p>Hola ${body.firstName},</p>
-      <p>Gracias por tu interés en ser referente de SommelierPro AI. Hemos recibido tu solicitud y nuestro equipo la revisará.</p>
-      <p>Recibirás una notificación en este panel cuando sea aprobada o rechazada.</p>
-      <p>— Equipo SommelierPro AI</p>
-    `;
-    await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },
-      body: JSON.stringify({
-        from: FROM,
+    // 1) Intento con Resend
+    try {
+      await sendViaResend({
+        to: ADMIN_TO,
+        subject: subjectAdmin,
+        html: htmlAdmin,
+        text: textAdmin,
+        replyTo: body.email,
+      });
+
+      // confirmación al solicitante
+      await sendViaResend({
         to: body.email,
         subject: "Hemos recibido tu solicitud — SommelierPro AI",
-        html: userHtml,
-        reply_to: adminTo,
-      }),
-    });
+        html: `<p>Hola ${body.firstName},</p><p>Hemos recibido tu solicitud. Te avisaremos por este panel cuando sea revisada.</p><p>— Equipo SommelierPro AI</p>`,
+        text: `Hola ${body.firstName}, hemos recibido tu solicitud.`,
+        replyTo: ADMIN_TO,
+      });
 
-    return NextResponse.json({ success: true });
+      return NextResponse.json({ success: true });
+    } catch (e: any) {
+      // 2) Fallback SMTP si hay credenciales
+      const transporter = await ensureTransport();
+      if (transporter) {
+        await transporter.sendMail({
+          from: FROM,
+          to: ADMIN_TO,
+          subject: subjectAdmin,
+          html: htmlAdmin,
+          text: textAdmin,
+          replyTo: body.email,
+        });
+        await transporter.sendMail({
+          from: FROM,
+          to: body.email,
+          subject: "Hemos recibido tu solicitud — SommelierPro AI",
+          html: `<p>Hola ${body.firstName},</p><p>Hemos recibido tu solicitud. Te avisaremos por este panel cuando sea revisada.</p><p>— Equipo SommelierPro AI</p>`,
+          text: `Hola ${body.firstName}, hemos recibido tu solicitud.`,
+          replyTo: ADMIN_TO,
+        });
+        return NextResponse.json({ success: true, note: "sent via SMTP fallback" });
+      }
+      // Si no hay SMTP, devolver detalle de Resend
+      const msg = e?.message || "Resend error";
+      return NextResponse.json({ success: false, message: msg, details: e?.details || null }, { status: e?.status || 500 });
+    }
   } catch (e: any) {
     return NextResponse.json({ success: false, message: e?.message || "Unexpected error" }, { status: 500 });
   }
