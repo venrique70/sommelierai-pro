@@ -17,14 +17,15 @@ import {
   getVendorMetrics,
   saveAffiliateLink,
   registerCorporateSale,
+  submitAffiliateRequest,            // <-- NUEVO
   type VendorMetrics,
   type VendorLevel,
+  type VendorStatus,
 } from "./actions";
 import { RegisterCorporateSaleSchema, type RegisterCorporateSaleInput } from "@/lib/schemas";
 
 // i18n
 import { useLang } from "@/lib/use-lang";
-import { translations } from "@/lib/translations";
 
 // esquema del form de solicitud
 import { z } from "zod";
@@ -37,8 +38,6 @@ const ApprovalFormSchema = z.object({
   motivation: z.string().min(10),
 });
 type ApprovalForm = z.infer<typeof ApprovalFormSchema>;
-
-type VendorStatus = "none" | "pending" | "approved";
 
 /* ───────────────────────── VendorOnboarding (inline) ───────────────────────── */
 function VendorOnboardingInline({
@@ -60,7 +59,6 @@ function VendorOnboardingInline({
 }) {
   const lang = useLang("es");
 
-  // ✅ validamos al enviar; el botón no depende de la validez en vivo
   const form = useForm<ApprovalForm>({
     resolver: zodResolver(ApprovalFormSchema),
     mode: "onSubmit",
@@ -75,7 +73,6 @@ function VendorOnboardingInline({
   });
 
   const { isSubmitting } = form.formState;
-  // habilitado salvo que el admin ya haya cambiado el estado o esté enviando
   const disabled = vendorStatus !== "none" || isSubmitting;
 
   return (
@@ -85,132 +82,63 @@ function VendorOnboardingInline({
           <Info className="h-4 w-4 text-primary" />
           {lang === "es" ? "Tu Onboarding" : "Your Onboarding"}
         </CardTitle>
-        <CardDescription>
-          {lang === "es" ? "Te tomará un minuto." : "It takes one minute."}
-        </CardDescription>
+        <CardDescription>{lang === "es" ? "Te tomará un minuto." : "It takes one minute."}</CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-6">
         {/* 1) Solicitar aprobación */}
         <div className="rounded-md border p-4">
-          <div className="font-semibold mb-3">
-            {lang === "es" ? "1) Solicitar Aprobación" : "1) Request Approval"}
-          </div>
-
+          <div className="font-semibold mb-3">{lang === "es" ? "1) Solicitar Aprobación" : "1) Request Approval"}</div>
           <p className="text-sm text-muted-foreground mb-4">
-            {lang === "es" ? (
-              <>
-                Al enviar tu solicitud, un admin revisará tu cuenta ({email ?? "tu email"}). La solicitud se envía a{" "}
-                <strong>vip@sommelierai.pro</strong>. Recibirás el estado en este mismo panel.
-              </>
-            ) : (
-              <>
-                After you send your request, an admin will review your account ({email ?? "your email"}). The request is
-                sent to <strong>vip@sommelierai.pro</strong>. You’ll see the status here.
-              </>
-            )}
+            {lang === "es"
+              ? <>Al enviar tu solicitud, un admin revisará tu cuenta ({email ?? "tu email"}). La solicitud se envía a <strong>vip@sommelierai.pro</strong>. Recibirás el estado en este mismo panel.</>
+              : <>After you send your request, an admin will review your account ({email ?? "your email"}). The request is sent to <strong>vip@sommelierai.pro</strong>. You’ll see the status here.</>}
           </p>
 
-          {/* Formulario de solicitud */}
           <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onRequestApproval)}
-              className="grid grid-cols-1 md:grid-cols-2 gap-3"
-            >
-              <FormField
-                control={form.control}
-                name="firstName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{lang === "es" ? "Nombre" : "First Name"}</FormLabel>
-                    <FormControl>
-                      <Input placeholder={lang === "es" ? "Juan" : "John"} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="lastName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{lang === "es" ? "Apellido" : "Last Name"}</FormLabel>
-                    <FormControl>
-                      <Input placeholder={lang === "es" ? "Pérez" : "Doe"} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="idNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{lang === "es" ? "Documento de Identidad" : "ID Number"}</FormLabel>
-                    <FormControl>
-                      <Input placeholder={lang === "es" ? "DNI/CE/Pasaporte" : "ID/Passport"} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{lang === "es" ? "Teléfono" : "Phone"}</FormLabel>
-                    <FormControl>
-                      <Input placeholder="+51 999 999 999" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="country"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{lang === "es" ? "País" : "Country"}</FormLabel>
-                    <FormControl>
-                      <Input placeholder={lang === "es" ? "Perú" : "Peru"} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <form onSubmit={form.handleSubmit(onRequestApproval)} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <FormField control={form.control} name="firstName" render={({ field }) => (
+                <FormItem><FormLabel>{lang === "es" ? "Nombre" : "First Name"}</FormLabel>
+                  <FormControl><Input placeholder={lang === "es" ? "Juan" : "John"} {...field} /></FormControl>
+                  <FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="lastName" render={({ field }) => (
+                <FormItem><FormLabel>{lang === "es" ? "Apellido" : "Last Name"}</FormLabel>
+                  <FormControl><Input placeholder={lang === "es" ? "Pérez" : "Doe"} {...field} /></FormControl>
+                  <FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="idNumber" render={({ field }) => (
+                <FormItem><FormLabel>{lang === "es" ? "Documento de Identidad" : "ID Number"}</FormLabel>
+                  <FormControl><Input placeholder={lang === "es" ? "DNI/CE/Pasaporte" : "ID/Passport"} {...field} /></FormControl>
+                  <FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="phone" render={({ field }) => (
+                <FormItem><FormLabel>{lang === "es" ? "Teléfono" : "Phone"}</FormLabel>
+                  <FormControl><Input placeholder="+51 999 999 999" {...field} /></FormControl>
+                  <FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="country" render={({ field }) => (
+                <FormItem><FormLabel>{lang === "es" ? "País" : "Country"}</FormLabel>
+                  <FormControl><Input placeholder={lang === "es" ? "Perú" : "Peru"} {...field} /></FormControl>
+                  <FormMessage /></FormItem>
+              )} />
               <div className="md:col-span-2">
-                <FormField
-                  control={form.control}
-                  name="motivation"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {lang === "es"
-                          ? "¿Por qué quieres ser referente de SommelierPro AI?"
-                          : "Why do you want to be a SommelierPro AI advocate?"}
-                      </FormLabel>
-                      <FormControl>
-                        <Input placeholder={lang === "es" ? "Cuéntanos brevemente..." : "Tell us briefly..."} {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <FormField control={form.control} name="motivation" render={({ field }) => (
+                  <FormItem><FormLabel>{lang === "es" ? "¿Por qué quieres ser referente de SommelierPro AI?" : "Why do you want to be a SommelierPro AI advocate?"}</FormLabel>
+                    <FormControl><Input placeholder={lang === "es" ? "Cuéntanos brevemente..." : "Tell us briefly..."} {...field} /></FormControl>
+                    <FormMessage /></FormItem>
+                )} />
               </div>
 
               <div className="md:col-span-2 mt-2">
                 <Button type="submit" disabled={disabled}>
                   {vendorStatus === "pending"
-                    ? lang === "es" ? "En revisión…" : "Under review…"
+                    ? (lang === "es" ? "En revisión…" : "Under review…")
                     : vendorStatus === "approved"
-                    ? lang === "es" ? "Aprobado ✔" : "Approved ✔"
+                    ? (lang === "es" ? "Aprobado ✔" : "Approved ✔")
                     : isSubmitting
-                    ? lang === "es" ? "Enviando…" : "Sending…"
-                    : lang === "es" ? "Enviar solicitud" : "Send request"}
+                    ? (lang === "es" ? "Enviando…" : "Sending…")
+                    : (lang === "es" ? "Enviar solicitud" : "Send request")}
                 </Button>
               </div>
             </form>
@@ -221,9 +149,7 @@ function VendorOnboardingInline({
         <div className="rounded-md border p-4">
           <div className="font-semibold mb-1">{lang === "es" ? "2) Crear tu cuenta de afiliado" : "2) Create your affiliate account"}</div>
           <p className="text-sm text-muted-foreground">
-            {lang === "es"
-              ? "Abre el portal público y créate una cuenta. Ahí configurarás tus datos de pago."
-              : "Open the public portal and create an account. Configure your payout details there."}
+            {lang === "es" ? "Abre el portal público y créate una cuenta. Ahí configurarás tus datos de pago." : "Open the public portal and create an account. Configure your payout details there."}
           </p>
           <div className="mt-3">
             <Button asChild variant="secondary">
@@ -238,9 +164,7 @@ function VendorOnboardingInline({
         <div className="rounded-md border p-4">
           <div className="font-semibold mb-1">{lang === "es" ? "3) Guarda tu enlace de afiliado" : "3) Save your affiliate link"}</div>
           <p className="text-sm text-muted-foreground">
-            {lang === "es"
-              ? "Pega aquí tu enlace único de Lemon. Lo usaremos para cruzar ventas."
-              : "Paste your unique Lemon link here. We’ll use it to match sales."}
+            {lang === "es" ? "Pega aquí tu enlace único de Lemon. Lo usaremos para cruzar ventas." : "Paste your unique Lemon link here. We’ll use it to match sales."}
           </p>
 
           <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
@@ -259,9 +183,7 @@ function VendorOnboardingInline({
         <div className="rounded-md border p-4">
           <div className="font-semibold mb-1">{lang === "es" ? "¿Qué sigue?" : "What’s next?"}</div>
           <p className="text-sm text-muted-foreground">
-            {lang === "es"
-              ? "Cuando un admin te apruebe, verás tu panel completo con métricas, registro de ventas corporativas y más."
-              : "Once an admin approves you, you’ll see your full dashboard with metrics, corporate sales logging and more."}
+            {lang === "es" ? "Cuando un admin te apruebe, verás tu panel completo con métricas, registro de ventas corporativas y más." : "Once an admin approves you, you’ll see your full dashboard with metrics, corporate sales logging and more."}
           </p>
         </div>
       </CardContent>
@@ -275,11 +197,11 @@ function CommissionsSectionInline({ currentLevel }: { currentLevel?: VendorLevel
   const lang = useLang("es");
 
   const COMMISSIONS_BY_USER = [
-    { level: lang === "es" ? "Nuevo" : "New",    requirement: lang === "es" ? "0-4 Referidos" : "0-4 Referrals",   iniciado: "0%",  unaCopa: "0%",  copaPremium: "0%",  sibarita: "0%"  },
-    { level: "Pregrado", requirement: lang === "es" ? "5-9 Referidos" : "5-9 Referrals",   iniciado: "5%",  unaCopa: "8%",  copaPremium: "10%", sibarita: "15%" },
-    { level: "Bachelor", requirement: lang === "es" ? "10-19 Referidos" : "10-19 Referrals", iniciado: "7%",  unaCopa: "10%", copaPremium: "12%", sibarita: "17%" },
-    { level: "Pro",      requirement: lang === "es" ? "20-29 Referidos" : "20-29 Referrals", iniciado: "9%",  unaCopa: "12%", copaPremium: "15%", sibarita: "18%" },
-    { level: "Master",   requirement: lang === "es" ? "30+ Referidos" : "30+ Referrals",   iniciado: "11%", unaCopa: "15%", copaPremium: "17%", sibarita: "20%" },
+    { level: lang === "es" ? "Nuevo" : "New", requirement: lang === "es" ? "0-4 Referidos" : "0-4 Referrals", iniciado: "0%", unaCopa: "0%", copaPremium: "0%", sibarita: "0%" },
+    { level: "Pregrado", requirement: lang === "es" ? "5-9 Referidos" : "5-9 Referrals", iniciado: "5%", unaCopa: "8%", copaPremium: "10%", sibarita: "15%" },
+    { level: "Bachelor", requirement: lang === "es" ? "10-19 Referidos" : "10-19 Referrals", iniciado: "7%", unaCopa: "10%", copaPremium: "12%", sibarita: "17%" },
+    { level: "Pro", requirement: lang === "es" ? "20-29 Referidos" : "20-29 Referrals", iniciado: "9%", unaCopa: "12%", copaPremium: "15%", sibarita: "18%" },
+    { level: "Master", requirement: lang === "es" ? "30+ Referidos" : "30+ Referrals", iniciado: "11%", unaCopa: "15%", copaPremium: "17%", sibarita: "20%" },
   ] as const;
 
   const highlight = currentLevel ?? (lang === "es" ? "Bachelor" : "Bachelor");
@@ -293,9 +215,7 @@ function CommissionsSectionInline({ currentLevel }: { currentLevel?: VendorLevel
             {lang === "es" ? "Comisiones por Planes de Usuario" : "Commissions by User Plans"}
           </CardTitle>
           <CardDescription>
-            {lang === "es"
-              ? "Tu comisión por referidos individuales se basa en tu nivel y el plan del referido."
-              : "Your commission for individual referrals depends on your level and the referred user’s plan."}
+            {lang === "es" ? "Tu comisión por referidos individuales se basa en tu nivel y el plan del referido." : "Your commission for individual referrals depends on your level and the referred user’s plan."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -317,11 +237,7 @@ function CommissionsSectionInline({ currentLevel }: { currentLevel?: VendorLevel
                   <TableRow key={row.level} className={isMe ? "bg-accent" : ""}>
                     <TableCell className="font-medium">
                       {row.level}
-                      {isMe && (
-                        <span className="ml-2 rounded border px-2 py-0.5 text-xs">
-                          {lang === "es" ? "Tu Nivel" : "Your Level"}
-                        </span>
-                      )}
+                      {isMe && <span className="ml-2 rounded border px-2 py-0.5 text-xs">{lang === "es" ? "Tu Nivel" : "Your Level"}</span>}
                     </TableCell>
                     <TableCell>{row.requirement}</TableCell>
                     <TableCell>{row.iniciado}</TableCell>
@@ -343,9 +259,7 @@ function CommissionsSectionInline({ currentLevel }: { currentLevel?: VendorLevel
             {lang === "es" ? "Comisiones por Planes Corporativos" : "Commissions for Corporate Plans"}
           </CardTitle>
           <CardDescription>
-            {lang === "es"
-              ? "Comisiones especiales por la venta de planes corporativos por volumen."
-              : "Special commissions for selling corporate plans in volume."}
+            {lang === "es" ? "Comisiones especiales por la venta de planes corporativos por volumen." : "Special commissions for selling corporate plans in volume."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -391,7 +305,7 @@ export default function AffiliateDashboardPage() {
   const [savingLink, startSavingLink] = useTransition();
 
   // mientras no está conectado a BD, usamos constantes
-  const vendorStatus: VendorStatus = "none";
+  const vendorStatus: VendorStatus = (metrics?.affiliateStatus as VendorStatus) ?? "none";
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -406,10 +320,7 @@ export default function AffiliateDashboardPage() {
     if (!user?.uid) {
       toast({
         title: lang === "es" ? "Inicia sesión" : "Sign in",
-        description:
-          lang === "es"
-            ? "Debes iniciar sesión para guardar tu enlace de afiliado."
-            : "You must sign in to save your affiliate link.",
+        description: lang === "es" ? "Debes iniciar sesión para guardar tu enlace de afiliado." : "You must sign in to save your affiliate link.",
         variant: "destructive",
       });
       return;
@@ -418,8 +329,7 @@ export default function AffiliateDashboardPage() {
     if (!link) {
       toast({
         title: lang === "es" ? "Falta el enlace" : "Missing link",
-        description:
-          lang === "es" ? "Pega tu enlace de afiliado de Lemon Squeezy." : "Paste your Lemon Squeezy affiliate link.",
+        description: lang === "es" ? "Pega tu enlace de afiliado de Lemon Squeezy." : "Paste your Lemon Squeezy affiliate link.",
         variant: "destructive",
       });
       return;
@@ -434,7 +344,7 @@ export default function AffiliateDashboardPage() {
     });
   };
 
-  // ⬇️ handler de envío: ABRE CORREO (mailto a vip@sommelierai.pro)
+  // ⬇️ handler de envío: ABRE CORREO y persiste 'pending'
   const handleRequestApproval = async (data: ApprovalForm) => {
     if (!user?.uid || !user.email) {
       toast({
@@ -444,6 +354,14 @@ export default function AffiliateDashboardPage() {
       });
       return;
     }
+
+    // persistimos en BD como 'pending'
+    try {
+      await submitAffiliateRequest(user.uid, {
+        email: user.email,
+        ...data,
+      });
+    } catch { /* ignore */ }
 
     const subject =
       (lang === "es" ? "Solicitud de afiliado — " : "Affiliate request — ") +
@@ -466,12 +384,19 @@ ${lang === "es" ? "Motivación" : "Motivation"}: ${data.motivation}
     const mailto = `mailto:vip@sommelierai.pro?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.location.href = mailto;
 
+    // feedback
     toast({
       title: lang === "es" ? "Abre tu correo" : "Open your email",
       description:
         lang === "es"
-          ? "Hemos preparado un correo a vip@sommelierai.pro. Revísalo y envíalo."
-          : "We prepared an email to vip@sommelierai.pro. Review and send it.",
+          ? "Hemos preparado un correo a vip@sommelierai.pro. Revísalo y envíalo. Tu solicitud quedó en revisión."
+          : "We prepared an email to vip@sommelierai.pro. Review and send it. Your request is now under review.",
+    });
+
+    // opcional: refrescar métricas para reflejar estado (si luego lo exponemos)
+    startLoadingMetrics(async () => {
+      const m = await getVendorMetrics(user.uid!);
+      setMetrics(m);
     });
   };
 
@@ -576,7 +501,7 @@ ${lang === "es" ? "Motivación" : "Motivation"}: ${data.motivation}
       {/* Onboarding */}
       <VendorOnboardingInline
         email={user?.email ?? ""}
-        vendorStatus={"none"}
+        vendorStatus={vendorStatus}
         affiliateLink={affiliateLink}
         onAffiliateLinkChange={setAffiliateLink}
         onSaveAffiliateLink={handleSaveAffiliateLink}
