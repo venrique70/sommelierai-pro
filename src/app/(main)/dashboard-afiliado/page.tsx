@@ -26,7 +26,7 @@ import { RegisterCorporateSaleSchema, type RegisterCorporateSaleInput } from "@/
 import { useLang } from "@/lib/use-lang";
 import { translations } from "@/lib/translations";
 
-// ⬇️ esquema del form de solicitud
+// esquema del form de solicitud
 import { z } from "zod";
 const ApprovalFormSchema = z.object({
   firstName: z.string().min(2),
@@ -60,10 +60,10 @@ function VendorOnboardingInline({
 }) {
   const lang = useLang("es");
 
-  // ✅ validamos por formulario, no por vendorStatus/email
+  // ✅ validamos al enviar; el botón no depende de la validez en vivo
   const form = useForm<ApprovalForm>({
     resolver: zodResolver(ApprovalFormSchema),
-    mode: "onChange",
+    mode: "onSubmit",
     defaultValues: {
       firstName: "",
       lastName: "",
@@ -74,9 +74,9 @@ function VendorOnboardingInline({
     },
   });
 
-  const isSubmitting = form.formState.isSubmitting;
-  const isValid = form.formState.isValid;
-  const disabled = vendorStatus !== "none" || !isValid || isSubmitting;
+  const { isSubmitting } = form.formState;
+  // habilitado salvo que el admin ya haya cambiado el estado o esté enviando
+  const disabled = vendorStatus !== "none" || isSubmitting;
 
   return (
     <Card className="border-primary/20 bg-card">
@@ -390,7 +390,7 @@ export default function AffiliateDashboardPage() {
   const [affiliateLink, setAffiliateLink] = useState("");
   const [savingLink, startSavingLink] = useTransition();
 
-  // mock mientras no lo traemos de BD
+  // mientras no está conectado a BD, usamos constantes
   const vendorStatus: VendorStatus = "none";
 
   useEffect(() => {
@@ -434,6 +434,7 @@ export default function AffiliateDashboardPage() {
     });
   };
 
+  // ⬇️ handler de envío: llama a la API que envía email
   const handleRequestApproval = async (data: ApprovalForm) => {
     if (!user?.uid || !user.email) {
       toast({
@@ -593,8 +594,6 @@ export default function AffiliateDashboardPage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSaleSubmit)} className="space-y-4">
-              {/* … sin cambios … */}
-              {/* el resto de tu form de ventas corporativas queda igual */}
               <FormField
                 control={form.control}
                 name="accessCode"
