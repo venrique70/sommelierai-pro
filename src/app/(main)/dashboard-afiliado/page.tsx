@@ -434,7 +434,7 @@ export default function AffiliateDashboardPage() {
     });
   };
 
-  // ⬇️ handler de envío: llama a la API que envía email
+  // ⬇️ handler de envío: ABRE CORREO (mailto a vip@sommelierai.pro)
   const handleRequestApproval = async (data: ApprovalForm) => {
     if (!user?.uid || !user.email) {
       toast({
@@ -444,29 +444,35 @@ export default function AffiliateDashboardPage() {
       });
       return;
     }
-    try {
-      const res = await fetch("/api/affiliate/request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          uid: user.uid,
-          email: user.email,
-          ...data,
-        }),
-      });
-      const j = await res.json();
-      if (!res.ok || !j?.success) throw new Error(j?.message || `HTTP ${res.status}`);
-      toast({
-        title: lang === "es" ? "Solicitud enviada" : "Request sent",
-        description: lang === "es" ? "Te avisaremos por este panel cuando se revise." : "We’ll notify you here once reviewed.",
-      });
-    } catch (e: any) {
-      toast({
-        title: lang === "es" ? "No se pudo enviar" : "Could not send",
-        description: e?.message || "Unexpected error",
-        variant: "destructive",
-      });
-    }
+
+    const subject =
+      (lang === "es" ? "Solicitud de afiliado — " : "Affiliate request — ") +
+      `${data.firstName} ${data.lastName}`;
+
+    const body = `
+${lang === "es" ? "Nueva solicitud de aprobación (Afiliados)" : "New affiliate approval request"}
+
+UID: ${user.uid}
+Email: ${user.email}
+
+${lang === "es" ? "Nombre" : "First Name"}: ${data.firstName}
+${lang === "es" ? "Apellido" : "Last Name"}: ${data.lastName}
+${lang === "es" ? "Documento de Identidad" : "ID Number"}: ${data.idNumber}
+${lang === "es" ? "Teléfono" : "Phone"}: ${data.phone}
+${lang === "es" ? "País" : "Country"}: ${data.country}
+${lang === "es" ? "Motivación" : "Motivation"}: ${data.motivation}
+`.trim();
+
+    const mailto = `mailto:vip@sommelierai.pro?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailto;
+
+    toast({
+      title: lang === "es" ? "Abre tu correo" : "Open your email",
+      description:
+        lang === "es"
+          ? "Hemos preparado un correo a vip@sommelierai.pro. Revísalo y envíalo."
+          : "We prepared an email to vip@sommelierai.pro. Review and send it.",
+    });
   };
 
   const form = useForm<RegisterCorporateSaleInput>({
