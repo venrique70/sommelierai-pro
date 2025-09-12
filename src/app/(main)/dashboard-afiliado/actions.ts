@@ -1,9 +1,12 @@
 "use server";
 
+import { adminDb } from "@/lib/firebase-admin";
+
 /**
  * Tipos públicos que consume page.tsx
  */
 export type VendorLevel = "Nuevo" | "Pregrado" | "Bachelor" | "Pro" | "Master";
+export type VendorStatus = "none" | "pending" | "approved";
 
 export type VendorSale = {
   id: string;
@@ -20,47 +23,93 @@ export type VendorMetrics = {
   pendingCommission: number;      // USD
   nextPayoutDate: string;         // ISO o '—'
   lemonAffiliateLink?: string;    // enlace pegado por el vendedor
+  affiliateStatus: VendorStatus;  // <-- NUEVO
   recentSales: VendorSale[];
 };
 
 /**
  * getVendorMetrics
- * (por ahora sin BD) → devolvemos 0 / '—' para no confundir con ejemplos.
- * Luego conectamos a Firestore / Lemon.
+ * Lee el estado 'affiliate.status' de users/{uid} y devuelve 0s para KPIs (hasta conectar Lemon).
  */
 export async function getVendorMetrics(uid: string): Promise<VendorMetrics> {
+  const db = adminDb();
+  let status: VendorStatus = "none";
+  let lemonAffiliateLink = "";
+
+  try {
+    const snap = await db.collection("users").doc(uid).get();
+    const data = snap.exists ? (snap.data() as any) : {};
+    status = (data?.affiliate?.status as VendorStatus) ?? "none";
+    lemonAffiliateLink = data?.lemonAffiliateLink ?? "";
+  } catch {
+    // ignoramos errores de lectura y devolvemos defaults
+  }
+
   return {
     level: "Nuevo",
     activeReferrals: 0,
     pendingCommission: 0,
     nextPayoutDate: "—",
-    lemonAffiliateLink: "",
+    lemonAffiliateLink,
+    affiliateStatus: status,
     recentSales: [],
   };
 }
 
 /**
- * requestVendorApproval
- * (no usado en el flujo actual; las solicitudes se envían por /api/affiliate/request)
- */
-export async function requestVendorApproval(uid: string): Promise<{ success: boolean; message: string }> {
-  return { success: true, message: "Tu solicitud fue recibida. Un admin la revisará." };
-}
-
-/**
- * saveAffiliateLink
- * Guardará el enlace de Lemon del vendedor (mock ahora).
+ * Guarda/actualiza el enlace de afiliado de Lemon del vendedor.
  */
 export async function saveAffiliateLink(uid: string, link: string): Promise<{ success: boolean; message: string }> {
   if (!link.startsWith("http")) {
     return { success: false, message: "El enlace no es válido." };
   }
-  // TODO: update en Firestore: users/{uid}.lemonAffiliateLink = link
-  return { success: true, message: "Enlace de afiliado guardado." };
+  try {
+    const db = adminDb();
+    await db.collection("users").doc(uid).set({ lemonAffiliateLink: link }, { merge: true });
+    return { success: true, message: "Enlace de afiliado guardado." };
+  } catch (e: any) {
+    return { success: false, message: e?.message || "No se pudo guardar el enlace." };
+  }
 }
 
 /**
- * registerCorporateSale
+ * Persiste la solicitud del vendedor y marca estado 'pending'.
+ * Se invoca cuando el vendedor envía el formulario (además del mailto).
+ */
+export async function submitAffiliateRequest(
+  uid: string,
+  data: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    idNumber: string;
+    phone: string;
+    country: string;
+    motivation: string;
+  }
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const db = adminDb();
+    await db.collection("users").doc(uid).set(
+      {
+        affiliate: {
+          status: "pending",
+          submitted: {
+            ...data,
+            at: new Date().toISOString(),
+          },
+          updatedAt: new Date().toISOString(),
+        },
+      },
+      { merge: true }
+    );
+    return { success: true, message: "Solicitud registrada (pending)." };
+  } catch (e: any) {
+    return { success: false, message: e?.message || "No se pudo registrar la solicitud." };
+  }
+}
+
+/**
  * Registrar venta corporativa (mock ahora).
  */
 type CorporateSaleInput = {
