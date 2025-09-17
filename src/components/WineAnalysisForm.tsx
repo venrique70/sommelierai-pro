@@ -78,13 +78,13 @@ export default function WineAnalysisForm() {
       />
       <input
         {...register("wineryName")}
-        placeholder="Bodega (opcional)"
+        placeholder="Bodega (obligatorio)"
         autoComplete="off"
         className="border rounded px-3 py-2"
       />
       <input
         {...register("country")}
-        placeholder="País (opcional)"
+        placeholder="País (obligatorio)"
         autoComplete="off"
         className="border rounded px-3 py-2"
       />
