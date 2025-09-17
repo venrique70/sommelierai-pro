@@ -7,8 +7,8 @@ export const WineAnalysisClientSchema = z.object({
   wineName: z.string().min(2, { message: "El nombre del vino debe tener al menos 2 caracteres." }),
   year: z.coerce.number().min(1800, { message: "El año debe ser válido." }).max(new Date().getFullYear() + 1, { message: "El año no puede ser en el futuro." }),
   grapeVariety: z.string().min(2, { message: "La cepa debe tener al menos 2 caracteres." }),
-  wineryName: z.string().optional(),
-  country: z.string().optional(),
+  wineryName: z.string().min(2, { message: "La bodega es obligatoria." }),
+  country: z.string().min(2, { message: "El país es obligatorio." }), 
   foodToPair: z.string().optional(),
   language: z.enum(['es', 'en']).optional(),
 });
