@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import type { z } from "zod";
@@ -12,7 +11,6 @@ type ClientInput = z.infer<typeof WineAnalysisClientSchema>;
 export default function WineAnalysisTab() {
   const router = useRouter();
   const { user } = useAuth();
-  const [error, setError] = useState<string | null>(null);
 
   const { register, handleSubmit, formState: { isSubmitting } } = useForm<{
     wineName: string;
@@ -24,7 +22,6 @@ export default function WineAnalysisTab() {
   }>({ defaultValues: { language: "es" } });
 
   async function onSubmit(values: any) {
-    setError(null);
     if (!user?.uid) throw new Error("Debes iniciar sesión para analizar un producto");
 
     const lang: "es" | "en" = values?.language === "en" ? "en" : "es";
@@ -48,13 +45,6 @@ export default function WineAnalysisTab() {
     const data = await res.json();
 
     if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo completar el análisis");
-
-    // 🚧 Si no está verificado o no hay análisis, no redirigimos; mostramos aviso
-    const r = data?.result;
-    if (!r || r.verified === false || !r.analysis) {
-      setError("Vino no verificado. Por favor indica bodega y país exactos (y año si aplica).");
-      return;
-    }
 
     if (data.savedId) router.push(`/history/${data.savedId}`);
     else router.push("/history");
@@ -102,12 +92,6 @@ export default function WineAnalysisTab() {
         <option value="es">Español</option>
         <option value="en">English</option>
       </select>
-
-      {error && (
-        <div className="rounded border border-red-300 bg-red-50 px-3 py-2 text-red-800">
-          <strong>Atención:</strong> {error}
-        </div>
-      )}
 
       <button
         type="submit"
