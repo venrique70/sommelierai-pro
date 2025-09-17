@@ -27,7 +27,7 @@ const es = {
   productName: "Nombre del Producto",
   mainAttribute: "Cepa / Atributo Principal",
   yearHarvestBottling: "Año (Cosecha/Embotellado)",
-  wineryOrDistilleryOptional: "Bodega / Destilería (Opcional)",
+  wineryOrDistilleryOptional: "Bodega / Destilería",
   analyzeProduct: "Analizar Producto",
   analysisQuotaStatus: "Te quedan {left} de {total} análisis este mes.",
 
