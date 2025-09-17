@@ -9,6 +9,7 @@ import { WineAnalysisClientSchema } from "@/lib/schemas";
 import { adminDb, FieldValue } from "@/lib/firebase-admin";
 import { analyzeWineFlow } from "@/ai/flows/analyze-wine";
 
+// Helper para respuesta JSON
 function j(res: any, status = 200) {
   return NextResponse.json(res, { status });
 }
@@ -16,23 +17,26 @@ function j(res: any, status = 200) {
 async function saveHistory(uid: string, out: any) {
   try {
     const db = adminDb();
+
     const docToSave = {
       uid,
-      userId: uid,
+      userId: uid, // compat
       wineName: out?.wineName ?? "Desconocido",
       year: out?.year ?? null,
-      imageUrl: out?.analysis?.visual?.imageUrl ?? out?.imageUrl ?? null,
+      imageUrl: out?.imageUrl ?? null,
       analysis: out?.analysis ?? null,
-      notaDelSommelier: out?.notaDelSommelier ?? out?.sommelierNote ?? out?.notes ?? null,
-      servicio: out?.servicio ?? out?.service ?? null,
-      pairings: Array.isArray(out?.pairings) ? out.pairings : [],
+      notaDelSommelier: out?.notaDelSommelier ?? null,
+      servicio: out?.servicio ?? null,
+      pairings: out?.pairings ?? [],
       country: out?.country ?? null,
-      grapeVariety: out?.grapeVariety ?? out?.analysis?.grapeVariety ?? null,
+      grapeVariety: out?.grapeVariety ?? null,
       createdAt: FieldValue.serverTimestamp(),
     };
 
     console.log("[saveHistory] Guardando en Firestore:", {
-      uid: docToSave.uid, wineName: docToSave.wineName, year: docToSave.year,
+      uid: docToSave.uid,
+      wineName: docToSave.wineName,
+      year: docToSave.year,
     });
 
     const ref = await db.collection("history").add(docToSave);
@@ -40,7 +44,7 @@ async function saveHistory(uid: string, out: any) {
     return ref.id;
   } catch (err) {
     console.error("[saveHistory] ERROR guardando historial:", err);
-    return null;
+    return null; // no bloquear la respuesta
   }
 }
 
@@ -63,6 +67,7 @@ async function bumpUsageIfNotAdmin(uid: string) {
 
 export async function POST(req: Request) {
   try {
+    // 1) Parseo/validación de entrada
     const json = await req.json().catch(() => ({}));
     const input = WineAnalysisClientSchema.parse(json);
 
@@ -70,43 +75,50 @@ export async function POST(req: Request) {
       return j({ ok: false, error: "Debes iniciar sesión para analizar un producto" }, 401);
     }
 
+    // 2) Chequeo de clave IA
     const aiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     if (!aiKey) {
       console.error("[analyze-wine] Missing GEMINI_API_KEY/GOOGLE_API_KEY");
       return j({ ok: false, error: "Falta configuración del modelo de IA" }, 500);
     }
 
-    // Ejecutar flujo IA (ahora con verified)
-    let result: any;
+    // 3) Ejecutar flujo IA
+    let aiRes: any;
     try {
-      result = await analyzeWineFlow(input);
+      aiRes = await analyzeWineFlow(input);
     } catch (err) {
       console.error("[analyzeWineFlow] error:", err);
       return j({ ok: false, error: "No se pudo completar el análisis con IA" }, 500);
     }
 
-    // Normalización mínima para UI actual (conservar campos que usas)
+    // 4) Normalizar salida
     const out = {
       ok: true,
-      result, // 👈 devolvemos todo el objeto (incluye verified)
-      wineName: result?.wineName ?? input.wineName ?? "Desconocido",
-      year: result?.year ?? input.year ?? null,
-      country: result?.country ?? input.country ?? null,
-      grapeVariety: result?.grapeVariety ?? input.grapeVariety ?? result?.analysis?.grapeVariety ?? null,
-      analysis: result?.analysis ?? null,
-      notaDelSommelier: result?.notaDelSommelier ?? result?.sommelierNote ?? result?.notes ?? null,
-      imageUrl: result?.analysis?.visual?.imageUrl ?? result?.imageUrl ?? null,
+      id: aiRes?.id ?? undefined,
+      wineName: aiRes?.wineName ?? input.wineName ?? "Desconocido",
+      year: aiRes?.year ?? input.year ?? null,
+      country: aiRes?.country ?? input.country ?? null,
+      grapeVariety: aiRes?.grapeVariety ?? input.grapeVariety ?? null,
+      analysis:
+        aiRes?.analysis ?? {
+          visual: aiRes?.visual ?? {},
+          olfativa: aiRes?.olfativa ?? {},
+          gustativa: aiRes?.gustativa ?? {},
+        },
+      notaDelSommelier: aiRes?.notaDelSommelier ?? aiRes?.sommelierNote ?? null,
+      servicio: aiRes?.servicio ?? aiRes?.service ?? null,
+      pairings: Array.isArray(aiRes?.pairings) ? aiRes.pairings : [],
+      imageUrl: aiRes?.analysis?.visual?.imageUrl ?? aiRes?.imageUrl ?? null,
     };
 
-    // Guardar en history SOLO si está verificado y hay analysis (evita ensuciar historial)
-    let savedId: string | null = null;
-    if (result?.verified === true && out.analysis) {
-      savedId = await saveHistory(input.uid, out);
-    }
+    // 5) Guardar y devolver savedId
+    const savedId = await saveHistory(input.uid, out);
 
+    // 6) Contador en background
     void bumpUsageIfNotAdmin(input.uid);
-    return j({ ...out, savedId }, 200);
 
+    // 7) Responder
+    return j({ ...out, savedId }, 200);
   } catch (e: any) {
     if (e instanceof z.ZodError) {
       console.error("[analyze-wine] ZodError:", e.issues);
