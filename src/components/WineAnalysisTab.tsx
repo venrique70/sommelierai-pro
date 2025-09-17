@@ -70,19 +70,19 @@ export default function WineAnalysisTab() {
       />
       <input
         {...register("grapeVariety")}
-        placeholder="Cepa (opcional)"
+        placeholder="Cepa (obligatorio)"
         autoComplete="off"
         className="border rounded px-3 py-2"
       />
       <input
-        {...register("wineryName")}
-        placeholder="Bodega (opcional)"
+        {...register("wineryName", { required: true })}
+        placeholder="Bodega (obligatorio)"
         autoComplete="off"
         className="border rounded px-3 py-2"
       />
       <input
-        {...register("country")}
-        placeholder="País (opcional)"
+        {...register("country", { required: true })}
+        placeholder="País (obligatorio)"
         autoComplete="off"
         className="border rounded px-3 py-2"
       />
