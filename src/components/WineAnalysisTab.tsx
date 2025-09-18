@@ -25,16 +25,17 @@ export default function WineAnalysisTab() {
     if (!user?.uid) throw new Error("Debes iniciar sesión para analizar un producto");
 
     const lang: "es" | "en" = values?.language === "en" ? "en" : "es";
+const winery = String(values?.wineryName ?? "").trim();
 
-    const payload: ClientInput = {
-      uid: user.uid,
-      wineName: String(values.wineName ?? "").trim(),
-      year: Number(values.year ?? 0),
-      grapeVariety: values?.grapeVariety || undefined,
-      wineryName: values?.wineryName || undefined,
-      country: values?.country || undefined,
-      language: lang,
-    };
+   const payload: ClientInput = {
+  uid: user.uid,
+  wineName: String(values.wineName ?? "").trim(),
+  year: Number(values.year ?? 0),
+  grapeVariety: String(values?.grapeVariety ?? "").trim(),
+  wineryName: winery || undefined,
+  country: String(values?.country ?? "").trim(),
+  language: lang,
+};
 
     const res = await fetch("/api/analyze-wine", {
       method: "POST",
@@ -75,8 +76,8 @@ export default function WineAnalysisTab() {
         className="border rounded px-3 py-2"
       />
       <input
-        {...register("wineryName", { required: true })}
-        placeholder="Bodega (obligatorio)"
+        {...register("wineryName")}
+        placeholder="Bodega / Destilería (opcional)"
         autoComplete="off"
         className="border rounded px-3 py-2"
       />
