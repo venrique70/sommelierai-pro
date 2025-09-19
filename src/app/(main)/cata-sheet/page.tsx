@@ -45,44 +45,71 @@ export default function CataSheetPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
+  
+  // NUEVO: manejo de cámaras
+const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+const [selectedId, setSelectedId] = useState<string | null>(null);
+const [usingRear, setUsingRear] = useState(true); // trasera por defecto
 
-  useEffect(() => {
-    const getCameraPermission = async () => {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        console.error("Camera API not supported in this browser.");
-        setHasCameraPermission(false);
-        return;
-      }
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        if (videoRef.current) {
-          (videoRef.current as any).srcObject = stream;
-        }
-        setHasCameraPermission(true);
-      } catch (error) {
-        console.error("Error accessing camera:", error);
-        setHasCameraPermission(false);
-        toast({
-          variant: "destructive",
-          title: lang === "es" ? "Acceso a la cámara denegado" : "Camera access denied",
-          description:
-            lang === "es"
-              ? "Activa los permisos de la cámara en tu navegador para usar esta función."
-              : "Please enable camera permissions in your browser to use this feature.",
-        });
-      }
-    };
+async function openCamera(opts?: { deviceId?: string; rearPreferred?: boolean }) {
+  const constraints: MediaStreamConstraints = opts?.deviceId
+    ? { video: { deviceId: { exact: opts.deviceId } } }
+    : {
+        video: {
+          facingMode: { ideal: opts?.rearPreferred === false ? "user" : "environment" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+      };
 
-    getCameraPermission();
+  const stream = await navigator.mediaDevices.getUserMedia(constraints);
+  if (videoRef.current) (videoRef.current as any).srcObject = stream;
+  return stream;
+}
 
-    return () => {
-      // Cleanup: stop video streams when component unmounts
-      if (videoRef.current && (videoRef.current as any).srcObject) {
-        const stream = (videoRef.current as any).srcObject as MediaStream;
-        stream.getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, [toast, lang]);
+async function listCameras() {
+  const all = await navigator.mediaDevices.enumerateDevices();
+  const cams = all.filter((d) => d.kind === "videoinput");
+  setDevices(cams);
+  const rear = cams.find((d) => /back|rear|environment/i.test(d.label));
+  setSelectedId((prev) => prev ?? rear?.deviceId ?? cams[0]?.deviceId ?? null);
+}
+
+
+useEffect(() => {
+  const init = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      console.error("Camera API not supported in this browser.");
+      setHasCameraPermission(false);
+      return;
+    }
+    try {
+      await openCamera({ rearPreferred: true }); // abre trasera por defecto
+      await listCameras();                       // lista opciones
+      setHasCameraPermission(true);
+    } catch (error) {
+      console.error("Error accessing camera:", error);
+      setHasCameraPermission(false);
+      toast({
+        variant: "destructive",
+        title: lang === "es" ? "Acceso a la cámara denegado" : "Camera access denied",
+        description:
+          lang === "es"
+            ? "Activa los permisos de la cámara en tu navegador para usar esta función."
+            : "Please enable camera permissions in your browser to use this feature.",
+      });
+    }
+  };
+
+  init();
+
+  // Cleanup
+  return () => {
+    const stream = (videoRef.current as any)?.srcObject as MediaStream | undefined;
+    stream?.getTracks().forEach((track) => track.stop());
+  };
+}, [toast, lang]);
+
 
   const captureImage = () => {
     if (videoRef.current && canvasRef.current) {
@@ -98,6 +125,33 @@ export default function CataSheetPage() {
       }
     }
   };
+const switchCamera = async () => {
+  try {
+    const current = (videoRef.current as any)?.srcObject as MediaStream | undefined;
+    current?.getTracks().forEach(t => t.stop());
+
+    const target = usingRear
+      ? devices.find(d => /front|user/i.test(d.label)) || devices.find(d => d.deviceId !== selectedId!)
+      : devices.find(d => /back|rear|environment/i.test(d.label)) || devices.find(d => d.deviceId !== selectedId!);
+
+    if (target?.deviceId) {
+      await openCamera({ deviceId: target.deviceId });
+      setSelectedId(target.deviceId);
+    } else {
+      await openCamera({ rearPreferred: !usingRear });
+
+    }
+
+    setUsingRear(prev => !prev);
+  } catch (e) {
+    console.error(e);
+    toast({
+      variant: "destructive",
+      title: lang === "es" ? "No se pudo cambiar de cámara" : "Could not switch camera",
+      description: lang === "es" ? "Revisa permisos o conecta otra cámara." : "Check permissions or connect another camera.",
+    });
+  }
+};
 
   const handleAnalyze = async () => {
     if (!image) {
@@ -171,7 +225,15 @@ export default function CataSheetPage() {
             ) : (
               <>
                 <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
-                  <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
+                  <video
+                    ref={videoRef}
+                    className="w-full h-full object-cover"
+                    style={usingRear ? undefined : { transform: "scaleX(-1)" }}  // espejo solo en frontal
+                    autoPlay
+                    muted
+                    playsInline
+                    />
+
                   {hasCameraPermission === false && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-center bg-black/50 p-4">
                       <Camera className="size-12 text-destructive mb-4" />
@@ -211,9 +273,21 @@ export default function CataSheetPage() {
                   </Button>
                 </>
               ) : (
-                <Button onClick={captureImage} disabled={!hasCameraPermission} size="lg">
-                  <Zap className="mr-2" /> {lang === "es" ? "Capturar Imagen" : "Capture Image"}
-                </Button>
+              <>
+  <Button onClick={captureImage} disabled={!hasCameraPermission} size="lg">
+    <Zap className="mr-2" /> {lang === "es" ? "Capturar Imagen" : "Capture Image"}
+  </Button>
+  <Button
+  onClick={switchCamera}
+  variant="secondary"
+  disabled={!hasCameraPermission || devices.length < 2}
+  size="lg"
+>
+  {lang === "es" ? "Cambiar cámara" : "Switch camera"}
+</Button>
+
+</>
+
               )}
             </div>
           </CardContent>
