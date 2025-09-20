@@ -58,6 +58,9 @@ wineryName: z.string().optional().describe("Winery is OPTIONAL. Only fill it if 
     visualDescriptionEn: z.string().describe("Visual description in English for image generation."),
     olfactoryAnalysisEn: z.string().describe("Olfactory description in English for image generation."),
     gustatoryPhaseEn: z.string().describe("Gustatory description in English for image generation."),
+    sources: z.array(z.string().url()).min(1).optional().describe(
+  "1–3 URLs confiables que respalden uvas, D.O. y barrica."
+),
   }).optional().describe("The detailed sensory analysis."),
 });
 
@@ -80,6 +83,11 @@ export const analyzeWinePrompt = ai.definePrompt({
     - **Amador Diez (Verdejo):** You MUST identify it as from 'Bodega Cuatro Rayas'. You MUST state its Appellation is 'D.O. Rueda'. You MUST state its [wineryLocation] is 'La Seca, Valladolid, España'. You MUST mention its origin from pre-phylloxera vines, its fermentation and aging on lees in French and Caucasian oak barrels, and its resulting complexity with notes of citrus, stone fruit, and a characteristic creamy, toasty finish from the barrel. The 'barrelInfo' and 'appellation' fields MUST be filled correctly.
 6.  **CORRECTIONS LOGIC:** Only report a correction in the 'corrections' array if the user provided a non-empty value that was incorrect. For example, if the user enters "Amador Diez" with country "Francia", you must correct it to "España" and report the correction. However, if the user enters "Amador Diez" and leaves the country field blank, you must fill in "España" but you MUST NOT add this action to the 'corrections' array.
 7.  **CRITICAL LANGUAGE RULE:** Respond entirely in the language specified by '{{language}}'.
+
+**SOURCE & FACT-CHECK RULES (MANDATORY):**
+- Include 1–3 "analysis.sources" URLs that explicitly support grape composition, appellation, and barrel info.
+- Trusted domains: producer official site, decantalo.com, vinosselectos.es, wine-searcher.com, vivino.com, importer docs.
+- If no trusted source, leave those technical fields blank and set isAiGenerated: true.
 
 **YOUR MANDATORY PROCESS:**
 **Preconditions:** If country is missing, do not infer; require country from the user. For winery, only fill when the match is uniquely clear; otherwise proceed without it.
@@ -170,7 +178,11 @@ function _norm(s?: string) {
   return (s || "").toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "").trim();
 }
 
-const _KNOWN: Record<string, { grapesPct: string; country?: string; winery?: string; aliases?: string[] }> = {
+const _KNOWN: Record<string, {
+  grapesPct: string; country?: string; winery?: string; aliases?: string[];
+  sources?: string[]; barrelInfo?: string; appellation?: string;
+}> = {
+
   "ophiusa": {
     grapesPct: "Cabernet Sauvignon 35%, Merlot 35%, Monastrell 25%, Fogoneu 5%",
     country: "España",
@@ -237,11 +249,21 @@ function _sanitizeBySources<T extends Record<string, any>>(result: T): T {
   const sources = (result as any)?.analysis?.sources as string[] | undefined;
   if (_hasTrustedSource(sources)) return result; // hay fuente válida → se respeta
 
-  if ((result as any)?.analysis) {
-    (result as any).analysis.grapeVariety = undefined;
-    (result as any).analysis.appellation = undefined;
-   // (no borramos barrelInfo para mantener crianza)
+ if ((result as any)?.analysis) {
+  (result as any).analysis.grapeVariety = undefined;
+  (result as any).analysis.appellation = undefined;
+
+  // Barrica: solo si es específica o hay fuente confiable
+  const barrel = String((result as any).analysis.barrelInfo || "").trim();
+  const HEDGE = /\b(probablemente|posiblemente|podr[íi]a|sugiere|aparent|likely|probably|suggests)\b/i;
+  const CONFIDENT =
+    /(\b\d{1,2}\s*(mes(?:es)?|m)\b|\b\d{1,2}\s*(a(?:ños)?|years?)\b|\broble\s+(franc[eé]s|americano|cauc[áa]sico|h[úu]ngaro)\b|\bfoudre\b)/i;
+
+  if (!_hasTrustedSource(sources) && (HEDGE.test(barrel) || !CONFIDENT.test(barrel))) {
+    (result as any).analysis.barrelInfo = undefined;
   }
+}
+
   (result as any).wineryName = undefined;
   (result as any).isAiGenerated = true;
   (result as any).notes = ((result as any).notes || "") + "\n\n[Nota] Datos técnicos reservados por falta de fuentes verificables.";
