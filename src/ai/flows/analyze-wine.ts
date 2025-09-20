@@ -240,7 +240,7 @@ function _sanitizeBySources<T extends Record<string, any>>(result: T): T {
   if ((result as any)?.analysis) {
     (result as any).analysis.grapeVariety = undefined;
     (result as any).analysis.appellation = undefined;
-    (result as any).analysis.barrelInfo = undefined;
+   // (no borramos barrelInfo para mantener crianza)
   }
   (result as any).wineryName = undefined;
   (result as any).isAiGenerated = true;
