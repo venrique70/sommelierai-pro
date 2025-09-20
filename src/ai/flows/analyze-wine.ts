@@ -246,30 +246,7 @@ const _hasTrustedSource = (urls?: string[]) =>
 
 /** Si no hay fuente confiable, vaciamos datos técnicos para no inventar */
 function _sanitizeBySources<T extends Record<string, any>>(result: T): T {
-  const sources = (result as any)?.analysis?.sources as string[] | undefined;
-if (_hasTrustedSource(sources)) {
-  (result as any).isAiGenerated = false;
-  if (typeof (result as any).notes === "string") {
-    (result as any).notes = (result as any).notes
-      .replace(/^(aunque|si bien|however)[^.]*\.\s*/i, "")
-      .replace(/\b(no (cuento|dispongo) con información|no hay datos específicos|no puedo confirmar)[^.]*\.\s*/gi, "")
-      .trim();
-  }
   return result;
-}
-
-  (result as any).analysis.grapeVariety = undefined;
-  (result as any).analysis.appellation = undefined;
-
-  // Barrica: solo si es específica o hay fuente confiable
-  const barrel = String((result as any).analysis.barrelInfo || "").trim();
-  const HEDGE = /\b(probablemente|posiblemente|podr[íi]a|sugiere|aparent|likely|probably|suggests)\b/i;
-  const CONFIDENT =
-    /(\b\d{1,2}\s*(mes(?:es)?|m)\b|\b\d{1,2}\s*(a(?:ños)?|years?)\b|\broble\s+(franc[eé]s|americano|cauc[áa]sico|h[úu]ngaro)\b|\bfoudre\b)/i;
-
-  if (!_hasTrustedSource(sources) && (HEDGE.test(barrel) || !CONFIDENT.test(barrel))) {
-    (result as any).analysis.barrelInfo = undefined;
-  }
 }
 
   export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClientSchema>): Promise<WineAnalysis> => {
