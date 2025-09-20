@@ -333,6 +333,10 @@ console.log(`[FLOW] Saving analysis to wineAnalyses for user: ${userInput.uid} |
 result = _sanitizeBySources(result);
 // 2) known facts (Ophiusa) - correct if applies
 result = _verifyWineFacts(result);
+// cleanup: si quedó verificado, elimina la nota de “fuentes no verificadas”
+if (!result.isAiGenerated && typeof result.notes === "string") {
+  result.notes = result.notes.replace(/\n+\[Nota\][\s\S]*fuentes verificables\.\s*$/i, "").trim();
+}
 
 if (userInput.uid) {
   await saveAnalysisToHistory(userInput.uid, result);
