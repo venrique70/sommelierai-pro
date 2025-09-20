@@ -165,6 +165,66 @@ export async function saveAnalysisToHistory(uid: string, analysis: WineAnalysis)
     console.error(`[FLOW] ❌ Write failed for uid=${uid}:`, err);
   }
 }
+// ===== Minimal Fact Guard (reversible) =====
+function _norm(s?: string) {
+  return (s || "").toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "").trim();
+}
+
+const _KNOWN: Record<string, { grapesPct: string; country?: string; winery?: string; aliases?: string[] }> = {
+  "ophiusa": {
+    grapesPct: "Cabernet Sauvignon 35%, Merlot 35%, Monastrell 25%, Fogoneu 5%",
+    country: "España",
+    winery: "Cap de Barbaria",
+    aliases: ["ophiusa cap de barbaria", "ophiusa formentera"]
+  },
+};
+
+function _findKnown(name?: string) {
+  const k = _norm(name);
+  if (!k) return null;
+  if (_KNOWN[k]) return _KNOWN[k];
+  for (const v of Object.values(_KNOWN)) {
+    if (v.aliases?.some(a => _norm(a) === k)) return v;
+  }
+  return null;
+}
+
+function _verifyWineFacts<T extends Record<string, any>>(result: T): T {
+  if (!result) return result;
+  const gv = String(result?.analysis?.grapeVariety || "");
+  const hasGSM = /\b(garnacha|grenache|syrah|shiraz)\b/i.test(gv);
+
+  const k = _findKnown(result?.wineName);
+  if (!k) return result;
+
+  const wrong = hasGSM
+    || !/\bCabernet\s+Sauvignon\b/i.test(gv)
+    || !/Merlot/i.test(gv)
+    || !/Monastrell/i.test(gv)
+    || !/Fogoneu/i.test(gv);
+
+  if (wrong) {
+    result.analysis = result.analysis || {};
+    const original = gv || "—";
+    result.analysis.grapeVariety = k.grapesPct;
+    result.isAiGenerated = false;
+    result.corrections = [
+      ...(result.corrections || []),
+      { field: "Grape", original, corrected: k.grapesPct }
+    ];
+  }
+  if (k.country && _norm(result.country) !== _norm(k.country)) {
+    result.corrections = [
+      ...(result.corrections || []),
+      { field: "Country", original: String(result.country || ""), corrected: k.country }
+    ];
+    result.country = k.country;
+  }
+  if (k.winery && !result.wineryName) {
+    result.wineryName = k.winery;
+  }
+  return result;
+}
 
 export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClientSchema>): Promise<WineAnalysis> => {
 // País obligatorio (guardia)
@@ -253,6 +313,9 @@ const { output } = await analyzeWinePrompt(userInput);
       "year:",
       (result as any)?.year
     );
+  // 🚦 Corrección de hechos duros (evita inventos en Ophiusa)
+result = _verifyWineFacts(result);
+
     if (userInput.uid) {
       await saveAnalysisToHistory(userInput.uid, result);
     }
