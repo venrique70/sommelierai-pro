@@ -327,18 +327,11 @@ const { output } = await analyzeWinePrompt(userInput);
       };
     }
 
- console.log(
-  "[FLOW] Saving analysis to wineAnalyses for user:",
-  userInput.uid,
-  "wine:",
-  (result as any)?.wineName,
-  "year:",
-  (result as any)?.year
-);
+console.log(`[FLOW] Saving analysis to wineAnalyses for user: ${userInput.uid} | wine: ${(result as any)?.wineName} | year: ${(result as any)?.year}`);
 
-/* 1) sanitize by sources - no technical data without trusted URLs */
+// 1) sanitize by sources - no technical data without trusted URLs
 result = _sanitizeBySources(result);
-/* 2) known facts (Ophiusa) - correct if applies */
+// 2) known facts (Ophiusa) - correct if applies
 result = _verifyWineFacts(result);
 
 if (userInput.uid) {
