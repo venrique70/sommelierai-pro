@@ -249,7 +249,17 @@ function _sanitizeBySources<T extends Record<string, any>>(result: T): T {
   const sources = (result as any)?.analysis?.sources as string[] | undefined;
   if (_hasTrustedSource(sources)) return result; // hay fuente válida → se respeta
 
- if ((result as any)?.analysis) {
+if (_hasTrustedSource(sources)) {
+  (result as any).isAiGenerated = false;
+  if (typeof (result as any).notes === "string") {
+    (result as any).notes = (result as any).notes
+      .replace(/^(aunque|si bien|however)[^.]*\.\s*/i, "")
+      .replace(/\b(no (cuento|dispongo) con información|no hay datos específicos|no puedo confirmar)[^.]*\.\s*/gi, "")
+      .trim();
+  }
+  return result;
+}
+
   (result as any).analysis.grapeVariety = undefined;
   (result as any).analysis.appellation = undefined;
 
@@ -355,8 +365,8 @@ console.log(`[FLOW] Saving analysis to wineAnalyses for user: ${userInput.uid} |
 
 
 result = _sanitizeBySources(result);
-// 2) known facts (Ophiusa) - correct if applies
-result = _verifyWineFacts(result);
+// result = _verifyWineFacts(result);  // ← DESACTIVADO (sin excepciones por vino)
+// result = _verifyWineFacts(result);
 // cleanup: si quedo verificado, elimina cualquier nota de "fuentes no verificadas"
 if (!result.isAiGenerated && typeof result.notes === "string") {
   result.notes = result.notes
