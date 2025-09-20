@@ -225,6 +225,28 @@ function _verifyWineFacts<T extends Record<string, any>>(result: T): T {
   }
   return result;
 }
+// ===== Global Source Gate (no invents) =====
+const TRUSTED_HOSTS = ["decantalo.com","vinosselectos.es","wine-searcher.com","vivino.com"];
+
+const _host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./,""); } catch { return ""; } };
+const _hasTrustedSource = (urls?: string[]) =>
+  !!urls?.some(u => TRUSTED_HOSTS.some(t => _host(u).endsWith(t)));
+
+/** Si no hay fuente confiable, vaciamos datos técnicos para no inventar */
+function _sanitizeBySources<T extends Record<string, any>>(result: T): T {
+  const sources = (result as any)?.analysis?.sources as string[] | undefined;
+  if (_hasTrustedSource(sources)) return result; // hay fuente válida → se respeta
+
+  if ((result as any)?.analysis) {
+    (result as any).analysis.grapeVariety = undefined;
+    (result as any).analysis.appellation = undefined;
+    (result as any).analysis.barrelInfo = undefined;
+  }
+  (result as any).wineryName = undefined;
+  (result as any).isAiGenerated = true;
+  (result as any).notes = ((result as any).notes || "") + "\n\n[Nota] Datos técnicos reservados por falta de fuentes verificables.";
+  return result;
+}
 
 export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClientSchema>): Promise<WineAnalysis> => {
 // País obligatorio (guardia)
@@ -312,12 +334,13 @@ const { output } = await analyzeWinePrompt(userInput);
       (result as any)?.wineName,
       "year:",
       (result as any)?.year
-    );
-  // 🚦 Corrección de hechos duros (evita inventos en Ophiusa)
-result = _verifyWineFacts(result);
+  // 1) sin fuentes confiables → no mostramos datos técnicos
+  result = _sanitizeBySources(result);
+  // 2) hechos duros (Ophiusa) → corrige si aplica
+  result = _verifyWineFacts(result);
 
-    if (userInput.uid) {
-      await saveAnalysisToHistory(userInput.uid, result);
-    }
-    return result;
+  if (userInput.uid) {
+    await saveAnalysisToHistory(userInput.uid, result);
+  }
+  return result;
 }
