@@ -348,10 +348,16 @@ if (countryFix && typeof result.notes === "string") {
   const wrong = String(countryFix.original || "").trim();
   const right  = String(countryFix.corrected || "").trim();
   if (wrong && right) {
-    result.notes = result.notes
-      .replace(new RegExp(`\\b${wrong}\\b`, "gi"), right)
-      .replace(/(origen|origin)\s+en\s+(francia|france)/gi, `$1 en ${right}`)
-      .trim();
+   result.notes = result.notes
+  .replace(new RegExp(`\\b${wrong}\\b`, "gi"), right)
+  .replace(/(origen|origin)\s+en\s+(francia|france)/gi, `$1 en ${right}`);
+
+if (/^España$/i.test(right)) {
+  result.notes = result.notes.replace(/\bfranc[eé]s(a)?\b/gi, (_m, a) => (a ? "española" : "español"));
+}
+
+result.notes = result.notes.trim();
+
   }
 }
 if (userInput.uid) {
