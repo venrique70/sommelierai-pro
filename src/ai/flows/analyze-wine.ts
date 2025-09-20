@@ -327,7 +327,7 @@ const { output } = await analyzeWinePrompt(userInput);
       };
     }
 
-  console.log(
+ console.log(
   "[FLOW] Saving analysis to wineAnalyses for user:",
   userInput.uid,
   "wine:",
@@ -345,3 +345,4 @@ if (userInput.uid) {
   await saveAnalysisToHistory(userInput.uid, result);
 }
 return result;
+}
