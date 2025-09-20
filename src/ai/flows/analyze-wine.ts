@@ -329,7 +329,9 @@ const { output } = await analyzeWinePrompt(userInput);
 
 console.log(`[FLOW] Saving analysis to wineAnalyses for user: ${userInput.uid} | wine: ${((result as any)?.wineName)} | year: ${((result as any)?.year)}`);
 
-// 1) sanitize by sources - no technical data without trusted URLs
+// 1) sanitize by sources - no technical data without trusted URLs// normaliza el país mencionado en 'notes' si fue corregido
+
+
 result = _sanitizeBySources(result);
 // 2) known facts (Ophiusa) - correct if applies
 result = _verifyWineFacts(result);
@@ -341,8 +343,17 @@ if (!result.isAiGenerated && typeof result.notes === "string") {
     .replace(/\s+\./g, ".")
     .trim();
 }
-
-
+const countryFix = result.corrections?.find(c => /^(País|Country)$/i.test(c.field));
+if (countryFix && typeof result.notes === "string") {
+  const wrong = String(countryFix.original || "").trim();
+  const right  = String(countryFix.corrected || "").trim();
+  if (wrong && right) {
+    result.notes = result.notes
+      .replace(new RegExp(`\\b${wrong}\\b`, "gi"), right)
+      .replace(/(origen|origin)\s+en\s+(francia|france)/gi, `$1 en ${right}`)
+      .trim();
+  }
+}
 if (userInput.uid) {
   await saveAnalysisToHistory(userInput.uid, result);
 }
