@@ -364,7 +364,7 @@ console.log(`[FLOW] Saving analysis to wineAnalyses for user: ${userInput.uid} |
 // 1) sanitize by sources - no technical data without trusted URLs// normaliza el país mencionado en 'notes' si fue corregido
 
 
-result = _sanitizeBySources(result);
+// result = _sanitizeBySources(result);
 // result = _verifyWineFacts(result);  // ← DESACTIVADO (sin excepciones por vino)
 // result = _verifyWineFacts(result);
 // cleanup: si quedo verificado, elimina cualquier nota de "fuentes no verificadas"
