@@ -247,8 +247,6 @@ const _hasTrustedSource = (urls?: string[]) =>
 /** Si no hay fuente confiable, vaciamos datos técnicos para no inventar */
 function _sanitizeBySources<T extends Record<string, any>>(result: T): T {
   const sources = (result as any)?.analysis?.sources as string[] | undefined;
-  if (_hasTrustedSource(sources)) return result; // hay fuente válida → se respeta
-
 if (_hasTrustedSource(sources)) {
   (result as any).isAiGenerated = false;
   if (typeof (result as any).notes === "string") {
