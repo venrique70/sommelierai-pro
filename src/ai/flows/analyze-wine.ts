@@ -35,7 +35,7 @@ wineryName: z.string().optional().describe("Winery is OPTIONAL. Only fill it if 
       description: z.string().describe("A complex olfactory analysis. Differentiate clearly between primary (fruit, floral), secondary (from fermentation/aging, e.g., vanilla, toast, butter), and tertiary (from evolution, e.g., leather, tobacco) aromas. Comment on the aromatic intensity and complexity."),
     }).describe("Olfactory analysis of the wine."),
     gustatory: z.object({
-      description: z.string().describe("A thorough gustatory description. Describe the attack (initial impression), the evolution on the residents, and the finish. Detail the acidity, alcohol, body, and tannin structure. Explain how these elements are balanced and what the texture feels like (e.g., silky, astringent)."),
+      description: z.string().describe("A thorough gustatory description. Describe the attack (initial impression), the evolution on the palate, and the finish. Detail the acidity, alcohol, body, and tannin structure. Explain how these elements are balanced and what the texture feels like (e.g., silky, astringent)."),
     }).describe("Gustatory analysis of the wine."),
     body: z.string().describe("Description of the wine's body."),
     finalSensations: z.string().describe("Description of the final sensations of the wine."),
@@ -327,20 +327,21 @@ const { output } = await analyzeWinePrompt(userInput);
       };
     }
 
-    console.log(
-      "[FLOW] Saving analysis to wineAnalyses for user:",
-      userInput.uid,
-      "wine:",
-      (result as any)?.wineName,
-      "year:",
-      (result as any)?.year
-  // 1) sin fuentes confiables → no mostramos datos técnicos
-  result = _sanitizeBySources(result);
-  // 2) hechos duros (Ophiusa) → corrige si aplica
-  result = _verifyWineFacts(result);
+  console.log(
+  "[FLOW] Saving analysis to wineAnalyses for user:",
+  userInput.uid,
+  "wine:",
+  (result as any)?.wineName,
+  "year:",
+  (result as any)?.year
+);
 
-  if (userInput.uid) {
-    await saveAnalysisToHistory(userInput.uid, result);
-  }
-  return result;
+/* 1) sanitize by sources - no technical data without trusted URLs */
+result = _sanitizeBySources(result);
+/* 2) known facts (Ophiusa) - correct if applies */
+result = _verifyWineFacts(result);
+
+if (userInput.uid) {
+  await saveAnalysisToHistory(userInput.uid, result);
 }
+return result;
