@@ -272,13 +272,7 @@ if (_hasTrustedSource(sources)) {
   }
 }
 
-  (result as any).wineryName = undefined;
-  (result as any).isAiGenerated = true;
-  (result as any).notes = ((result as any).notes || "") + "\n\n[Nota] Datos técnicos reservados por falta de fuentes verificables.";
-  return result;
-}
-
-export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClientSchema>): Promise<WineAnalysis> => {
+  export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClientSchema>): Promise<WineAnalysis> => {
 // País obligatorio (guardia)
 if (!userInput?.country || !String(userInput.country).trim()) {
   throw new Error("Debes indicar el país del vino para continuar el análisis.");
