@@ -327,7 +327,7 @@ const { output } = await analyzeWinePrompt(userInput);
       };
     }
 
-console.log(`[FLOW] Saving analysis to wineAnalyses for user: ${userInput.uid} | wine: ${(result as any)?.wineName} | year: ${(result as any)?.year}`);
+console.log(`[FLOW] Saving analysis to wineAnalyses for user: ${userInput.uid} | wine: ${((result as any)?.wineName)} | year: ${((result as any)?.year)}`);
 
 // 1) sanitize by sources - no technical data without trusted URLs
 result = _sanitizeBySources(result);
