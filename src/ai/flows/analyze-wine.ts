@@ -15,8 +15,8 @@ const AiResponseSchema = z.object({
   isAiGenerated: z.boolean().describe("Set to true ONLY if you cannot find the specific wine and have to analyze a similar one."),
   wineName: z.string().describe("The full, corrected name of the wine."),
   year: z.number().describe("The specific vintage year."),
- country: z.string().optional().describe("Country must come from user input or a verified correction when uniquely identifiable. Do NOT infer if missing."),
-wineryName: z.string().optional().describe("Winery is OPTIONAL. Only fill it if identification is unambiguous given name, grape, year, and country. Never guess."),
+  country: z.string().optional().describe("Country must come from user input or a verified correction when uniquely identifiable. Do NOT infer if missing."),
+  wineryName: z.string().optional().describe("Winery is OPTIONAL. Only fill it if identification is unambiguous given name, grape, year, and country. Never guess."),
   notes: z.string().describe("Your final expert opinion and conclusion. Comment on the wine's typicity, style, aging potential, and origin country. Maintain a warm, technical, and mentoring tone. This is your personal seal."),
   corrections: z.array(z.object({
     field: z.enum(['Vino', 'Año', 'Cepa', 'Bodega', 'País', 'Wine', 'Year', 'Grape', 'Winery', 'Country']),
@@ -59,8 +59,8 @@ wineryName: z.string().optional().describe("Winery is OPTIONAL. Only fill it if 
     olfactoryAnalysisEn: z.string().describe("Olfactory description in English for image generation."),
     gustatoryPhaseEn: z.string().describe("Gustatory description in English for image generation."),
     sources: z.array(z.string().url()).min(1).optional().describe(
-  "1–3 URLs confiables que respalden uvas, D.O. y barrica."
-),
+      "1–3 URLs confiables que respalden uvas, D.O. y barrica."
+    ),
   }).optional().describe("The detailed sensory analysis."),
 });
 
@@ -83,11 +83,15 @@ export const analyzeWinePrompt = ai.definePrompt({
     - **Amador Diez (Verdejo):** You MUST identify it as from 'Bodega Cuatro Rayas'. You MUST state its Appellation is 'D.O. Rueda'. You MUST state its [wineryLocation] is 'La Seca, Valladolid, España'. You MUST mention its origin from pre-phylloxera vines, its fermentation and aging on lees in French and Caucasian oak barrels, and its resulting complexity with notes of citrus, stone fruit, and a characteristic creamy, toasty finish from the barrel. The 'barrelInfo' and 'appellation' fields MUST be filled correctly.
 6.  **CORRECTIONS LOGIC:** Only report a correction in the 'corrections' array if the user provided a non-empty value that was incorrect. For example, if the user enters "Amador Diez" with country "Francia", you must correct it to "España" and report the correction. However, if the user enters "Amador Diez" and leaves the country field blank, you must fill in "España" but you MUST NOT add this action to the 'corrections' array.
 7.  **CRITICAL LANGUAGE RULE:** Respond entirely in the language specified by '{{language}}'.
+8.  Do not write disclaimers like “no dispongo…”, “no puedo confirmar…”. If a field is unknown, omit the disclaimer.
 
-**SOURCE & FACT-CHECK RULES (MANDATORY):**
-- Include 1–3 "analysis.sources" URLs that explicitly support grape composition, appellation, and barrel info.
-- Trusted domains: producer official site, decantalo.com, vinosselectos.es, wine-searcher.com, vivino.com, importer docs.
-- If no trusted source, leave those technical fields blank and set isAiGenerated: true.
+**BARREL DETAIL (MANDATORY):**
+- If the wine is identified, provide precise barrel aging details when known: time in months/years and oak type (e.g., “12 meses en roble americano”, “6 meses en roble francés y 6 meses en depósito”).
+- Do NOT write disclaimers like “no dispongo…”, “no puedo confirmar…”, or “probablemente…”.
+- If the producer truly does not declare any barrel aging, leave "barrelInfo" empty (do not output placeholders like “sin barrica declarada”).
+
+**GRAPE DETAIL (MANDATORY):**
+- Provide the exact grape composition when known (with percentages if available). If percentages are not published, list the varieties explicitly (avoid generic “blend tinto”).
 
 **YOUR MANDATORY PROCESS:**
 **Preconditions:** If country is missing, do not infer; require country from the user. For winery, only fill when the match is uniquely clear; otherwise proceed without it.
@@ -182,7 +186,6 @@ const _KNOWN: Record<string, {
   grapesPct: string; country?: string; winery?: string; aliases?: string[];
   sources?: string[]; barrelInfo?: string; appellation?: string;
 }> = {
-
   "ophiusa": {
     grapesPct: "Cabernet Sauvignon 35%, Merlot 35%, Monastrell 25%, Fogoneu 5%",
     country: "España",
@@ -249,120 +252,130 @@ function _sanitizeBySources<T extends Record<string, any>>(result: T): T {
   return result;
 }
 
-  export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClientSchema>): Promise<WineAnalysis> => {
-// País obligatorio (guardia)
-if (!userInput?.country || !String(userInput.country).trim()) {
-  throw new Error("Debes indicar el país del vino para continuar el análisis.");
-}
-const { output } = await analyzeWinePrompt(userInput);
-    if (!output) {
-      throw new Error('No structured output returned from AI.');
+export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClientSchema>): Promise<WineAnalysis> => {
+  // País obligatorio (guardia)
+  if (!userInput?.country || !String(userInput.country).trim()) {
+    throw new Error("Debes indicar el país del vino para continuar el análisis.");
+  }
+  const { output } = await analyzeWinePrompt(userInput);
+  if (!output) {
+    throw new Error('No structured output returned from AI.');
+  }
+
+  let result: WineAnalysis;
+
+  const imageGenerationModel = 'googleai/gemini-2.0-flash-preview-image-generation';
+  const imageGenerationConfig = { responseModalities: ['TEXT', 'IMAGE'] as const };
+
+  if (!output.analysis) {
+    result = {
+      isAiGenerated: output.isAiGenerated,
+      wineName: output.wineName,
+      year: output.year,
+      notes: output.notes,
+      corrections: output.corrections,
+      country: output.country || userInput.country,
+    };
+  } else {
+    const analysisData = output.analysis;
+
+    const imagePromises = [
+      ai.generate({
+        model: imageGenerationModel,
+        prompt: `Hyper-realistic photo, a glass of wine. ${analysisData.visualDescriptionEn}. Studio lighting, neutral background.`,
+        config: imageGenerationConfig,
+      }),
+      ai.generate({
+        model: imageGenerationModel,
+        prompt: `Abstract art, captures the essence of wine aromas. ${analysisData.olfactoryAnalysisEn}. No text, no glass.`,
+        config: imageGenerationConfig,
+      }),
+      ai.generate({
+        model: imageGenerationModel,
+        prompt: `Abstract textured art, evokes the sensation of wine flavors. ${analysisData.gustatoryPhaseEn}. No text, no glass.`,
+        config: imageGenerationConfig,
+      }),
+    ];
+
+    let glassImagePromise: Promise<any> = Promise.resolve(null);
+    if (analysisData.suggestedGlassType && !/n\/?a|no especificado|not specified/i.test(analysisData.suggestedGlassType)) {
+      glassImagePromise = ai.generate({
+        model: imageGenerationModel,
+        prompt: `Professional product photo of an empty ${analysisData.suggestedGlassType} wine glass. White background, studio lighting.`,
+        config: imageGenerationConfig,
+      });
     }
 
-    let result: WineAnalysis;
+    const [visualResult, olfactoryResult, gustatoryResult, glassResult] = await Promise.allSettled([...imagePromises, glassImagePromise]);
 
-    const imageGenerationModel = 'googleai/gemini-2.0-flash-preview-image-generation';
-    const imageGenerationConfig = { responseModalities: ['TEXT', 'IMAGE'] as const };
+    const getUrl = (res: PromiseSettledResult<any>) =>
+      res.status === 'fulfilled' && res.value?.media?.url ? res.value.media.url : undefined;
 
-    if (!output.analysis) {
-      result = {
-        isAiGenerated: output.isAiGenerated,
-        wineName: output.wineName,
-        year: output.year,
-        notes: output.notes,
-        corrections: output.corrections,
-      };
-    } else {
-      const analysisData = output.analysis;
+    result = {
+      isAiGenerated: output.isAiGenerated,
+      wineName: output.wineName,
+      year: output.year,
+      country: output.country,
+      wineryName: output.wineryName,
+      notes: output.notes,
+      corrections: output.corrections,
+      pairingRating: output.pairingRating,
+      pairingNotes: output.pairingNotes,
+      foodToPair: userInput.foodToPair,
+      analysis: {
+        ...analysisData,
+        visual: { ...analysisData.visual, imageUrl: getUrl(visualResult) },
+        olfactory: { ...analysisData.olfactory, imageUrl: getUrl(olfactoryResult) },
+        gustatory: { ...analysisData.gustatory, imageUrl: getUrl(gustatoryResult) },
+        suggestedGlassTypeImageUrl: getUrl(glassResult),
+      },
+    };
+  }
 
-      const imagePromises = [
-        ai.generate({
-          model: imageGenerationModel,
-          prompt: `Hyper-realistic photo, a glass of wine. ${analysisData.visualDescriptionEn}. Studio lighting, neutral background.`,
-          config: imageGenerationConfig,
-        }),
-        ai.generate({
-          model: imageGenerationModel,
-          prompt: `Abstract art, captures the essence of wine aromas. ${analysisData.olfactoryAnalysisEn}. No text, no glass.`,
-          config: imageGenerationConfig,
-        }),
-        ai.generate({
-          model: imageGenerationModel,
-          prompt: `Abstract textured art, evokes the sensation of wine flavors. ${analysisData.gustatoryPhaseEn}. No text, no glass.`,
-          config: imageGenerationConfig,
-        }),
-      ];
+  // COUNTRY MANDATORY — respeta exactamente lo ingresado si el modelo no lo contradice
+  if (typeof userInput.country === "string" && userInput.country.trim()) {
+    const provided = userInput.country.trim();
+    const identified = String((result as any)?.country || "");
+    if (!identified) {
+      (result as any).country = provided;
+    } else if (_norm(identified) !== _norm(provided)) {
+      result.corrections = [...((result as any).corrections || []), { field: "Country", original: provided, corrected: identified }];
+    }
+  } else {
+    throw new Error("Debes indicar el país del vino para continuar el análisis.");
+  }
 
-      let glassImagePromise: Promise<any> = Promise.resolve(null);
-      if (analysisData.suggestedGlassType && !/n\/?a|no especificado|not specified/i.test(analysisData.suggestedGlassType)) {
-        glassImagePromise = ai.generate({
-          model: imageGenerationModel,
-          prompt: `Professional product photo of an empty ${analysisData.suggestedGlassType} wine glass. White background, studio lighting.`,
-          config: imageGenerationConfig,
-        });
+  console.log(`[FLOW] Saving analysis to wineAnalyses for user: ${userInput.uid} | wine: ${((result as any)?.wineName)} | year: ${((result as any)?.year)}`);
+
+  // result = _sanitizeBySources(result);
+  // result = _verifyWineFacts(result);  // ← DESACTIVADO (sin excepciones por vino)
+  // result = _verifyWineFacts(result);
+  // cleanup: si quedo verificado, elimina cualquier nota de "fuentes no verificadas"
+  if (!result.isAiGenerated && typeof result.notes === "string") {
+    result.notes = result.notes
+      .replace(/\s*\[Nota\][^\n]*fuentes verificables\.?/gi, "")
+      .replace(/\s{2,}/g, " ")
+      .replace(/\s+\./g, ".")
+      .trim();
+  }
+  const countryFix = result.corrections?.find(c => /^(País|Country)$/i.test(c.field));
+  if (countryFix && typeof result.notes === "string") {
+    const wrong = String(countryFix.original || "").trim();
+    const right = String(countryFix.corrected || "").trim();
+    if (wrong && right) {
+      result.notes = result.notes
+        .replace(new RegExp(`\\b${wrong}\\b`, "gi"), right)
+        .replace(/(origen|origin)\s+en\s+(francia|france)/gi, `$1 en ${right}`);
+
+      if (/^España$/i.test(right)) {
+        result.notes = result.notes.replace(/\bfranc[eé]s(a)?\b/gi, (_m, a) => (a ? "española" : "español"));
       }
 
-      const [visualResult, olfactoryResult, gustatoryResult, glassResult] = await Promise.allSettled([...imagePromises, glassImagePromise]);
-
-      const getUrl = (res: PromiseSettledResult<any>) =>
-        res.status === 'fulfilled' && res.value?.media?.url ? res.value.media.url : undefined;
-
-      result = {
-        isAiGenerated: output.isAiGenerated,
-        wineName: output.wineName,
-        year: output.year,
-        country: output.country,
-        wineryName: output.wineryName,
-        notes: output.notes,
-        corrections: output.corrections,
-        pairingRating: output.pairingRating,
-        pairingNotes: output.pairingNotes,
-        foodToPair: userInput.foodToPair,
-        analysis: {
-          ...analysisData,
-          visual: { ...analysisData.visual, imageUrl: getUrl(visualResult) },
-          olfactory: { ...analysisData.olfactory, imageUrl: getUrl(olfactoryResult) },
-          gustatory: { ...analysisData.gustatory, imageUrl: getUrl(gustatoryResult) },
-          suggestedGlassTypeImageUrl: getUrl(glassResult),
-        },
-      };
+      result.notes = result.notes.trim();
     }
-
-console.log(`[FLOW] Saving analysis to wineAnalyses for user: ${userInput.uid} | wine: ${((result as any)?.wineName)} | year: ${((result as any)?.year)}`);
-
-// 1) sanitize by sources - no technical data without trusted URLs// normaliza el país mencionado en 'notes' si fue corregido
-
-
-// result = _sanitizeBySources(result);
-// result = _verifyWineFacts(result);  // ← DESACTIVADO (sin excepciones por vino)
-// result = _verifyWineFacts(result);
-// cleanup: si quedo verificado, elimina cualquier nota de "fuentes no verificadas"
-if (!result.isAiGenerated && typeof result.notes === "string") {
-  result.notes = result.notes
-    .replace(/\s*\[Nota\][^\n]*fuentes verificables\.?/gi, "")
-    .replace(/\s{2,}/g, " ")
-    .replace(/\s+\./g, ".")
-    .trim();
-}
-const countryFix = result.corrections?.find(c => /^(País|Country)$/i.test(c.field));
-if (countryFix && typeof result.notes === "string") {
-  const wrong = String(countryFix.original || "").trim();
-  const right  = String(countryFix.corrected || "").trim();
-  if (wrong && right) {
-   result.notes = result.notes
-  .replace(new RegExp(`\\b${wrong}\\b`, "gi"), right)
-  .replace(/(origen|origin)\s+en\s+(francia|france)/gi, `$1 en ${right}`);
-
-if (/^España$/i.test(right)) {
-  result.notes = result.notes.replace(/\bfranc[eé]s(a)?\b/gi, (_m, a) => (a ? "española" : "español"));
-}
-
-result.notes = result.notes.trim();
-
   }
-}
-if (userInput.uid) {
-  await saveAnalysisToHistory(userInput.uid, result);
-}
-return result;
+  if (userInput.uid) {
+    await saveAnalysisToHistory(userInput.uid, result);
+  }
+  return result;
 }
