@@ -84,10 +84,11 @@ export const analyzeWinePrompt = ai.definePrompt({
 6.  **CORRECTIONS LOGIC:** Only report a correction in the 'corrections' array if the user provided a non-empty value that was incorrect. For example, if the user enters "Amador Diez" with country "Francia", you must correct it to "España" and report the correction. However, if the user enters "Amador Diez" and leaves the country field blank, you must fill in "España" but you MUST NOT add this action to the 'corrections' array.
 7.  **CRITICAL LANGUAGE RULE:** Respond entirely in the language specified by '{{language}}'.
 
-**SOURCE & FACT-CHECK RULES (MANDATORY):**
-- Include 1–3 "analysis.sources" URLs that explicitly support grape composition, appellation, and barrel info.
-- Trusted domains: producer official site, decantalo.com, vinosselectos.es, wine-searcher.com, vivino.com, importer docs.
-- If no trusted source, leave those technical fields blank and set isAiGenerated: true.
+**COUNTRY VALIDATION (MANDATORY):**
+- Validate the "country" against the identified winery/appellation/region. If the user-provided country is wrong for a uniquely identified product, CORRECT it and add a correction entry; never echo an incorrect country.
+
+**BARREL DETAIL (MANDATORY):**
+- Provide specific barrel aging details (time in months/years and oak type) when known for the identified wine. Do NOT write disclaimers like “no dispongo…”, “no puedo confirmar…”, or “probablemente…”. If the producer truly does not declare barrel aging, set "barrelInfo": "Sin barrica declarada".
 
 **YOUR MANDATORY PROCESS:**
 **Preconditions:** If country is missing, do not infer; require country from the user. For winery, only fill when the match is uniquely clear; otherwise proceed without it.
