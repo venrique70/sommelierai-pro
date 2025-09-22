@@ -4,6 +4,8 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { WineAnalysisClientSchema } from '@/lib/schemas';
 import type { WineAnalysis } from '@/types';
+import { fetchPublicFactsByName } from "@/ai/facts/webFacts";
+
 
 // ✅ usa tu wrapper coherente con el resto del proyecto
 import { adminDb, FieldValue } from '@/lib/firebase-admin';
