@@ -327,7 +327,19 @@ const { output } = await analyzeWinePrompt(userInput);
           suggestedGlassTypeImageUrl: getUrl(glassResult),
         },
       };
-    }
+    }// COUNTRY MANDATORY — respeta exactamente lo ingresado si el modelo no lo contradice
+if (typeof userInput.country === "string" && userInput.country.trim()) {
+  const provided = userInput.country.trim();
+  const identified = String((result as any)?.country || "");
+  if (!identified) {
+    (result as any).country = provided;
+  } else if (_norm(identified) !== _norm(provided)) {
+    result.corrections = [...((result as any).corrections || []), { field: "Country", original: provided, corrected: identified }];
+  }
+} else {
+  throw new Error("Debes indicar el país del vino para continuar el análisis.");
+}
+
 
 console.log(`[FLOW] Saving analysis to wineAnalyses for user: ${userInput.uid} | wine: ${((result as any)?.wineName)} | year: ${((result as any)?.year)}`);
 
