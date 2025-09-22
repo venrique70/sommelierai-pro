@@ -44,18 +44,29 @@ const SEARCH_DEFS: SearchDef[] = [
   {
     domain: "decantalo.com",
     search: q => `https://www.decantalo.com/es/search?q=${q}`,
-    product: /https?:\/\/(?:www\.)?decantalo\.com\/es\/[a-z0-9-]+\.html/i,
+    // acepta /es/<slug>.html y /es/vino/<slug>.html
+    product: /https?:\/\/(?:www\.)?decantalo\.com\/es\/(?:[a-z-]+\/)?[a-z0-9-]+\.html/i,
   },
   {
     domain: "bodeboca.com",
     search: q => `https://www.bodeboca.com/buscar/${q}`,
-    product: /https?:\/\/(?:www\.)?bodeboca\.com\/vino\/[a-z0-9-]+/i,
+    // acepta /vino/<slug> con o sin /es/
+    product: /https?:\/\/(?:www\.)?bodeboca\.com\/(?:es\/)?vino\/[a-z0-9-]+/i,
   },
   {
     domain: "vinissimus.com",
     search: q => `https://www.vinissimus.com/es/buscar/?q=${q}`,
     product: /https?:\/\/(?:www\.)?vinissimus\.com\/es\/vino\/[a-z0-9-]+/i,
   },
+
+  // Sitio oficial (WordPress suele usar ?s= y /vino/<slug>/)
+  {
+    domain: "marquesdecaceres.com",
+    search: q => `https://www.marquesdecaceres.com/?s=${q}`,
+    product: /https?:\/\/(?:www\.)?marquesdecaceres\.com\/(?:es\/)?vino\/[a-z0-9-]+/i,
+  },
+
+  // (opcional) deja aquí el resto de dominios que ya tenías…
   {
     domain: "vilaviniteca.es",
     search: q => `https://www.vilaviniteca.es/es/busqueda?q=${q}`,
@@ -66,8 +77,6 @@ const SEARCH_DEFS: SearchDef[] = [
     search: q => `https://www.lavinia.es/es_ES/search?q=${q}`,
     product: /https?:\/\/(?:www\.)?lavinia\.es\/es_ES\/[a-z0-9-]+/i,
   },
-
-  // FR / IT / UK / US retailers conocidos
   {
     domain: "millesima.com",
     search: q => `https://www.millesima.com/es-es/search?q=${q}`,
@@ -93,8 +102,6 @@ const SEARCH_DEFS: SearchDef[] = [
     search: q => `https://www.wine.com/list/wine/7155?term=${q}`,
     product: /https?:\/\/(?:www\.)?wine\.com\/product\/[a-z0-9-]+\/\d+/i,
   },
-
-  // Monopolios
   {
     domain: "systembolaget.se",
     search: q => `https://www.systembolaget.se/sok/?text=${q}`,
@@ -218,5 +225,6 @@ export async function fetchPublicFactsByName(nameRaw: string) {
   const facts = extractFactsFromHtml(html);
   if (!facts.grapes && !facts.barrel && !facts.country) return null;
 
+  console.log("[RAG] webFacts", facts);
   return { ...facts, sources: [pageUrl] as string[] };
 }
