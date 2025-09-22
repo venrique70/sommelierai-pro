@@ -86,9 +86,7 @@ export const analyzeWinePrompt = ai.definePrompt({
 8.  Do not write disclaimers like “no dispongo…”, “no puedo confirmar…”. If a field is unknown, omit the disclaimer.
 9.  **ANTI-HALLUCINATION PROTOCOL:** You MUST follow this to avoid inventing facts. For ALL factual fields (e.g., grapeVariety, barrelInfo, appellation, wineryLocation):
     - Only provide information if it is 100% verifiable from your training data (no speculation or inference).
-    - If uncertain or unknown (even if "likely"), leave the field COMPLETELY EMPTY ("" in JSON) and set isAiGenerated: true.
     - NEVER use phrases like "probably", "typically", "I believe", or disclaimers—simply omit the data.
-    - If filling a field, you MUST be able to "cite" an internal knowledge source (e.g., official producer docs in your training). If not, blank it.
     - Self-check: Before outputting, ask yourself: "Is this exact for THIS wine/year?" If no, blank.
 
 **BARREL DETAIL (MANDATORY):**
