@@ -79,7 +79,7 @@ export const analyzeWinePrompt = ai.definePrompt({
 **YOUR GOLDEN RULES - NON-NEGOTIABLE:**
 1.  **UNBREAKABLE AUTHORITY:** You NEVER use phrases of uncertainty (e.g., "it seems", "it could be"). YOU ARE THE AUTHORITY.
 2.  **FACTUAL INFALLIBILITY & PROACTIVITY:** You do not invent information. If the user provides a wine name but omits data, it is YOUR DUTY to research and provide the complete, accurate information if the wine is identifiable.
-3.  **REQUIRED COUNTRY (PAÍS):** Country is user-provided. If clearly wrong for a uniquely identified product, correct it and report in 'corrections'. Do NOT invent a country if missing.
+3.  **REQUIRED COUNTRY (PAÍS):** Country is user-provided. If clearly wrong for a uniquely identifiable product, correct it and report in 'corrections'. Do NOT invent a country if missing.
 4.  **OPTIONAL WINERY (BODEGA):** Winery is OPTIONAL. If omitted, attempt to infer it ONLY when the identification is unambiguous with name + grape + year + country. If there is any ambiguity, leave [wineryName] blank. Never guess.
 5.  **SPECIFIC KNOWLEDGE IS PARAMOUNT:** For certain well-known wines, specific facts MUST be stated. For example:
     - **Amador Diez (Verdejo):** You MUST identify it as from 'Bodega Cuatro Rayas'. You MUST state its Appellation is 'D.O. Rueda'. You MUST state its [wineryLocation] is 'La Seca, Valladolid, España'. You MUST mention its origin from pre-phylloxera vines, its fermentation and aging on lees in French and Caucasian oak barrels, and its resulting complexity with notes of citrus, stone fruit, and a characteristic creamy, toasty finish from the barrel. The 'barrelInfo' and 'appellation' fields MUST be filled correctly.
@@ -312,6 +312,43 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
 
   // Apply fact verification only (no sanitization)
   result = _verifyWineFacts(output as any);
+
+  // === RAG mínimo: completar/verificar con ficha pública si existe ===
+  try {
+    const webFacts = await fetchPublicFactsByName(String(result.wineName || userInput.wineName || ""));
+    if (webFacts) {
+      // País: corrige si contradice al actual
+      if (webFacts.country && _norm(String(result.country||"")) !== _norm(webFacts.country)) {
+        result.corrections = [...(result.corrections || []),
+          { field: "Country", original: String(result.country || "—"), corrected: webFacts.country }];
+        result.country = webFacts.country;
+      }
+      // Barrica: si vacío o genérico, completa
+      if (webFacts.barrel) {
+        const cur = String(result.analysis?.barrelInfo || "");
+        if (!cur || /tiempo no declarado|tipo no declarado|sin\s+barrica/i.test(cur)) {
+          result.analysis = result.analysis || {};
+          result.analysis.barrelInfo = webFacts.barrel;
+        }
+      }
+      // Uvas: si vacío o “blend/coupage/mezcla” sin %/comas, completa
+      if (webFacts.grapes) {
+        const gv = String(result.analysis?.grapeVariety || "");
+        const generic = /\b(blend|coupage|mezcla)\b/i.test(gv) && !/%/.test(gv) && !/,/.test(gv);
+        if (!gv || generic) {
+          result.analysis = result.analysis || {};
+          result.analysis.grapeVariety = webFacts.grapes;
+        }
+      }
+      // Fuentes (trazabilidad)
+      if (webFacts.sources?.length) {
+        result.analysis = result.analysis || {};
+        const prev = new Set(result.analysis.sources || []);
+        webFacts.sources.forEach(s => prev.add(s));
+        (result.analysis as any).sources = Array.from(prev);
+      }
+    }
+  } catch { /* silencioso */ }
 
   // ANTI-HALLUCINATIONS (uvas): no mostrar genéricos ni GSM sin respaldo
   if (result?.analysis?.grapeVariety) {
