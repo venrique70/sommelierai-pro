@@ -12,21 +12,21 @@ import { adminDb, FieldValue } from '@/lib/firebase-admin';
 // It is NOT directly called by the client. It is called by the Server Action in actions.ts.
 
 const AiResponseSchema = z.object({
-  isAiGenerated: z.boolean().describe("Set to true ONLY if you cannot find the specific wine and have to analyze a similar one."),
+  isAiGenerated: z.boolean().describe("Set to true ONLY if you cannot find the specific wine and have to analyze a similar one or if key facts are missing."),
   wineName: z.string().describe("The full, corrected name of the wine."),
   year: z.number().describe("The specific vintage year."),
   country: z.string().optional().describe("Country must come from user input or a verified correction when uniquely identifiable. Do NOT infer if missing."),
   wineryName: z.string().optional().describe("Winery is OPTIONAL. Only fill it if identification is unambiguous given name, grape, year, and country. Never guess."),
   notes: z.string().describe("Your final expert opinion and conclusion. Comment on the wine's typicity, style, aging potential, and origin country. Maintain a warm, technical, and mentoring tone. This is your personal seal."),
   corrections: z.array(z.object({
-    field: z.enum(['Vino', 'Año', 'Cepa', 'Bodega', 'País', 'Wine', 'Year', 'Grape', 'Winery', 'Country']),
+    field: z.enum(['Vino', 'Año', 'Cepa', 'Bodega', 'País', 'Wine', 'Year', 'Grape', 'Winery', 'Country', 'Barrel']),
     original: z.string(),
     corrected: z.string(),
   })).optional().describe("A list of corrections made to the user's input. ONLY report a correction if the user provided a non-empty value that was wrong. Do NOT report a correction if you are filling in a field the user left blank."),
   pairingRating: z.number().min(1).max(5).optional().describe("If foodToPair was provided, a rating from 1 to 5 for the pairing. Otherwise, null."),
   pairingNotes: z.string().optional().describe("If foodToPair was provided, detailed notes explaining the pairing rating. Otherwise, null."),
   analysis: z.object({
-    grapeVariety: z.string().describe("Crucial. The grape variety or a detailed blend composition (e.g., 'Cabernet Franc 77%, Cabernet Sauvignon 23%'). For blends, this is mandatory."),
+    grapeVariety: z.string().optional().describe("Crucial. The grape variety or a detailed blend composition (e.g., 'Cabernet Franc 77%, Cabernet Sauvignon 23%'). For blends, this is mandatory if known. Leave empty ('') if unknown."),
     wineryLocation: z.string().optional().describe("The specific location/region of the winery (e.g., 'La Seca, Valladolid, España'). You MUST research and provide this if available."),
     visual: z.object({
       description: z.string().describe("A rich, evocative visual description. Detail the color, hue, and reflections. Comment on the clarity (limpidity) and brightness. Describe the density of the legs (tears) and what it implies about the wine's body and alcohol content."),
@@ -46,7 +46,7 @@ const AiResponseSchema = z.object({
     qualityRating: z.number().min(1).max(5).describe("A numeric rating from 1 to 5 based on the quality level (1=massive, 5=icon)."),
     targetAudience: z.string().describe("Suggested expertise level, e.g., novice, intermediate, expert."),
     appellation: z.string().optional().describe("The wine's official appellation, including any special classifications (e.g., D.O. Rueda). You MUST research and provide this if available."),
-    barrelInfo: z.string().describe("Detailed information about barrel aging: time, percentage of different oaks, type of oak, and usage. THIS IS CRITICAL. For example, Amador Diez has barrel aging."),
+    barrelInfo: z.string().optional().describe("Detailed information about barrel aging: time, percentage of different oaks, type of oak, and usage. THIS IS CRITICAL. For example, Amador Diez has barrel aging. Leave empty ('') if unknown."),
     servingTemperature: z.string().describe("Recommended serving temperature."),
     suggestedGlassType: z.string().describe("The ideal type of glass for this wine."),
     decanterRecommendation: z.string().describe("Recommendation on whether to decant the wine and for how long."),
@@ -84,18 +84,25 @@ export const analyzeWinePrompt = ai.definePrompt({
 6.  **CORRECTIONS LOGIC:** Only report a correction in the 'corrections' array if the user provided a non-empty value that was incorrect. For example, if the user enters "Amador Diez" with country "Francia", you must correct it to "España" and report the correction. However, if the user enters "Amador Diez" and leaves the country field blank, you must fill in "España" but you MUST NOT add this action to the 'corrections' array.
 7.  **CRITICAL LANGUAGE RULE:** Respond entirely in the language specified by '{{language}}'.
 8.  Do not write disclaimers like “no dispongo…”, “no puedo confirmar…”. If a field is unknown, omit the disclaimer.
+9.  **ANTI-HALLUCINATION PROTOCOL:** You MUST follow this to avoid inventing facts. For ALL factual fields (e.g., grapeVariety, barrelInfo, appellation, wineryLocation):
+    - Only provide information if it is 100% verifiable from your training data (no speculation or inference).
+    - If uncertain or unknown (even if "likely"), leave the field COMPLETELY EMPTY ("" in JSON) and set isAiGenerated: true.
+    - NEVER use phrases like "probably", "typically", "I believe", or disclaimers—simply omit the data.
+    - If filling a field, you MUST be able to "cite" an internal knowledge source (e.g., official producer docs in your training). If not, blank it.
+    - Self-check: Before outputting, ask yourself: "Is this exact for THIS wine/year?" If no, blank.
 
 **BARREL DETAIL (MANDATORY):**
-- If the wine is identified, provide precise barrel aging details when known: time in months/years and oak type (e.g., “12 meses en roble americano”, “6 meses en roble francés y 6 meses en depósito”).
-- Do NOT write disclaimers like “no dispongo…”, “no puedo confirmar…”, or “probablemente…”.
-- If the producer truly does not declare any barrel aging, leave "barrelInfo" empty (do not output placeholders like “sin barrica declarada”).
+- If the wine is identified and barrel aging is EXPLICITLY known from verified sources in your training (e.g., "12 months in American oak" for a specific wine), provide precise details: time in months/years, oak type, and percentage (e.g., “12 meses en roble americano”, “6 meses en roble francés y 6 meses en depósito”).
+- Do NOT invent or generalize (e.g., no "typical for region"). If unknown or not declared, leave "barrelInfo" COMPLETELY EMPTY ("").
+- Do NOT write disclaimers like “no dispongo…”, “no puedo confirmar…”, or “probablemente…”. If the producer truly does not declare any barrel aging, leave "barrelInfo" empty (do not output placeholders like “sin barrica declarada”).
 
 **GRAPE DETAIL (MANDATORY):**
-- Provide the exact grape composition when known (with percentages if available). If percentages are not published, list the varieties explicitly (avoid generic “blend tinto”).
+- Provide the EXACT grape composition ONLY if known 100% for this specific wine/year from your training (with percentages if available, e.g., "Cabernet Sauvignon 35%, Merlot 35%"). If percentages are not published, list varieties explicitly (e.g., "Cabernet Sauvignon, Merlot, Monastrell").
+- Do NOT invent blends or guess (avoid generic “blend tinto” or regional assumptions). If unknown or ambiguous, leave "grapeVariety" COMPLETELY EMPTY ("") and set isAiGenerated: true.
 
 **YOUR MANDATORY PROCESS:**
 **Preconditions:** If country is missing, do not infer; require country from the user. For winery, only fill when the match is uniquely clear; otherwise proceed without it.
-1.  Identify & research the wine by name, grape, and year, applying your specific knowledge and correction logic.
+1.  Identify & research the wine by name, grape, and year, applying your specific knowledge and correction logic. If facts like grapes or barrel are unknown after identification, set isAiGenerated: true and leave those fields empty. Do not proceed to sensory analysis without core facts.
 2.  Provide rich sensory analysis (visual, olfactory, gustatory). The descriptions must be elaborate, following the detailed instructions in the output schema. For visual, describe hue, intensity, and what the legs imply. For olfactory, differentiate primary, secondary, and tertiary aromas. For gustatory, detail the attack, evolution, and finish, describing the interplay of acidity, tannins, and body.
 3.  Recommend food pairings with justifications.
 4.  Provide expert conclusion notes. This must include a mention of the country of origin.
@@ -108,7 +115,9 @@ export const analyzeWinePrompt = ai.definePrompt({
 - Year: {{{year}}}
 - Winery: {{{wineryName}}}
 - Country: {{{country}}}
-{{#if foodToPair}}- Dish to pair: {{{foodToPair}}}{{/if}}`,
+{{#if foodToPair}}- Dish to pair: {{{foodToPair}}}{{/if}}
+- Note: Base ALL facts on verifiable knowledge only—no external search simulation.
+`,
 });
 
 /** Guarda en `wineAnalyses` SIN IMÁGENES (historial liviano y robusto) */
@@ -190,8 +199,19 @@ const _KNOWN: Record<string, {
     grapesPct: "Cabernet Sauvignon 35%, Merlot 35%, Monastrell 25%, Fogoneu 5%",
     country: "España",
     winery: "Cap de Barbaria",
-    aliases: ["ophiusa cap de barbaria", "ophiusa formentera"]
+    aliases: ["ophiusa cap de barbaria", "ophiusa formentera"],
+    barrelInfo: "12 meses en roble francés",
+    appellation: "Vino de la Tierra de Formentera"
   },
+  "amador diez": {
+    grapesPct: "Verdejo 100%",
+    country: "España",
+    winery: "Bodega Cuatro Rayas",
+    aliases: ["amador diez verdejo", "cuatro rayas amador diez"],
+    barrelInfo: "Fermentado y criado sobre lías en barricas de roble francés y caucásico durante 11 meses",
+    appellation: "D.O. Rueda",
+    sources: ["https://www.cuatrorayas.es/amador-diez"]
+  }
 };
 
 function _findKnown(name?: string) {
@@ -207,18 +227,14 @@ function _findKnown(name?: string) {
 function _verifyWineFacts<T extends Record<string, any>>(result: T): T {
   if (!result) return result;
   const gv = String(result?.analysis?.grapeVariety || "");
-  const hasGSM = /\b(garnacha|grenache|syrah|shiraz)\b/i.test(gv);
-
+  const barrel = String(result?.analysis?.barrelInfo || "");
   const k = _findKnown(result?.wineName);
   if (!k) return result;
 
-  const wrong = hasGSM
-    || !/\bCabernet\s+Sauvignon\b/i.test(gv)
-    || !/Merlot/i.test(gv)
-    || !/Monastrell/i.test(gv)
-    || !/Fogoneu/i.test(gv);
-
-  if (wrong) {
+  // Verify grapes
+  const hasGSM = /\b(garnacha|grenache|syrah|shiraz|monastrell)\b/i.test(gv);
+  const grapesWrong = hasGSM || (k.grapesPct && gv !== k.grapesPct);
+  if (grapesWrong) {
     result.analysis = result.analysis || {};
     const original = gv || "—";
     result.analysis.grapeVariety = k.grapesPct;
@@ -228,6 +244,20 @@ function _verifyWineFacts<T extends Record<string, any>>(result: T): T {
       { field: "Grape", original, corrected: k.grapesPct }
     ];
   }
+
+  // Verify barrel
+  if (k.barrelInfo && barrel !== k.barrelInfo) {
+    result.analysis = result.analysis || {};
+    const original = barrel || "—";
+    result.analysis.barrelInfo = k.barrelInfo;
+    result.isAiGenerated = false;
+    result.corrections = [
+      ...(result.corrections || []),
+      { field: "Barrel", original, corrected: k.barrelInfo }
+    ];
+  }
+
+  // Verify country
   if (k.country && _norm(result.country) !== _norm(k.country)) {
     result.corrections = [
       ...(result.corrections || []),
@@ -235,15 +265,24 @@ function _verifyWineFacts<T extends Record<string, any>>(result: T): T {
     ];
     result.country = k.country;
   }
+
+  // Fill winery if missing
   if (k.winery && !result.wineryName) {
     result.wineryName = k.winery;
   }
+
+  // Fill appellation if missing
+  if (k.appellation && result.analysis && !result.analysis.appellation) {
+    result.analysis.appellation = k.appellation;
+  }
+
   return result;
 }
-// ===== Global Source Gate (no invents) =====
-const TRUSTED_HOSTS = ["decantalo.com","vinosselectos.es","wine-searcher.com","vivino.com"];
 
-const _host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./,""); } catch { return ""; } };
+// ===== Global Source Gate (no invents) =====
+const TRUSTED_HOSTS = ["decantalo.com", "vinosselectos.es", "wine-searcher.com", "vivino.com", "cuatrorayas.es"];
+
+const _host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
 const _hasTrustedSource = (urls?: string[]) =>
   !!urls?.some(u => TRUSTED_HOSTS.some(t => _host(u).endsWith(t)));
 
@@ -262,22 +301,54 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
     throw new Error('No structured output returned from AI.');
   }
 
+  console.log('[DEBUG] AI Output facts:', {
+    grapes: output.analysis?.grapeVariety,
+    barrel: output.analysis?.barrelInfo,
+    sources: output.analysis?.sources,
+    isAiGenerated: output.isAiGenerated
+  });
+
   let result: WineAnalysis;
+
+  // Apply fact verification only (no sanitization)
+  result = _verifyWineFacts(output as any);
+
+  // ANTI-HALLUCINATIONS (uvas): no mostrar genéricos ni GSM sin respaldo
+  if (result?.analysis?.grapeVariety) {
+    const gv = String(result.analysis.grapeVariety).trim();
+    const generic = /\b(blend|coupage|mezcla)\b/i.test(gv) && !/%/.test(gv) && !/,/.test(gv);
+
+    // Bloquear solo si es GSM explícito (los 3 tokens) o “GSM”, y sin porcentajes
+    const gsmTokens = ['garnacha','grenache','syrah','shiraz','monastrell'];
+    const countGsm = gsmTokens.reduce((n,t)=> n + (new RegExp(`\\b${t}\\b`,`i`).test(gv)?1:0),0);
+    const guessedGSM = (/\bgsm\b/i.test(gv) || countGsm >= 3) && !/%/.test(gv);
+
+    if (generic || guessedGSM) {
+      result.corrections = [...(result.corrections || []), { field: "Grape", original: gv, corrected: "—" }];
+      result.analysis.grapeVariety = "";
+      result.isAiGenerated = true;
+    }
+  }
 
   const imageGenerationModel = 'googleai/gemini-2.0-flash-preview-image-generation';
   const imageGenerationConfig = { responseModalities: ['TEXT', 'IMAGE'] as const };
 
-  if (!output.analysis) {
+  if (!result.analysis) {
+    // Fallback solo si NO hay análisis en absoluto
     result = {
-      isAiGenerated: output.isAiGenerated,
+      isAiGenerated: true,
       wineName: output.wineName,
       year: output.year,
       notes: output.notes,
       corrections: output.corrections,
       country: output.country || userInput.country,
+      wineryName: output.wineryName,
+      pairingRating: output.pairingRating,
+      pairingNotes: output.pairingNotes,
+      foodToPair: userInput.foodToPair
     };
   } else {
-    const analysisData = output.analysis;
+    const analysisData = result.analysis;
 
     const imagePromises = [
       ai.generate({
@@ -312,15 +383,15 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
       res.status === 'fulfilled' && res.value?.media?.url ? res.value.media.url : undefined;
 
     result = {
-      isAiGenerated: output.isAiGenerated,
-      wineName: output.wineName,
-      year: output.year,
-      country: output.country,
-      wineryName: output.wineryName,
-      notes: output.notes,
-      corrections: output.corrections,
-      pairingRating: output.pairingRating,
-      pairingNotes: output.pairingNotes,
+      isAiGenerated: result.isAiGenerated,
+      wineName: result.wineName,
+      year: result.year,
+      country: result.country,
+      wineryName: result.wineryName,
+      notes: result.notes,
+      corrections: result.corrections,
+      pairingRating: result.pairingRating,
+      pairingNotes: result.pairingNotes,
       foodToPair: userInput.foodToPair,
       analysis: {
         ...analysisData,
@@ -347,10 +418,7 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
 
   console.log(`[FLOW] Saving analysis to wineAnalyses for user: ${userInput.uid} | wine: ${((result as any)?.wineName)} | year: ${((result as any)?.year)}`);
 
-  // result = _sanitizeBySources(result);
-  // result = _verifyWineFacts(result);  // ← DESACTIVADO (sin excepciones por vino)
-  // result = _verifyWineFacts(result);
-  // cleanup: si quedo verificado, elimina cualquier nota de "fuentes no verificadas"
+  // Cleanup: si quedo verificado, elimina cualquier nota de "fuentes no verificadas"
   if (!result.isAiGenerated && typeof result.notes === "string") {
     result.notes = result.notes
       .replace(/\s*\[Nota\][^\n]*fuentes verificables\.?/gi, "")
