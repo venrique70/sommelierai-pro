@@ -147,7 +147,7 @@ const AiResponseSchema = z.object({
 // ============================
 const analyzeWinePrompt = ai.definePrompt({
   name: 'analyzeWinePrompt',
-  model: 'googleai/gemini-1.5-pro',
+  model: 'googleai/gemini-1.5-pro-latest',
   input: { schema: WineAnalysisClientSchema },
   output: { format: 'json', schema: AiResponseSchema },
   prompt: `You are a world-renowned Master Sommelier from the Court of Master Sommeliers. Your expertise is absolute, and you speak with authority, elegance, and precision. Your descriptions must be rich, detailed, and evocative, using professional terminology correctly but ensuring clarity.

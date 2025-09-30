@@ -68,7 +68,7 @@ const AiResponseSchema = z.object({
 
 export const analyzeWinePrompt = ai.definePrompt({
   name: 'analyzeWinePrompt',
-  model: 'googleai/gemini-1.5-pro',
+  model: 'googleai/gemini-1.5-pro-latest',
   input: { schema: WineAnalysisClientSchema },
   output: {
     format: 'json',
