@@ -2,15 +2,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs'; // explícito en App Router
+export const dynamic = 'force-dynamic';
+
 
 const MODEL_DEFAULT =
   process.env.GEMINI_MODEL ||
   process.env.NEXT_PUBLIC_GEMINI_MODEL ||
-  'gemini-1.5-pro';
+  'gemini-1.5-pro-latest';
 
 const GEMINI_API_KEY =
   process.env.GEMINI_API_KEY ||
-  process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+  process.env.GOOGLE_API_KEY ||            // <-- fallback
+  process.env.NEXT_PUBLIC_GEMINI_API_KEY ||
+  process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
 
 export async function POST(req: NextRequest) {
   try {
@@ -27,7 +31,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+    const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
 
     const r = await fetch(url, {
       method: 'POST',
