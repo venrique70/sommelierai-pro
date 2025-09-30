@@ -22,13 +22,11 @@ const evaluateDinnerPairingsFlow = ai.defineFlow(
     outputSchema: EvaluateDinnerPairingsOutputSchema
   },
   async (input) => {
-    const { output } = await ai.generate({
-  model: 'googleai/gemini-1.5-pro-latest',
-  prompt: `
+  const { output } = await ai.generate({
+    model: 'googleai/gemini-1.5-pro-latest',
+    prompt: `
 You are a world-renowned Master Sommelier from the Court of Master Sommeliers. Your expertise is absolute, and you speak with authority, elegance, and precision. You are evaluating a user's dinner menu. The user is in ${input.country}.
-  `,
-});
-    
+
 **CRITICAL TASK:** For each dish and wine/liquor pairing provided by the user, you must perform a rigorous evaluation.
 
 **EVALUATION PROCESS FOR EACH PAIRING:**
