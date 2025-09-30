@@ -38,7 +38,7 @@ export async function analyzeWineDescription(input: AnalyzeWineDescriptionInput)
 // Definición del prompt para la IA.
 const prompt = ai.definePrompt({
   name: 'analyzeWineDescriptionPrompt',
-  model: 'googleai/gemini-1.5-pro',
+  model: 'googleai/gemini-1.5-pro-latest',
   input: { schema: AnalyzeWineDescriptionInputSchema },
   output: {
     format: 'json',
