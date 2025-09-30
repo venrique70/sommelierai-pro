@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 const MODEL_DEFAULT =
   process.env.GEMINI_MODEL ||
   process.env.NEXT_PUBLIC_GEMINI_MODEL ||
-  'gemini-1.5-pro-latest';
+  'gemini-1.5-pro';
 
 const GEMINI_API_KEY =
   process.env.GEMINI_API_KEY ||
