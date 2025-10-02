@@ -295,7 +295,7 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
   if (!userInput?.country || !String(userInput.country).trim()) {
     throw new Error("Debes indicar el país del vino para continuar el análisis.");
   }
-  const gen = await analyzeWinePrompt.generate(ai, userInput);
+  const gen = await analyzeWinePrompt(userInput);
 const output = AiResponseSchema.parse(toJson(gen));
 
   console.log('[DEBUG] AI Output facts:', {
