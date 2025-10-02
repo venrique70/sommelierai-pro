@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview This file defines a Genkit flow for recommending wines based on a dish and country.
@@ -6,10 +5,11 @@
  * It takes a description of a dish and the user's country, and returns a list of
  * up to three suitable wine recommendations, complete with sensory analysis for each.
  */
+import { toJson } from '@/lib/ai-json';
+import { RecommendWineByCountryOutputSchema } from '@/lib/schemas';
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { RecommendWineByCountryInputSchema, RecommendWineByCountryOutputSchema, type RecommendWineByCountryOutput } from '@/lib/schemas';
-
+import { RecommendWineByCountryInputSchema, type RecommendWineByCountryOutput } from '@/lib/schemas';
 
 /**
  * Recommends wines for a dish, considering the user's country.
@@ -20,15 +20,11 @@ export async function recommendWineByCountry(input: z.infer<typeof RecommendWine
   return recommendWineByCountryFlow(input);
 }
 
-
 const recommendWineByCountryPrompt = ai.definePrompt({
   name: 'recommendWineByCountryPrompt',
   model: 'googleai/gemini-2.5-pro',
   input: { schema: RecommendWineByCountryInputSchema },
-  output: {
-    format: 'json',
-    schema: RecommendWineByCountryOutputSchema,
-  },
+  output: { format: 'json' },
   prompt: `
 You are a Master Sommelier. A user is eating the following dish: "{{dishDescription}}".
 Your task is to recommend FIVE excellent wines that are commonly available in {{country}} to pair with this dish. They do not have to be from that country, just available there.
@@ -51,7 +47,6 @@ Provide only the JSON array of exactly 5 items as your response.
 `,
 });
 
-
 const recommendWineByCountryFlow = ai.defineFlow(
   {
     name: 'recommendWineByCountryFlow',
@@ -59,10 +54,8 @@ const recommendWineByCountryFlow = ai.defineFlow(
     outputSchema: RecommendWineByCountryOutputSchema,
   },
   async (input) => {
-    const { output } = await recommendWineByCountryPrompt(input);
-    if (!output) {
-      throw new Error('The AI did not generate a valid response.');
-    }
+    const gen = await recommendWineByCountryPrompt.generate(ai, input);
+    const output = RecommendWineByCountryOutputSchema.parse(toJson(gen));
     return output;
   }
 );
