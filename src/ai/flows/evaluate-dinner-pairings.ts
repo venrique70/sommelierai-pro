@@ -47,7 +47,6 @@ You are a world-renowned Master Sommelier from the Court of Master Sommeliers. Y
 **User's Menu:**
 ${input.pairings.map(p => `- Dish: ${p.dish}, Proposed Wine/Liquor: ${p.wine} (${p.description})`).join('\n')}
 `,
-      output: { format: 'json' },
     });
 
     const output = DinnerPairingsOutputSchema.parse(toJson(res));
