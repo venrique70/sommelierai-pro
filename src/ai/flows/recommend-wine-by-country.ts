@@ -54,7 +54,7 @@ const recommendWineByCountryFlow = ai.defineFlow(
     outputSchema: RecommendWineByCountryOutputSchema,
   },
   async (input) => {
-    const gen = await recommendWineByCountryPrompt.generate(ai, input);
+    const gen = await recommendWineByCountryPrompt(input);
     const output = RecommendWineByCountryOutputSchema.parse(toJson(gen));
     return output;
   }
