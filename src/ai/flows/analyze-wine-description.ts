@@ -41,7 +41,6 @@ const prompt = ai.definePrompt({
   name: 'analyzeWineDescriptionPrompt',
   model: 'googleai/gemini-2.5-pro',
   input: { schema: AnalyzeWineDescriptionInputSchema },
-  output: { format: 'json' },
   prompt: `
 Actúas como un Master Sommelier, certificado por el prestigioso Court of Master Sommeliers. Se te proporcionará una imagen que contiene una ficha de cata o una descripción de un vino.
 
