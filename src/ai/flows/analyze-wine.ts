@@ -15,7 +15,7 @@ import { adminDb, FieldValue } from '@/lib/firebase-admin';
 
 const AiResponseSchema = z.object({
   isAiGenerated: z.boolean().describe("Set to true ONLY if you cannot find the specific wine and have to analyze a similar one or if key facts are missing."),
-  wineName: z.string().describe("The full, corrected name of the wine."),
+  wineName: z.string().default('').describe("The full, corrected name of the wine."),
   year: z.number().describe("The specific vintage year."),
   country: z.string().optional().describe("Country must come from user input or a verified correction when uniquely identifiable. Do NOT infer if missing."),
   wineryName: z.string().optional().describe("Winery is OPTIONAL. Only fill it if identification is unambiguous given name, grape, year, and country. Never guess."),
@@ -293,7 +293,9 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
     throw new Error("Debes indicar el país del vino para continuar el análisis.");
   }
   const gen = await analyzeWinePrompt(userInput);
-  const output = AiResponseSchema.parse(toJson(gen));
+  const output = { ...AiResponseSchema.parse(toJson(gen)) };
+  if (!output.wineName && userInput.wineName) output.wineName = String(userInput.wineName);
+  if (output.year == null && userInput.year != null) output.year = Number(userInput.year);
 
   console.log('[DEBUG] AI Output facts:', {
     grapes: output.analysis?.grapeVariety,
