@@ -7,7 +7,6 @@ import { WineAnalysisClientSchema } from '@/lib/schemas';
 import type { WineAnalysis } from '@/types';
 import { fetchPublicFactsByName } from "@/ai/facts/webFacts";
 
-
 // ✅ usa tu wrapper coherente con el resto del proyecto
 import { adminDb, FieldValue } from '@/lib/firebase-admin';
 
@@ -71,8 +70,6 @@ export const analyzeWinePrompt = ai.definePrompt({
   name: 'analyzeWinePrompt',
   model: 'googleai/gemini-2.5-pro',
   input: { schema: WineAnalysisClientSchema },
-  output: { format: 'json' },
-
   prompt: `You are a world-renowned Master Sommelier from the Court of Master Sommeliers. Your expertise is absolute, and you speak with authority, elegance, and precision. Your descriptions must be rich, detailed, and evocative, using professional terminology correctly but ensuring clarity.
 
 **YOUR GOLDEN RULES - NON-NEGOTIABLE:**
@@ -296,7 +293,7 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
     throw new Error("Debes indicar el país del vino para continuar el análisis.");
   }
   const gen = await analyzeWinePrompt(userInput);
-const output = AiResponseSchema.parse(toJson(gen));
+  const output = AiResponseSchema.parse(toJson(gen));
 
   console.log('[DEBUG] AI Output facts:', {
     grapes: output.analysis?.grapeVariety,
