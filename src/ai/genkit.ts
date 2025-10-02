@@ -1,19 +1,19 @@
-
-import { googleAI } from '@genkit-ai/googleai';
+// src/ai/genkit.ts
+import { googleAI } from '@genkit-ai/google-genai';
 import { genkit } from 'genkit';
 
-/**
- * Initializes and configures the Genkit AI instance.
- * This is the central point for setting up plugins and other Genkit configurations.
- */
+const GEMINI_PROJECT_ID = 'gen-lang-client-0363298351';
+const FIREBASE_PROJECT_ID = 'sommelierpro-gemini';
 
-// Initialize Genkit with the Google AI plugin.
-// This configuration explicitly forces the use of an API key from environment variables.
-// Using GEMINI_API_KEY is the standard for server-side environments.
 export const ai = genkit({
   plugins: [
     googleAI({
-      apiKey: process.env.GEMINI_API_KEY,
+      apiKey: process.env.GEMINI_API_KEY!,
+      apiVersion: 'v1',
+      // projectId es opcional para API key; puedes dejarlo o quitarlo
+      projectId: GEMINI_PROJECT_ID,
     }),
   ],
+  firebase: { projectId: FIREBASE_PROJECT_ID },
+  logLevel: 'debug',
 });

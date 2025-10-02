@@ -23,7 +23,7 @@ export async function recommendWineByCountry(input: z.infer<typeof RecommendWine
 
 const recommendWineByCountryPrompt = ai.definePrompt({
   name: 'recommendWineByCountryPrompt',
-  model: 'googleai/gemini-2.5-pro-latest',
+  model: 'googleai/gemini-2.5-pro',
   input: { schema: RecommendWineByCountryInputSchema },
   output: {
     format: 'json',
