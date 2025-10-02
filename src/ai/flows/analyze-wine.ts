@@ -1,5 +1,6 @@
 'use server';
 
+import { toJson } from '@/lib/ai-json';
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { WineAnalysisClientSchema } from '@/lib/schemas';
@@ -70,10 +71,8 @@ export const analyzeWinePrompt = ai.definePrompt({
   name: 'analyzeWinePrompt',
   model: 'googleai/gemini-2.5-pro',
   input: { schema: WineAnalysisClientSchema },
-  output: {
-    format: 'json',
-    schema: AiResponseSchema,
-  },
+  output: { format: 'json' },
+
   prompt: `You are a world-renowned Master Sommelier from the Court of Master Sommeliers. Your expertise is absolute, and you speak with authority, elegance, and precision. Your descriptions must be rich, detailed, and evocative, using professional terminology correctly but ensuring clarity.
 
 **YOUR GOLDEN RULES - NON-NEGOTIABLE:**
@@ -296,10 +295,8 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
   if (!userInput?.country || !String(userInput.country).trim()) {
     throw new Error("Debes indicar el país del vino para continuar el análisis.");
   }
-  const { output } = await analyzeWinePrompt(userInput);
-  if (!output) {
-    throw new Error('No structured output returned from AI.');
-  }
+  const gen = await analyzeWinePrompt.generate(ai, userInput);
+const output = AiResponseSchema.parse(toJson(gen));
 
   console.log('[DEBUG] AI Output facts:', {
     grapes: output.analysis?.grapeVariety,
