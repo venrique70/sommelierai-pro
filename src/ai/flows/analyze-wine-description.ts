@@ -7,8 +7,9 @@
  * - AnalyzeWineDescriptionOutput - El tipo de salida de la función (el JSON del análisis).
  */
 
+import { toJson } from '@/lib/ai-json';
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 
 // Esquema de entrada: una descripción textual del vino.
 const AnalyzeWineDescriptionInputSchema = z.object({
@@ -40,10 +41,7 @@ const prompt = ai.definePrompt({
   name: 'analyzeWineDescriptionPrompt',
   model: 'googleai/gemini-2.5-pro',
   input: { schema: AnalyzeWineDescriptionInputSchema },
-  output: {
-    format: 'json',
-    schema: AnalyzeWineDescriptionOutputSchema,
-  },
+  output: { format: 'json' },
   prompt: `
 Actúas como un Master Sommelier, certificado por el prestigioso Court of Master Sommeliers. Se te proporcionará una imagen que contiene una ficha de cata o una descripción de un vino.
 
@@ -74,11 +72,9 @@ const analyzeWineDescriptionFlow = ai.defineFlow(
     outputSchema: AnalyzeWineDescriptionOutputSchema,
   },
   async (input) => {
-    const { output } = await prompt(input);
-    // Aseguramos que la salida no sea nula.
-    if (!output) {
-      throw new Error('La IA no generó una respuesta válida.');
-    }
-    return output;
+    const gen = await prompt.generate(ai, input);          // 1) generamos
+    const output = AnalyzeWineDescriptionOutputSchema      // 2) validamos con zod
+      .parse(toJson(gen));                                 //    tras extraer JSON
+    return output;                                         // 3) devolvemos ya validado
   }
 );
