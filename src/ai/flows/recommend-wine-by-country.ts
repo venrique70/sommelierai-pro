@@ -24,7 +24,6 @@ const recommendWineByCountryPrompt = ai.definePrompt({
   name: 'recommendWineByCountryPrompt',
   model: 'googleai/gemini-2.5-pro',
   input: { schema: RecommendWineByCountryInputSchema },
-  output: { format: 'json' },
   prompt: `
 You are a Master Sommelier. A user is eating the following dish: "{{dishDescription}}".
 Your task is to recommend FIVE excellent wines that are commonly available in {{country}} to pair with this dish. They do not have to be from that country, just available there.
