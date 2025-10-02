@@ -72,9 +72,8 @@ const analyzeWineDescriptionFlow = ai.defineFlow(
     outputSchema: AnalyzeWineDescriptionOutputSchema,
   },
   async (input) => {
-    const gen = await prompt.generate(ai, input);          // 1) generamos
-    const output = AnalyzeWineDescriptionOutputSchema      // 2) validamos con zod
-      .parse(toJson(gen));                                 //    tras extraer JSON
-    return output;                                         // 3) devolvemos ya validado
+    const gen = await prompt(input);
+    const output = AnalyzeWineDescriptionOutputSchema.parse(toJson(gen));
+    return output;
   }
 );
