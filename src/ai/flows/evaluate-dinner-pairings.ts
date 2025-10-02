@@ -3,28 +3,29 @@
  * @fileOverview A Genkit flow to evaluate a series of dinner pairings, acting as a Master Sommelier.
  * It provides a technical rating and, if the pairing is not perfect, offers superior alternatives.
  */
+import { toJson } from '@/lib/ai-json';
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import {
-  EvaluateDinnerPairingsInputSchema,
-  EvaluateDinnerPairingsOutputSchema,
-  type EvaluateDinnerPairingsOutput,
+  DinnerPairingsInputSchema,
+  DinnerPairingsOutputSchema,
+  type DinnerPairingsOutput,
 } from '@/lib/schemas';
 
 export async function evaluateDinnerPairings(
-  input: z.infer<typeof EvaluateDinnerPairingsInputSchema>
-): Promise<EvaluateDinnerPairingsOutput> {
+  input: z.infer<typeof DinnerPairingsInputSchema>
+): Promise<DinnerPairingsOutput> {
   return evaluateDinnerPairingsFlow(input);
 }
 
 const evaluateDinnerPairingsFlow = ai.defineFlow(
   {
     name: 'evaluateDinnerPairingsFlow',
-    inputSchema: EvaluateDinnerPairingsInputSchema,
-    outputSchema: EvaluateDinnerPairingsOutputSchema,
+    inputSchema: DinnerPairingsInputSchema,
+    outputSchema: DinnerPairingsOutputSchema,
   },
   async (input) => {
-    const { output } = await ai.generate({
+    const res = await ai.generate({
       model: 'googleai/gemini-2.5-pro',
       prompt: `
 You are a world-renowned Master Sommelier from the Court of Master Sommeliers. Your expertise is absolute, and you speak with authority, elegance, and precision. You are evaluating a user's dinner menu. The user is in ${input.country}.
@@ -46,13 +47,10 @@ You are a world-renowned Master Sommelier from the Court of Master Sommeliers. Y
 **User's Menu:**
 ${input.pairings.map(p => `- Dish: ${p.dish}, Proposed Wine/Liquor: ${p.wine} (${p.description})`).join('\n')}
 `,
-      output: {
-        format: 'json',
-        schema: EvaluateDinnerPairingsOutputSchema,
-      },
+      output: { format: 'json' },
     });
 
-    if (!output) throw new Error('The AI did not generate a valid response.');
-    return output;
+    const output = DinnerPairingsOutputSchema.parse(toJson(res));
+    return output as DinnerPairingsOutput;
   }
 );
