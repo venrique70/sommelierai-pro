@@ -14,9 +14,9 @@ import { adminDb, FieldValue } from '@/lib/firebase-admin';
 // It is NOT directly called by the client. It is called by the Server Action in actions.ts.
 
 const AiResponseSchema = z.object({
-  isAiGenerated: z.boolean().describe("Set to true ONLY if you cannot find the specific wine and have to analyze a similar one or if key facts are missing."),
+  isAiGenerated: z.boolean().default(true).describe("Set to true ONLY if you cannot find the specific wine and have to analyze a similar one or if key facts are missing."),
   wineName: z.string().default('').describe("The full, corrected name of the wine."),
-  year: z.number().describe("The specific vintage year."),
+  year: z.coerce.number().optional().describe("The specific vintage year."),
   country: z.string().optional().describe("Country must come from user input or a verified correction when uniquely identifiable. Do NOT infer if missing."),
   wineryName: z.string().optional().describe("Winery is OPTIONAL. Only fill it if identification is unambiguous given name, grape, year, and country. Never guess."),
   notes: z.string().default('').describe("Your final expert opinion and conclusion. Comment on the wine's typicity, style, aging potential, and origin country. Maintain a warm, technical, and mentoring tone. This is your personal seal."),
@@ -418,7 +418,7 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
     result = {
       isAiGenerated: result.isAiGenerated,
       wineName: result.wineName,
-      year: result.year,
+      year: output.year,
       country: result.country,
       wineryName: result.wineryName,
       notes: result.notes,
