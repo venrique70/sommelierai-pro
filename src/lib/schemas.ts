@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { Language } from "./translations";
 
+// --- Análisis de vino (cliente)
 export const WineAnalysisClientSchema = z.object({
   uid: z.string(),
   wineName: z.string().min(2, { message: "El nombre del vino debe tener al menos 2 caracteres." }),
