@@ -44,7 +44,7 @@ You are a world-renowned Master Sommelier from the Court of Master Sommeliers. Y
 {{#pairings}}- Dish: {{dish}}, Proposed Wine/Liquor: {{wine}} ({{description}})
 {{/pairings}}
 
-Return one valid JSON array only (no markdown, no backticks, no extra text).
+Return exactly one JSON array only (no wrapper object, no markdown, no backticks, no extra text).
   `,
 });
 
