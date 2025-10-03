@@ -22,7 +22,7 @@ const AiResponseSchema = z.object({
   pairingRating: z.number().min(1).max(5).optional().describe("If foodToPair was provided, a rating from 1 to 5 for the pairing. Otherwise, null."),
   pairingNotes: z.string().optional().describe("If foodToPair was provided, detailed notes explaining the pairing rating. Otherwise, null."),
   analysis: z.object({
-    grapeVariety: z.string().optional().describe("Crucial. The grape variety or a detailed blend composition (e.g., 'Cabernet Franc 77%, Cabernet Sauvignon 23%'). For blends, this is mandatory if known. Leave empty ('') if unknown."),
+    grapeVariety: z.string().describe("Crucial. The grape variety or a detailed blend composition (e.g., 'Cabernet Franc 77%, Cabernet Sauvignon 23%'). For blends, this is mandatory if known. Dejar '' si es desconocida, pero el campo debe existir."),
     wineryLocation: z.string().optional().describe("The specific location/region of the winery (e.g., 'La Seca, Valladolid, España'). You MUST research and provide this if available."),
     visual: z.object({
       description: z.string().describe("A rich, evocative visual description. Detail the color, hue, and reflections. Comment on the clarity (limpidity) and brightness. Describe the density of the legs (tears) and what it implies about the wine's body and alcohol content."),
@@ -42,9 +42,7 @@ const AiResponseSchema = z.object({
     qualityRating: z.number().min(1).max(5).describe("A numeric rating from 1 to 5 based on the quality level (1=massive, 5=icon)."),
     targetAudience: z.string().describe("Suggested expertise level, e.g., novice, intermediate, expert."),
     appellation: z.string().optional().describe("The wine's official appellation, including any special classifications (e.g., D.O. Rueda). You MUST research and provide this if available."),
-    barrelInfo: z.string().optional().describe("Detailed information about barrel aging: time, percentage of different oaks, type of oak, and usage. THIS
-
- IS CRITICAL. For example, Amador Diez has barrel aging. Leave empty ('') if unknown."),
+    barrelInfo: z.string().optional().describe("Detailed information about barrel aging: time, percentage of different oaks, type of oak, and usage. THIS IS CRITICAL. For example, Amador Diez has barrel aging. Leave empty ('') if unknown."),
     servingTemperature: z.string().describe("Recommended serving temperature."),
     suggestedGlassType: z.string().describe("The ideal type of glass for this wine."),
     decanterRecommendation: z.string().describe("Recommendation on whether to decant the wine and for how long."),
@@ -56,10 +54,8 @@ const AiResponseSchema = z.object({
     visualDescriptionEn: z.string().describe("Visual description in English for image generation."),
     olfactoryAnalysisEn: z.string().describe("Olfactory description in English for image generation."),
     gustatoryPhaseEn: z.string().describe("Gustatory description in English for image generation."),
-    sources: z.array(z.string().url()).min(1).optional().describe(
-      "1–3 URLs confiables que respalden uvas, D.O. y barrica."
-    ),
-  }).optional().describe("The detailed sensory analysis."),
+    sources: z.array(z.string().url()).min(1).optional().describe("1–3 URLs confiables que respalden uvas, D.O. y barrica."),
+  }).describe("The detailed sensory analysis."),
 });
 
 export const analyzeWinePrompt = ai.definePrompt({
@@ -281,24 +277,7 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
   }
 
   const { output } = await analyzeWinePrompt(userInput);
-  const parseResult = AiResponseSchema.safeParse(output);
-  if (!parseResult.success) {
-    console.error('[FLOW] Parse failed:', parseResult.error);
-    return {
-      isAiGenerated: true,
-      wineName: userInput.wineName || '',
-      year: userInput.year != null ? Number(userInput.year) : 0,
-      country: userInput.country,
-      wineryName: userInput.wineryName,
-      notes: 'No se pudo generar un análisis completo debido a datos insuficientes.',
-      corrections: [],
-      pairingRating: userInput.foodToPair ? 1 : undefined,
-      pairingNotes: userInput.foodToPair ? 'Falta información para un maridaje preciso.' : undefined,
-      foodToPair: userInput.foodToPair,
-    };
-  }
-
-  let result: WineAnalysis = parseResult.data;
+  let result: WineAnalysis = AiResponseSchema.parse(output);
 
   console.log('[DEBUG] AI Output facts:', {
     grapes: result.analysis?.grapeVariety,
@@ -356,48 +335,31 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
 
   const imageGenerationModel = 'googleai/gemini-2.0-flash-preview-image-generation';
   const imageGenerationConfig = { responseModalities: ['TEXT', 'IMAGE'] as const };
-  const defaultPrompt = 'A generic wine representation, studio lighting, neutral background';
 
-  if (!result.analysis) {
-    result = {
-      isAiGenerated: true,
-      wineName: result.wineName,
-      year: result.year,
-      notes: result.notes,
-      corrections: result.corrections,
-      country: result.country || userInput.country,
-      wineryName: result.wineryName,
-      pairingRating: result.pairingRating,
-      pairingNotes: result.pairingNotes,
-      foodToPair: userInput.foodToPair
-    };
-  } else {
-    const analysisData = result.analysis;
+  const analysisData = result.analysis;
+  const okImg = String(analysisData.visualDescriptionEn || '').trim().length >= 10 &&
+                String(analysisData.olfactoryAnalysisEn || '').trim().length >= 10 &&
+                String(analysisData.gustatoryPhaseEn || '').trim().length >= 10;
 
+  let visualResult: any, olfactoryResult: any, gustatoryResult: any, glassResult: any;
+  if (okImg) {
     const imagePromises = [
       ai.generate({
         model: imageGenerationModel,
-        prompt: analysisData.visualDescriptionEn?.trim() 
-          ? `Hyper-realistic photo, a glass of wine. ${analysisData.visualDescriptionEn}. Studio lighting, neutral background.` 
-          : defaultPrompt,
+        prompt: `Hyper-realistic photo, a glass of wine. ${analysisData.visualDescriptionEn}. Studio lighting, neutral background.`,
         config: imageGenerationConfig,
       }),
       ai.generate({
         model: imageGenerationModel,
-        prompt: analysisData.olfactoryAnalysisEn?.trim() 
-          ? `Abstract art, captures the essence of wine aromas. ${analysisData.olfactoryAnalysisEn}. No text, no glass.` 
-          : defaultPrompt,
+        prompt: `Abstract art, captures the essence of wine aromas. ${analysisData.olfactoryAnalysisEn}. No text, no glass.`,
         config: imageGenerationConfig,
       }),
       ai.generate({
         model: imageGenerationModel,
-        prompt: analysisData.gustatoryPhaseEn?.trim() 
-          ? `Abstract textured art, evokes the sensation of wine flavors. ${analysisData.gustatoryPhaseEn}. No text, no glass.` 
-          : defaultPrompt,
+        prompt: `Abstract textured art, evokes the sensation of wine flavors. ${analysisData.gustatoryPhaseEn}. No text, no glass.`,
         config: imageGenerationConfig,
       }),
     ];
-
     let glassImagePromise: Promise<any> = Promise.resolve(null);
     if (analysisData.suggestedGlassType && !/n\/?a|no especificado|not specified/i.test(analysisData.suggestedGlassType)) {
       glassImagePromise = ai.generate({
@@ -406,32 +368,31 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
         config: imageGenerationConfig,
       });
     }
-
-    const [visualResult, olfactoryResult, gustatoryResult, glassResult] = await Promise.allSettled([...imagePromises, glassImagePromise]);
-
-    const getUrl = (res: PromiseSettledResult<any>) =>
-      res.status === 'fulfilled' && res.value?.media?.url ? res.value.media.url : undefined;
-
-    result = {
-      isAiGenerated: result.isAiGenerated,
-      wineName: result.wineName,
-      year: result.year,
-      country: result.country,
-      wineryName: result.wineryName,
-      notes: result.notes,
-      corrections: result.corrections,
-      pairingRating: result.pairingRating,
-      pairingNotes: result.pairingNotes,
-      foodToPair: userInput.foodToPair,
-      analysis: {
-        ...analysisData,
-        visual: { ...analysisData.visual, imageUrl: getUrl(visualResult) },
-        olfactory: { ...analysisData.olfactory, imageUrl: getUrl(olfactoryResult) },
-        gustatory: { ...analysisData.gustatory, imageUrl: getUrl(gustatoryResult) },
-        suggestedGlassTypeImageUrl: getUrl(glassResult),
-      },
-    };
+    [visualResult, olfactoryResult, gustatoryResult, glassResult] = await Promise.allSettled([...imagePromises, glassImagePromise]);
   }
+
+  const getUrl = (res: PromiseSettledResult<any>) =>
+    res.status === 'fulfilled' && res.value?.media?.url ? res.value.media.url : undefined;
+
+  result = {
+    isAiGenerated: result.isAiGenerated,
+    wineName: result.wineName,
+    year: result.year,
+    country: result.country,
+    wineryName: result.wineryName,
+    notes: result.notes,
+    corrections: result.corrections,
+    pairingRating: result.pairingRating,
+    pairingNotes: result.pairingNotes,
+    foodToPair: userInput.foodToPair,
+    analysis: {
+      ...analysisData,
+      visual: { ...analysisData.visual, imageUrl: okImg ? getUrl(visualResult) : undefined },
+      olfactory: { ...analysisData.olfactory, imageUrl: okImg ? getUrl(olfactoryResult) : undefined },
+      gustatory: { ...analysisData.gustatory, imageUrl: okImg ? getUrl(gustatoryResult) : undefined },
+      suggestedGlassTypeImageUrl: okImg ? getUrl(glassResult) : undefined,
+    },
+  };
 
   if (typeof userInput.country === "string" && userInput.country.trim()) {
     const provided = userInput.country.trim();
