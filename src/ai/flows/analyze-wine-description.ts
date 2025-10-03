@@ -24,16 +24,17 @@ const prompt = ai.definePrompt({
 Eres Master Sommelier. Debes basarte EXCLUSIVAMENTE en el texto que puedas leer en la imagen.
 - NO inventes nombres, añadas ni descripciones que no estén legibles.
 - Si el nombre del vino no se puede leer claramente, usa "Desconocido".
-- Si el texto es insuficiente, pon calificacion = 1 y explica que no se pudo leer suficiente texto.
+- Si el texto es insuficiente, pon calificacion = 1.
+- Si el nombre es "Desconocido" O el texto es insuficiente, NO escribas un análisis sensorial: en "analisisExperto" escribe solo una frase explicando que no se pudo analizar porque el texto es ilegible o insuficiente y que se necesita otra foto. No incluyas descriptores sensoriales en ese caso.
 - "calificacion" debe ser un ENTERO de 1 a 5.
 
 IMAGEN A ANALIZAR:
 {{media url=photoDataUri}}
 
 PASOS:
-1) Transcribe fielmente el texto visible de la etiqueta a "ocrText" (líneas separadas por saltos).
-2) Si "nombreVino" NO aparece literalmente dentro de "ocrText" (ignorando mayúsculas/acentos), establece "nombreVino":"Desconocido" y "calificacion":1.
-3) Escribe "analisisExperto" basado SOLO en lo legible, sin inventar.
+1) Transcribe fielmente el texto legible a "ocrText" (líneas separadas por saltos).
+2) Si "nombreVino" NO aparece en "ocrText" (ignorando mayúsculas/acentos), usa "Desconocido" y calificacion=1 y NO hagas análisis sensorial.
+3) Si hay texto suficiente y el nombre es legible, entonces sí redacta "analisisExperto".
 
 Devuelve solo este JSON:
 {
@@ -50,21 +51,32 @@ Return one valid JSON object only (no markdown, no backticks, no extra text).
 // ✅ ÚNICA exportación
 export async function analyzeWineDescription(input: { photoDataUri: string }) {
   const { output } = await prompt(input);
-  const data = AnalyzeWineDescriptionOutputSchema.parse(output);
+  // Valida con el schema extendido (incluye ocrText)
+  const data = AnalyzeWineDescriptionOutputSchema
+    .extend({ ocrText: z.string().min(1) })
+    .parse(output);
 
-  // Normaliza (quita acentos y pasa a minúsculas)
   const norm = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase();
   const ocr = norm(data.ocrText || '');
   const name = norm(data.nombreVino || '');
+  const letters = (s: string) => (s || '').replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/g, '').length;
 
-  // Si el nombre no aparece en el OCR, marca como desconocido y baja calificación
-  if (name.length < 3 || (name !== 'desconocido' && !ocr.includes(name))) {
-    data.nombreVino = 'Desconocido';
-    data.calificacion = 1;
-    // (opcional) añade una nota breve al análisis si no la trae
-    if (!/no se pudo leer|insuficiente|ilegible/i.test(data.analisisExperto)) {
-      data.analisisExperto = `${data.analisisExperto}\n\nNota: no se pudo verificar el nombre en el texto de la etiqueta, por lo que se marca como Desconocido.`;
-    }
+  const lowEvidence = letters(ocr) < 25; // umbral de evidencia mínima
+
+  if (lowEvidence || name === 'desconocido' || (name && !ocr.includes(name))) {
+    // Forzamos salida “no analizable”
+    return {
+      nombreVino: 'Desconocido',
+      calificacion: 1,
+      analisisExperto:
+        'No se pudo realizar el análisis sensorial porque el texto de la etiqueta es ilegible o insuficiente. Por favor, retoma la foto acercando la cámara y evitando reflejos.',
+    };
   }
-  return data;
+
+  // Si pasó las verificaciones, devolvemos lo validado (sin ocrText)
+  return {
+    nombreVino: data.nombreVino,
+    calificacion: data.calificacion,
+    analisisExperto: data.analisisExperto,
+  };
 }
