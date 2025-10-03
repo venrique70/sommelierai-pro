@@ -116,7 +116,7 @@ export default function CataSheetPage() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Downscale: máx 1280px ancho para request liviano
+    // Downscale: máx 1280px de ancho
     const maxW = 1280;
     const scale = Math.min(1, maxW / (video.videoWidth || maxW));
     const w = Math.round((video.videoWidth || maxW) * scale);
@@ -124,24 +124,33 @@ export default function CataSheetPage() {
 
     canvas.width = w;
     canvas.height = h;
+
+    // Mejora de lectura (OCR)
+    ctx.filter = 'contrast(135%) brightness(112%) saturate(110%)';
     ctx.drawImage(video, 0, 0, w, h);
 
-    // ROI: recorta el 60% central (etiqueta vertical)
-    const roi = { sx: Math.round(w * 0.2), sy: 0, sw: Math.round(w * 0.6), sh: h };
+    // ROI más generoso (centrado): 76% del ancho × 84% del alto
+    const roi = {
+      sx: Math.round(w * 0.12),
+      sy: Math.round(h * 0.08),
+      sw: Math.round(w * 0.76),
+      sh: Math.round(h * 0.84),
+    };
+
     const tmp = document.createElement('canvas');
     tmp.width = roi.sw;
     tmp.height = roi.sh;
     const tctx = tmp.getContext('2d')!;
+    tctx.filter = 'contrast(135%) brightness(112%) saturate(110%)';
     tctx.drawImage(canvas, roi.sx, roi.sy, roi.sw, roi.sh, 0, 0, roi.sw, roi.sh);
 
-    // Comprime
     const dataUrl = tmp.toDataURL("image/jpeg", 0.85);
 
-    // Chequeo rápido de tamaño
+    // Control de tamaño
     const comma = dataUrl.indexOf(",");
     const approxBytes = comma > -1 ? Math.ceil((dataUrl.length - (comma + 1)) * 0.75) : dataUrl.length;
     if (approxBytes > 2_500_000) {
-      toast({ title: "Imagen muy grande", description: "Acércate un poco y vuelve a capturar.", variant: "destructive" });
+      toast({ title: "Imagen muy grande", description: "Acércate y vuelve a capturar.", variant: "destructive" });
       return;
     }
 
