@@ -27,7 +27,7 @@ const RecommendWineByCountryOutputSchema = z.object({
       description: z.string().describe("Descripción detallada del vino, incluyendo características sensoriales y razones de la recomendación."),
       rating: z.number().min(1).max(5).describe("Calificación del vino (1-5, donde 5 es excelente).")
     })
-  ).describe("Lista de vinos recomendados basados en el país.")
+  ).min(3).max(5).describe("Lista de 3 a 5 vinos recomendados basados en el país.")
 });
 export type RecommendWineByCountryOutput = z.infer<typeof RecommendWineByCountryOutputSchema>;
 
