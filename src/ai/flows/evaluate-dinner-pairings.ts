@@ -7,22 +7,22 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import {
-  DinnerPairingsInputSchema,
-  DinnerPairingsOutputSchema,
-  type DinnerPairingsOutput,
+  EvaluateDinnerPairingsInputSchema,
+  EvaluateDinnerPairingsOutputSchema,
+  type EvaluateDinnerPairingsOutput,
 } from '@/lib/schemas';
 
 export async function evaluateDinnerPairings(
-  input: z.infer<typeof DinnerPairingsInputSchema>
-): Promise<DinnerPairingsOutput> {
+  input: z.infer<typeof EvaluateDinnerPairingsInputSchema>
+): Promise<EvaluateDinnerPairingsOutput> {
   return evaluateDinnerPairingsFlow(input);
 }
 
 const dinnerPairingsPrompt = ai.definePrompt({
   name: 'dinnerPairingsPrompt',
   model: 'googleai/gemini-2.5-pro',
-  input: { schema: DinnerPairingsInputSchema },
-  output: { format: 'json', schema: DinnerPairingsOutputSchema },
+  input: { schema: EvaluateDinnerPairingsInputSchema },
+  output: { format: 'json', schema: EvaluateDinnerPairingsOutputSchema },
   prompt: `
 You are a world-renowned Master Sommelier from the Court of Master Sommeliers. Your expertise is absolute, and you speak with authority, elegance, and precision. You are evaluating a user's dinner menu. The user is in {{country}}.
 
@@ -51,12 +51,12 @@ Return one valid JSON array only (no markdown, no backticks, no extra text).
 const evaluateDinnerPairingsFlow = ai.defineFlow(
   {
     name: 'evaluateDinnerPairingsFlow',
-    inputSchema: DinnerPairingsInputSchema,
-    outputSchema: DinnerPairingsOutputSchema,
+    inputSchema: EvaluateDinnerPairingsInputSchema,
+    outputSchema: EvaluateDinnerPairingsOutputSchema,
   },
   async (input) => {
     const { output } = await dinnerPairingsPrompt(input);
-    DinnerPairingsOutputSchema.parse(output);
-    return output as DinnerPairingsOutput;
+    EvaluateDinnerPairingsOutputSchema.parse(output);
+    return output as EvaluateDinnerPairingsOutput;
   }
 );
