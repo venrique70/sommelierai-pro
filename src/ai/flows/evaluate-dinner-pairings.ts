@@ -3,7 +3,7 @@
  * @fileOverview A Genkit flow to evaluate a series of dinner pairings, acting as a Master Sommelier.
  * It provides a technical rating and, if the pairing is not perfect, offers superior alternatives.
  */
-import { toJson } from '@/lib/ai-json';
+
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import {
@@ -18,17 +18,13 @@ export async function evaluateDinnerPairings(
   return evaluateDinnerPairingsFlow(input);
 }
 
-const evaluateDinnerPairingsFlow = ai.defineFlow(
-  {
-    name: 'evaluateDinnerPairingsFlow',
-    inputSchema: DinnerPairingsInputSchema,
-    outputSchema: DinnerPairingsOutputSchema,
-  },
-  async (input) => {
-    const res = await ai.generate({
-      model: 'googleai/gemini-2.5-pro',
-      prompt: `
-You are a world-renowned Master Sommelier from the Court of Master Sommeliers. Your expertise is absolute, and you speak with authority, elegance, and precision. You are evaluating a user's dinner menu. The user is in ${input.country}.
+const dinnerPairingsPrompt = ai.definePrompt({
+  name: 'dinnerPairingsPrompt',
+  model: 'googleai/gemini-2.5-pro',
+  input: { schema: DinnerPairingsInputSchema },
+  output: { format: 'json', schema: DinnerPairingsOutputSchema },
+  prompt: `
+You are a world-renowned Master Sommelier from the Court of Master Sommeliers. Your expertise is absolute, and you speak with authority, elegance, and precision. You are evaluating a user's dinner menu. The user is in {{country}}.
 
 **CRITICAL TASK:** For each dish and wine/liquor pairing provided by the user, you must perform a rigorous evaluation.
 
@@ -41,15 +37,26 @@ You are a world-renowned Master Sommelier from the Court of Master Sommeliers. Y
    * **DETAIL:** For each alternative, provide a full analysis including 'wineName', a full sensory 'analysis' object (visual, olfactory, gustatory), a detailed 'justification', and a 'rating' of 5.
 
 **LANGUAGE AND FORMAT:**
-* The entire response must be in the language specified by **${input.language}**.
+* The entire response must be in the language specified by **{{language}}**.
 * The response MUST be a single, valid JSON array of evaluation objects that strictly follows the provided JSON schema. Do not deviate.
 
 **User's Menu:**
-${input.pairings.map(p => `- Dish: ${p.dish}, Proposed Wine/Liquor: ${p.wine} (${p.description})`).join('\n')}
-`,
-    });
+{{#pairings}}- Dish: {{dish}}, Proposed Wine/Liquor: {{wine}} ({{description}})
+{{/pairings}}
 
-    const output = DinnerPairingsOutputSchema.parse(toJson(res));
+Return one valid JSON array only (no markdown, no backticks, no extra text).
+  `,
+});
+
+const evaluateDinnerPairingsFlow = ai.defineFlow(
+  {
+    name: 'evaluateDinnerPairingsFlow',
+    inputSchema: DinnerPairingsInputSchema,
+    outputSchema: DinnerPairingsOutputSchema,
+  },
+  async (input) => {
+    const { output } = await dinnerPairingsPrompt(input);
+    DinnerPairingsOutputSchema.parse(output);
     return output as DinnerPairingsOutput;
   }
 );
