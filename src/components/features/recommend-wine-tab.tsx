@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -63,7 +62,6 @@ const RecommendationCard = ({ wineName, justificacionExperta, rating }: { wineNa
     </Card>
 );
 
-
 // --- Main Tab Component ---
 
 export function RecommendWineTab({ t, language }: { t: Translation, language: Language }) {
@@ -71,6 +69,14 @@ export function RecommendWineTab({ t, language }: { t: Translation, language: La
   const [result, setResult] = useState<RecommendWineByCountryOutput | null>(null);
   const { toast } = useToast();
   const { user, profile } = useAuth();
+
+// === BYPASS OWNER/ADMIN ===
+const email = user?.email?.toLowerCase?.() || '';
+const username = (profile as any)?.username?.toLowerCase?.() || '';
+const isAdmin =
+  profile?.role === 'admin' ||
+  email === 'venrique70@gmail.com' ||
+  username === 'venrique70';
 
   const form = useForm<z.infer<typeof RecommendWineSchema>>({
     resolver: zodResolver(RecommendWineSchema),
@@ -92,21 +98,22 @@ export function RecommendWineTab({ t, language }: { t: Translation, language: La
     }
 
     const { current = 0, limit = Infinity } =
-  profile?.usage?.recommendWine ?? { current: 0, limit: Infinity };
+      profile?.usage?.recommendWine ?? { current: 0, limit: Infinity };
 
-    if (limit !== Infinity && current >= limit) {
-        toast({
-            title: "Límite de Recomendaciones Alcanzado",
-            description: "Has alcanzado tu límite de recomendaciones de vino. ¡Sube de plan para obtener más!",
-            variant: "destructive",
-            duration: 8000,
-            action: (
-                <Button asChild size="sm">
-                    <Link href="/planes">Ver Planes</Link>
-                </Button>
-            ),
-        });
-        return;
+    // ⬇️ No bloquear si eres admin (owner)
+    if (!isAdmin && limit !== Infinity && current >= limit) {
+      toast({
+        title: "Límite de Recomendaciones Alcanzado",
+        description: "Has alcanzado tu límite de recomendaciones de vino. ¡Sube de plan para obtener más!",
+        variant: "destructive",
+        duration: 8000,
+        action: (
+          <Button asChild size="sm">
+            <Link href="/planes">Ver Planes</Link>
+          </Button>
+        ),
+      });
+      return;
     }
 
     setLoading(true);
@@ -114,7 +121,9 @@ export function RecommendWineTab({ t, language }: { t: Translation, language: La
     try {
       const response = await recommendWineByCountry(data);
       setResult(response);
-      await updateUserUsage(user.uid, 'recommendWine');
+      if (!isAdmin) {
+        await updateUserUsage(user.uid, 'recommendWine');
+      }
     } catch (error) {
       console.error("Failed to get recommendation:", error);
       const errorMessage = error instanceof Error ? error.message : t.couldNotGetRecommendation;
@@ -124,16 +133,17 @@ export function RecommendWineTab({ t, language }: { t: Translation, language: La
     }
   };
 
-  const planName = profile?.subscription?.plan || '...';
+  const planName   = profile?.subscription?.plan || '...';
   const currentUsage = profile?.usage?.recommendWine?.current ?? 0;
-  const usageLimit = profile?.usage?.recommendWine?.limit ?? 1;
-  const remaining = usageLimit - currentUsage;
+  const usageLimit   = profile?.usage?.recommendWine?.limit ?? 1;
+  const remaining    = usageLimit - currentUsage;
+  const isUnlimited  = isAdmin || usageLimit === Infinity; // ⬅️ NUEVO
 
     return (
         <div className="space-y-6">
             <CardHeader>
                 <CardTitle>{t.recommendWine}</CardTitle>
-                 {profile && usageLimit !== Infinity && (
+                {profile && !isUnlimited && (
                     <Alert className="mt-4">
                         <Info className="h-4 w-4" />
                         <AlertTitle>Plan {planName}</AlertTitle>
@@ -210,5 +220,3 @@ export function RecommendWineTab({ t, language }: { t: Translation, language: La
         </div>
     );
 }
-
-    
