@@ -46,7 +46,7 @@ Devuelve solo este JSON:
 
 Return one valid JSON object only (no markdown, no backticks, no extra text).
   `,
-});
+);
 
 // ✅ ÚNICA exportación
 export async function analyzeWineDescription(input: { photoDataUri: string }) {
@@ -58,11 +58,12 @@ export async function analyzeWineDescription(input: { photoDataUri: string }) {
   const norm = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase();
   const ocr = norm(data.ocrText);
   const name = norm(data.nombreVino);
-  const letters = (s: string) => s.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/g, '').length;
+  const letters = (s: string) => s.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9]/g, '').length; // acepta dígitos de añada
 
-  const lowEvidence = letters(ocr) < 25; // puedes subir a 35 si aún ves falsos positivos
+  const lowEvidence = letters(ocr) < 18; // umbral un poco más permisivo
 
-  if (lowEvidence || name === 'desconocido' || (name && !ocr.includes(name))) {
+  const compact = (s: string) => norm(s).replace(/[^a-z0-9]/g,'');
+  if (lowEvidence || name === 'desconocido' || (compact(name) && !compact(ocr).includes(compact(name)))) {
     return {
       nombreVino: 'Desconocido',
       calificacion: 1,
