@@ -46,7 +46,7 @@ Devuelve solo este JSON:
 
 Return one valid JSON object only (no markdown, no backticks, no extra text).
   `,
-);
+});
 
 // ✅ ÚNICA exportación
 export async function analyzeWineDescription(input: { photoDataUri: string }) {
