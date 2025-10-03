@@ -106,6 +106,8 @@ export const analyzeWinePrompt = ai.definePrompt({
 - Country: {{{country}}}
 {{#if foodToPair}}- Dish to pair: {{{foodToPair}}}{{/if}}
 - Note: Base ALL facts on verifiable knowledge only—no external search simulation.
+
+Return one valid JSON object only (no markdown, no backticks, no extra text).
 `,
 });
 
