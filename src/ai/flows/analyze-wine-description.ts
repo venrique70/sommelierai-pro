@@ -1,78 +1,91 @@
 'use server';
 /**
- * @fileOverview Flujo de IA que actúa como un sommelier profesional para analizar un vino.
+ * @fileOverview Flujo de IA que recomienda vinos por país.
  *
- * - analyzeWineDescription - Realiza un análisis sensorial completo a partir de una descripción.
- * - AnalyzeWineDescriptionInput - El tipo de entrada para la función.
- * - AnalyzeWineDescriptionOutput - El tipo de salida de la función (el JSON del análisis).
+ * - recommendWineByCountry - Recomienda vinos basados en el país especificado.
+ * - RecommendWineByCountryInput - El tipo de entrada para la función.
+ * - RecommendWineByCountryOutput - El tipo de salida de la función (el JSON de recomendaciones).
  */
 
-import { toJson } from '@/lib/ai-json';
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
-// Esquema de entrada: una descripción textual del vino.
-const AnalyzeWineDescriptionInputSchema = z.object({
-  photoDataUri: z.string().describe(
-    "A photo of a wine tasting note or label, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
-  )
+// Esquema de entrada: país y preferencias opcionales.
+const RecommendWineByCountryInputSchema = z.object({
+  country: z.string().describe("El país del cual se desean recomendaciones de vinos."),
+  preferences: z.string().optional().describe("Preferencias adicionales del usuario, como tipo de vino o maridaje.")
 });
-export type AnalyzeWineDescriptionInput = z.infer<typeof AnalyzeWineDescriptionInputSchema>;
+export type RecommendWineByCountryInput = z.infer<typeof RecommendWineByCountryInputSchema>;
 
-// Esquema de salida: el objeto JSON con el análisis del sommelier.
-const AnalyzeWineDescriptionOutputSchema = z.object({
-  nombreVino: z.string().describe('El nombre del vino o una descripción breve si no se especifica.'),
-  calificacion: z.number().min(1).max(5).describe('Una calificación del 1 al 5, donde 5 es excelente.'),
-  analisisExperto: z.string().describe('Un párrafo detallado con el análisis sensorial (apariencia visual, perfil olfativo, gusto, taninos, temperatura recomendada, potencial de guarda y maridajes sugeridos).'),
+// Esquema de salida: lista de recomendaciones de vinos.
+const RecommendWineByCountryOutputSchema = z.object({
+  recommendations: z.array(
+    z.object({
+      wineName: z.string().describe("El nombre del vino recomendado."),
+      winery: z.string().optional().describe("La bodega que produce el vino, si se conoce."),
+      grapeVariety: z.string().describe("La variedad de uva o composición del vino."),
+      description: z.string().describe("Descripción detallada del vino, incluyendo características sensoriales y razones de la recomendación."),
+      rating: z.number().min(1).max(5).describe("Calificación del vino (1-5, donde 5 es excelente).")
+    })
+  ).describe("Lista de vinos recomendados basados en el país.")
 });
-export type AnalyzeWineDescriptionOutput = z.infer<typeof AnalyzeWineDescriptionOutputSchema>;
+export type RecommendWineByCountryOutput = z.infer<typeof RecommendWineByCountryOutputSchema>;
 
 /**
- * Realiza un análisis sensorial profesional de un vino basado en su descripción.
- * @param input La descripción del vino.
- * @returns Una promesa que se resuelve con el análisis en formato JSON.
+ * Recomienda vinos basados en el país especificado por el usuario.
+ * @param input El país y preferencias opcionales.
+ * @returns Una promesa que se resuelve con una lista de recomendaciones en formato JSON.
  */
-export async function analyzeWineDescription(input: AnalyzeWineDescriptionInput): Promise<AnalyzeWineDescriptionOutput> {
-  return analyzeWineDescriptionFlow(input);
+export async function recommendWineByCountry(input: RecommendWineByCountryInput): Promise<RecommendWineByCountryOutput> {
+  return recommendWineByCountryFlow(input);
 }
 
 // Definición del prompt para la IA.
-const prompt = ai.definePrompt({
-  name: 'analyzeWineDescriptionPrompt',
+const recommendWineByCountryPrompt = ai.definePrompt({
+  name: 'recommendWineByCountryPrompt',
   model: 'googleai/gemini-2.5-pro',
-  input: { schema: AnalyzeWineDescriptionInputSchema },
+  input: { schema: RecommendWineByCountryInputSchema },
+  output: { format: 'json', schema: RecommendWineByCountryOutputSchema },
   prompt: `
-Actúas como un Master Sommelier, certificado por el prestigioso Court of Master Sommeliers. Se te proporcionará una imagen que contiene una ficha de cata o una descripción de un vino.
+Actúas como un Master Sommelier, certificado por el prestigioso Court of Master Sommeliers. Tu tarea es recomendar una lista de vinos de alta calidad originarios del país especificado por el usuario, considerando cualquier preferencia adicional proporcionada.
 
 Tu tarea es:
-1. Extraer el texto relevante de la imagen.
-2. Basándote en ese texto, realizar un análisis sensorial completo del vino descrito, con la elegancia y precisión que te caracterizan.
-3. Proporcionar la respuesta **EXCLUSIVAMENTE EN ESPAÑOL y en formato JSON**.
+1. Basándote en el país proporcionado, identificar y recomendar entre 3 y 5 vinos representativos de alta calidad.
+2. Para cada vino, proporcionar: nombre del vino, bodega (si se conoce), variedad de uva, descripción detallada (características sensoriales, estilo, razones para recomendarlo) y una calificación de 1 a 5.
+3. Asegúrate de que las recomendaciones sean precisas, basadas en conocimiento verificable, y reflejen la excelencia vinícola del país.
+4. Proporcionar la respuesta **EXCLUSIVAMENTE EN ESPAÑOL y en formato JSON**.
 
-El JSON debe contener los siguientes campos en español:
-- "nombreVino": El nombre del vino o una descripción breve si no se especifica.
-- "calificacion": Una calificación del 1 al 5, donde 5 es excelente, basada en la descripción.
-- "analisisExperto": Un párrafo detallado con el análisis sensorial (apariencia visual, perfil olfativo, gusto, taninos, temperatura recomendada, potencial de guarda y maridajes sugeridos) que sintetice y elabore la información del texto extraído.
+El JSON debe contener un campo "recommendations" con una lista de objetos, cada uno con:
+- "wineName": El nombre del vino.
+- "winery": La bodega (opcional, solo si se conoce con certeza).
+- "grapeVariety": La variedad de uva o composición del vino (dejar "" si es desconocida, pero el campo debe existir).
+- "description": Descripción detallada del vino, incluyendo características sensoriales y razones de recomendación.
+- "rating": Calificación de 1 a 5, donde 5 es excelente.
 
-Asegúrate de que todo el contenido dentro del campo "analisisExperto" esté perfectamente redactado en español, con gramática impecable y vocabulario profesional de sommelier.
+**Reglas estrictas:**
+- No inventes datos. Usa solo información verificable.
+- Si el país no tiene una tradición vinícola clara, explica en la descripción por qué las opciones son limitadas.
+- Si se proporcionan preferencias, adáptalas a las recomendaciones (e.g., tipo de vino, maridaje).
+- Responde únicamente en español, con gramática impecable y vocabulario profesional de sommelier.
 
-Imagen con la descripción del vino a analizar:
-{{media url=photoDataUri}}
+**Entrada del usuario:**
+- País: {{country}}
+{{#if preferences}}- Preferencias: {{preferences}}{{/if}}
 
-Por favor, proporciona únicamente el objeto JSON como respuesta.
+Return one valid JSON object only (no markdown, no backticks, no extra text).
   `,
 });
 
 // Definición del flujo de Genkit.
-const analyzeWineDescriptionFlow = ai.defineFlow(
+const recommendWineByCountryFlow = ai.defineFlow(
   {
-    name: 'analyzeWineDescriptionFlow',
-    inputSchema: AnalyzeWineDescriptionInputSchema,
-    outputSchema: AnalyzeWineDescriptionOutputSchema,
+    name: 'recommendWineByCountryFlow',
+    inputSchema: RecommendWineByCountryInputSchema,
+    outputSchema: RecommendWineByCountryOutputSchema,
   },
   async (input) => {
-    const gen = await prompt(input);
-    const output = AnalyzeWineDescriptionOutputSchema.parse(toJson(gen));
+    const { output } = await recommendWineByCountryPrompt(input);
+    RecommendWineByCountryOutputSchema.parse(output);
     return output;
   }
 );
