@@ -51,20 +51,18 @@ Return one valid JSON object only (no markdown, no backticks, no extra text).
 // ✅ ÚNICA exportación
 export async function analyzeWineDescription(input: { photoDataUri: string }) {
   const { output } = await prompt(input);
-  // Valida con el schema extendido (incluye ocrText)
-  const data = AnalyzeWineDescriptionOutputSchema
-    .extend({ ocrText: z.string().min(1) })
-    .parse(output);
+
+  // Ya incluye ocrText requerido
+  const data = AnalyzeWineDescriptionOutputSchema.parse(output);
 
   const norm = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase();
-  const ocr = norm(data.ocrText || '');
-  const name = norm(data.nombreVino || '');
-  const letters = (s: string) => (s || '').replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/g, '').length;
+  const ocr = norm(data.ocrText);
+  const name = norm(data.nombreVino);
+  const letters = (s: string) => s.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/g, '').length;
 
-  const lowEvidence = letters(ocr) < 25; // umbral de evidencia mínima
+  const lowEvidence = letters(ocr) < 25; // puedes subir a 35 si aún ves falsos positivos
 
   if (lowEvidence || name === 'desconocido' || (name && !ocr.includes(name))) {
-    // Forzamos salida “no analizable”
     return {
       nombreVino: 'Desconocido',
       calificacion: 1,
@@ -73,7 +71,7 @@ export async function analyzeWineDescription(input: { photoDataUri: string }) {
     };
   }
 
-  // Si pasó las verificaciones, devolvemos lo validado (sin ocrText)
+  // Devuelve sin ocrText
   return {
     nombreVino: data.nombreVino,
     calificacion: data.calificacion,
