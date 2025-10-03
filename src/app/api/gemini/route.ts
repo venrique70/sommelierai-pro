@@ -30,8 +30,8 @@ export async function POST(req: NextRequest) {
     }
 
     const resolved = normalizeModel(model) || MODEL_DEFAULT;
-    const url = `https://generativelanguage.googleapis.com/v1/models/${resolved}:generateContent`;
-
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${resolved}:generateContent`;
+    
     const r = await fetch(url, {
       method: 'POST',
       headers: {
