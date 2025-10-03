@@ -1,25 +1,19 @@
 'use server';
 
-import { toJson } from '@/lib/ai-json';
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { WineAnalysisClientSchema } from '@/lib/schemas';
 import type { WineAnalysis } from '@/types';
 import { fetchPublicFactsByName } from "@/ai/facts/webFacts";
-
-// ✅ usa tu wrapper coherente con el resto del proyecto
 import { adminDb, FieldValue } from '@/lib/firebase-admin';
 
-// This file contains the internal logic for the wine analysis.
-// It is NOT directly called by the client. It is called by the Server Action in actions.ts.
-
 const AiResponseSchema = z.object({
-  isAiGenerated: z.boolean().default(true).describe("Set to true ONLY if you cannot find the specific wine and have to analyze a similar one or if key facts are missing."),
-  wineName: z.string().default('').describe("The full, corrected name of the wine."),
-  year: z.coerce.number().optional().describe("The specific vintage year."),
+  isAiGenerated: z.boolean().describe("Set to true ONLY if you cannot find the specific wine and have to analyze a similar one or if key facts are missing."),
+  wineName: z.string().describe("The full, corrected name of the wine."),
+  year: z.number().describe("The specific vintage year."),
   country: z.string().optional().describe("Country must come from user input or a verified correction when uniquely identifiable. Do NOT infer if missing."),
   wineryName: z.string().optional().describe("Winery is OPTIONAL. Only fill it if identification is unambiguous given name, grape, year, and country. Never guess."),
-  notes: z.string().default('').describe("Your final expert opinion and conclusion. Comment on the wine's typicity, style, aging potential, and origin country. Maintain a warm, technical, and mentoring tone. This is your personal seal."),
+  notes: z.string().describe("Your final expert opinion and conclusion. Comment on the wine's typicity, style, aging potential, and origin country. Maintain a warm, technical, and mentoring tone. This is your personal seal."),
   corrections: z.array(z.object({
     field: z.enum(['Vino', 'Año', 'Cepa', 'Bodega', 'País', 'Wine', 'Year', 'Grape', 'Winery', 'Country', 'Barrel']),
     original: z.string(),
@@ -48,7 +42,9 @@ const AiResponseSchema = z.object({
     qualityRating: z.number().min(1).max(5).describe("A numeric rating from 1 to 5 based on the quality level (1=massive, 5=icon)."),
     targetAudience: z.string().describe("Suggested expertise level, e.g., novice, intermediate, expert."),
     appellation: z.string().optional().describe("The wine's official appellation, including any special classifications (e.g., D.O. Rueda). You MUST research and provide this if available."),
-    barrelInfo: z.string().optional().describe("Detailed information about barrel aging: time, percentage of different oaks, type of oak, and usage. THIS IS CRITICAL. For example, Amador Diez has barrel aging. Leave empty ('') if unknown."),
+    barrelInfo: z.string().optional().describe("Detailed information about barrel aging: time, percentage of different oaks, type of oak, and usage. THIS
+
+ IS CRITICAL. For example, Amador Diez has barrel aging. Leave empty ('') if unknown."),
     servingTemperature: z.string().describe("Recommended serving temperature."),
     suggestedGlassType: z.string().describe("The ideal type of glass for this wine."),
     decanterRecommendation: z.string().describe("Recommendation on whether to decant the wine and for how long."),
@@ -70,6 +66,7 @@ export const analyzeWinePrompt = ai.definePrompt({
   name: 'analyzeWinePrompt',
   model: 'googleai/gemini-2.5-pro',
   input: { schema: WineAnalysisClientSchema },
+  output: { format: 'json', schema: AiResponseSchema },
   prompt: `You are a world-renowned Master Sommelier from the Court of Master Sommeliers. Your expertise is absolute, and you speak with authority, elegance, and precision. Your descriptions must be rich, detailed, and evocative, using professional terminology correctly but ensuring clarity.
 
 **YOUR GOLDEN RULES - NON-NEGOTIABLE:**
@@ -116,8 +113,7 @@ export const analyzeWinePrompt = ai.definePrompt({
 `,
 });
 
-/** Guarda en `wineAnalyses` SIN IMÁGENES (historial liviano y robusto) */
-export async function saveAnalysisToHistory(uid: string, analysis: WineAnalysis): Promise<void> {
+async function saveAnalysisToHistory(uid: string, analysis: WineAnalysis): Promise<void> {
   if (!uid) {
     console.error("[FLOW] No UID provided, cannot save analysis.");
     return;
@@ -127,14 +123,12 @@ export async function saveAnalysisToHistory(uid: string, analysis: WineAnalysis)
     const db = adminDb();
     db.settings?.({ ignoreUndefinedProperties: true });
 
-    // --- Limpieza profunda: sin undefined/funciones/promesas y sin imágenes ---
     const STRIP_KEYS = /^(imageUrl|image_urls|suggestedGlassTypeImageUrl)$/i;
 
     const scrub = (v: any): any => {
       if (v === undefined || typeof v === "function" || v instanceof Promise) return null;
       if (v === null) return null;
       if (typeof v === "string") {
-        // Si viniera un data URI/base64 gigante, no lo guardamos
         if (v.startsWith("data:")) return null;
         return v;
       }
@@ -142,25 +136,23 @@ export async function saveAnalysisToHistory(uid: string, analysis: WineAnalysis)
       if (v && typeof v === "object") {
         const out: any = {};
         for (const k of Object.keys(v)) {
-          if (STRIP_KEYS.test(k)) continue; // 👈 elimina cualquier *imageUrl*
+          if (STRIP_KEYS.test(k)) continue;
           const sv = scrub(v[k]);
           if (sv !== undefined) out[k] = sv;
         }
         return out;
       }
-      return v; // number | boolean | Date
+      return v;
     };
 
-    // Eliminamos imágenes profundas del bloque analysis
     const safeAnalysis = scrub((analysis as any)?.analysis);
 
-    // Documento minimal y consistente para el historial
     const docToSave: any = {
-      uid,                 // Mi Historial filtra por este campo
-      userId: uid,         // compat reglas antiguas
+      uid,
+      userId: uid,
       wineName: analysis?.wineName ?? null,
       year: analysis?.year ?? null,
-      imageUrl: null,      // 👈 nunca guardamos imagen en historial
+      imageUrl: null,
       analysis: safeAnalysis ?? null,
       notes: (analysis as any)?.notes ?? "",
       pairingRating: (analysis as any)?.pairingRating ?? null,
@@ -182,7 +174,7 @@ export async function saveAnalysisToHistory(uid: string, analysis: WineAnalysis)
     console.error(`[FLOW] ❌ Write failed for uid=${uid}:`, err);
   }
 }
-// ===== Minimal Fact Guard (reversible) =====
+
 function _norm(s?: string) {
   return (s || "").toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "").trim();
 }
@@ -227,7 +219,6 @@ function _verifyWineFacts<T extends Record<string, any>>(result: T): T {
   const k = _findKnown(result?.wineName);
   if (!k) return result;
 
-  // Verify grapes
   const hasGSM = /\b(garnacha|grenache|syrah|shiraz|monastrell)\b/i.test(gv);
   const grapesWrong = hasGSM || (k.grapesPct && gv !== k.grapesPct);
   if (grapesWrong) {
@@ -241,7 +232,6 @@ function _verifyWineFacts<T extends Record<string, any>>(result: T): T {
     ];
   }
 
-  // Verify barrel
   if (k.barrelInfo && barrel !== k.barrelInfo) {
     result.analysis = result.analysis || {};
     const original = barrel || "—";
@@ -253,7 +243,6 @@ function _verifyWineFacts<T extends Record<string, any>>(result: T): T {
     ];
   }
 
-  // Verify country
   if (k.country && _norm(result.country) !== _norm(k.country)) {
     result.corrections = [
       ...(result.corrections || []),
@@ -262,12 +251,10 @@ function _verifyWineFacts<T extends Record<string, any>>(result: T): T {
     result.country = k.country;
   }
 
-  // Fill winery if missing
   if (k.winery && !result.wineryName) {
     result.wineryName = k.winery;
   }
 
-  // Fill appellation if missing
   if (k.appellation && result.analysis && !result.analysis.appellation) {
     result.analysis.appellation = k.appellation;
   }
@@ -275,51 +262,60 @@ function _verifyWineFacts<T extends Record<string, any>>(result: T): T {
   return result;
 }
 
-// ===== Global Source Gate (no invents) =====
 const TRUSTED_HOSTS = ["decantalo.com", "vinosselectos.es", "wine-searcher.com", "vivino.com", "cuatrorayas.es"];
 
 const _host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
 const _hasTrustedSource = (urls?: string[]) =>
   !!urls?.some(u => TRUSTED_HOSTS.some(t => _host(u).endsWith(t)));
 
-/** Si no hay fuente confiable, vaciamos datos técnicos para no inventar */
 function _sanitizeBySources<T extends Record<string, any>>(result: T): T {
   return result;
 }
 
 export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClientSchema>): Promise<WineAnalysis> => {
-  // País obligatorio (guardia)
   if (!userInput?.country || !String(userInput.country).trim()) {
     throw new Error("Debes indicar el país del vino para continuar el análisis.");
   }
-  const gen = await analyzeWinePrompt(userInput);
-  const output = { ...AiResponseSchema.parse(toJson(gen)) };
-  if (!output.wineName && userInput.wineName) output.wineName = String(userInput.wineName);
-  if (output.year == null && userInput.year != null) output.year = Number(userInput.year);
+  if (userInput.year == null || isNaN(Number(userInput.year))) {
+    throw new Error("Debes indicar una añada válida para el vino.");
+  }
+
+  const { output } = await analyzeWinePrompt(userInput);
+  const parseResult = AiResponseSchema.safeParse(output);
+  if (!parseResult.success) {
+    console.error('[FLOW] Parse failed:', parseResult.error);
+    return {
+      isAiGenerated: true,
+      wineName: userInput.wineName || '',
+      year: userInput.year != null ? Number(userInput.year) : 0,
+      country: userInput.country,
+      wineryName: userInput.wineryName,
+      notes: 'No se pudo generar un análisis completo debido a datos insuficientes.',
+      corrections: [],
+      pairingRating: userInput.foodToPair ? 1 : undefined,
+      pairingNotes: userInput.foodToPair ? 'Falta información para un maridaje preciso.' : undefined,
+      foodToPair: userInput.foodToPair,
+    };
+  }
+
+  let result: WineAnalysis = parseResult.data;
 
   console.log('[DEBUG] AI Output facts:', {
-    grapes: output.analysis?.grapeVariety,
-    barrel: output.analysis?.barrelInfo,
-    sources: output.analysis?.sources,
-    isAiGenerated: output.isAiGenerated
+    grapes: result.analysis?.grapeVariety,
+    barrel: result.analysis?.barrelInfo,
+    sources: result.analysis?.sources,
+    isAiGenerated: result.isAiGenerated
   });
 
-  let result: WineAnalysis;
+  result = _verifyWineFacts(result);
 
-  // Apply fact verification only (no sanitization)
-  result = _verifyWineFacts(output as any);
-
-  // === RAG mínimo: completar/verificar con ficha pública si existe ===
   try {
     const webFacts = await fetchPublicFactsByName(String(result.wineName || userInput.wineName || ""));
     if (webFacts) {
-      // País: corrige si contradice al actual
-      if (webFacts.country && _norm(String(result.country||"")) !== _norm(webFacts.country)) {
-        result.corrections = [...(result.corrections || []),
-          { field: "Country", original: String(result.country || "—"), corrected: webFacts.country }];
+      if (webFacts.country && _norm(String(result.country || "")) !== _norm(webFacts.country)) {
+        result.corrections = [...(result.corrections || []), { field: "Country", original: String(result.country || "—"), corrected: webFacts.country }];
         result.country = webFacts.country;
       }
-      // Barrica: si vacío o genérico, completa
       if (webFacts.barrel) {
         const cur = String(result.analysis?.barrelInfo || "");
         if (!cur || /tiempo no declarado|tipo no declarado|sin\s+barrica/i.test(cur)) {
@@ -327,7 +323,6 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
           result.analysis.barrelInfo = webFacts.barrel;
         }
       }
-      // Uvas: si vacío o “blend/coupage/mezcla” sin %/comas, completa
       if (webFacts.grapes) {
         const gv = String(result.analysis?.grapeVariety || "");
         const generic = /\b(blend|coupage|mezcla)\b/i.test(gv) && !/%/.test(gv) && !/,/.test(gv);
@@ -336,7 +331,6 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
           result.analysis.grapeVariety = webFacts.grapes;
         }
       }
-      // Fuentes (trazabilidad)
       if (webFacts.sources?.length) {
         result.analysis = result.analysis || {};
         const prev = new Set(result.analysis.sources || []);
@@ -346,14 +340,11 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
     }
   } catch { /* silencioso */ }
 
-  // ANTI-HALLUCINATIONS (uvas): no mostrar genéricos ni GSM sin respaldo
   if (result?.analysis?.grapeVariety) {
     const gv = String(result.analysis.grapeVariety).trim();
     const generic = /\b(blend|coupage|mezcla)\b/i.test(gv) && !/%/.test(gv) && !/,/.test(gv);
-
-    // Bloquear solo si es GSM explícito (los 3 tokens) o “GSM”, y sin porcentajes
-    const gsmTokens = ['garnacha','grenache','syrah','shiraz','monastrell'];
-    const countGsm = gsmTokens.reduce((n,t)=> n + (new RegExp(`\\b${t}\\b`,`i`).test(gv)?1:0),0);
+    const gsmTokens = ['garnacha', 'grenache', 'syrah', 'shiraz', 'monastrell'];
+    const countGsm = gsmTokens.reduce((n, t) => n + (new RegExp(`\\b${t}\\b`, 'i').test(gv) ? 1 : 0), 0);
     const guessedGSM = (/\bgsm\b/i.test(gv) || countGsm >= 3) && !/%/.test(gv);
 
     if (generic || guessedGSM) {
@@ -365,19 +356,19 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
 
   const imageGenerationModel = 'googleai/gemini-2.0-flash-preview-image-generation';
   const imageGenerationConfig = { responseModalities: ['TEXT', 'IMAGE'] as const };
+  const defaultPrompt = 'A generic wine representation, studio lighting, neutral background';
 
   if (!result.analysis) {
-    // Fallback solo si NO hay análisis en absoluto
     result = {
       isAiGenerated: true,
-      wineName: output.wineName,
-      year: output.year,
-      notes: output.notes,
-      corrections: output.corrections,
-      country: output.country || userInput.country,
-      wineryName: output.wineryName,
-      pairingRating: output.pairingRating,
-      pairingNotes: output.pairingNotes,
+      wineName: result.wineName,
+      year: result.year,
+      notes: result.notes,
+      corrections: result.corrections,
+      country: result.country || userInput.country,
+      wineryName: result.wineryName,
+      pairingRating: result.pairingRating,
+      pairingNotes: result.pairingNotes,
       foodToPair: userInput.foodToPair
     };
   } else {
@@ -386,17 +377,23 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
     const imagePromises = [
       ai.generate({
         model: imageGenerationModel,
-        prompt: `Hyper-realistic photo, a glass of wine. ${analysisData.visualDescriptionEn}. Studio lighting, neutral background.`,
+        prompt: analysisData.visualDescriptionEn?.trim() 
+          ? `Hyper-realistic photo, a glass of wine. ${analysisData.visualDescriptionEn}. Studio lighting, neutral background.` 
+          : defaultPrompt,
         config: imageGenerationConfig,
       }),
       ai.generate({
         model: imageGenerationModel,
-        prompt: `Abstract art, captures the essence of wine aromas. ${analysisData.olfactoryAnalysisEn}. No text, no glass.`,
+        prompt: analysisData.olfactoryAnalysisEn?.trim() 
+          ? `Abstract art, captures the essence of wine aromas. ${analysisData.olfactoryAnalysisEn}. No text, no glass.` 
+          : defaultPrompt,
         config: imageGenerationConfig,
       }),
       ai.generate({
         model: imageGenerationModel,
-        prompt: `Abstract textured art, evokes the sensation of wine flavors. ${analysisData.gustatoryPhaseEn}. No text, no glass.`,
+        prompt: analysisData.gustatoryPhaseEn?.trim() 
+          ? `Abstract textured art, evokes the sensation of wine flavors. ${analysisData.gustatoryPhaseEn}. No text, no glass.` 
+          : defaultPrompt,
         config: imageGenerationConfig,
       }),
     ];
@@ -418,7 +415,7 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
     result = {
       isAiGenerated: result.isAiGenerated,
       wineName: result.wineName,
-      year: output.year,
+      year: result.year,
       country: result.country,
       wineryName: result.wineryName,
       notes: result.notes,
@@ -436,7 +433,6 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
     };
   }
 
-  // COUNTRY MANDATORY — respeta exactamente lo ingresado si el modelo no lo contradice
   if (typeof userInput.country === "string" && userInput.country.trim()) {
     const provided = userInput.country.trim();
     const identified = String((result as any)?.country || "");
@@ -451,7 +447,6 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
 
   console.log(`[FLOW] Saving analysis to wineAnalyses for user: ${userInput.uid} | wine: ${((result as any)?.wineName)} | year: ${((result as any)?.year)}`);
 
-  // Cleanup: si quedo verificado, elimina cualquier nota de "fuentes no verificadas"
   if (!result.isAiGenerated && typeof result.notes === "string") {
     result.notes = result.notes
       .replace(/\s*\[Nota\][^\n]*fuentes verificables\.?/gi, "")
@@ -479,4 +474,4 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
     await saveAnalysisToHistory(userInput.uid, result);
   }
   return result;
-}
+};
