@@ -9,9 +9,9 @@ export const ai = genkit({
   plugins: [
     googleAI({
       apiKey: process.env.GEMINI_API_KEY!,
-      apiVersion: 'v1',
-      // projectId es opcional para API key; puedes dejarlo o quitarlo
-      projectId: GEMINI_PROJECT_ID,
+      apiVersion: 'v1beta',
+      // projectId es opcional para API key; mejor omitirlo para evitar confusión con Vertex:
+      // projectId: GEMINI_PROJECT_ID,
     }),
   ],
   firebase: { projectId: FIREBASE_PROJECT_ID },
