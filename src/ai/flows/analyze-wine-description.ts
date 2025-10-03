@@ -1,50 +1,41 @@
+'use server';
+
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import {
-  RecommendWineByCountryInputSchema,     // <- alias de RecommendWineSchema (dishDescription, country, language)
-  RecommendWineByCountryOutputSchema,    // <- array de recomendaciones
-  type RecommendWineByCountryOutput,
-} from '@/lib/schemas';
 
-export async function recommendWineByCountry(
-  input: z.infer<typeof RecommendWineByCountryInputSchema>
-): Promise<RecommendWineByCountryOutput> {
-  'use server';
-  return recommendWineByCountryFlow(input);
-}
+// ===== Schemas =====
+export const AnalyzeWineDescriptionInputSchema = z.object({
+  photoDataUri: z.string().min(50).describe("data:<mimetype>;base64,<...>"),
+});
+export type AnalyzeWineDescriptionInput = z.infer<typeof AnalyzeWineDescriptionInputSchema>;
 
-const recommendWineByCountryPrompt = ai.definePrompt({
-  name: 'recommendWineByCountryPrompt',
+export const AnalyzeWineDescriptionOutputSchema = z.object({
+  nombreVino: z.string(),
+  calificacion: z.number().min(1).max(5),
+  analisisExperto: z.string(),
+});
+export type AnalyzeWineDescriptionOutput = z.infer<typeof AnalyzeWineDescriptionOutputSchema>;
+
+// ===== Prompt Genkit (SO estricto) =====
+const prompt = ai.definePrompt({
+  name: 'analyzeWineDescriptionPrompt',
   model: 'googleai/gemini-2.5-pro',
-  input: { schema: RecommendWineByCountryInputSchema },
-  output: { format: 'json', schema: RecommendWineByCountryOutputSchema }, // <- ARRAY
+  input: { schema: AnalyzeWineDescriptionInputSchema },
+  output: { format: 'json', schema: AnalyzeWineDescriptionOutputSchema },
   prompt: `
-Actúas como un Master Sommelier. 
-Recomienda entre 3 y 5 vinos (array) adecuados para el platillo y país dados.
+Actúas como Master Sommelier. A partir del texto presente en la imagen, devuelve:
+- "nombreVino" (string)
+- "calificacion" (1-5)
+- "analisisExperto" (texto profesional, rico y preciso).
 
-Devuelve **un ARRAY JSON** únicamente. Cada item debe tener:
-- "wineName": string
-- "justificacionExperta": string (explica por qué marida)
-- "rating": number (1–5)
-
-Entrada del usuario:
-- Platillo: {{dishDescription}}
-- País: {{country}}
-- Idioma: {{language}}
-
-Return exactly one JSON array only (no wrapper object, no markdown, no backticks, no extra text).
+Return one valid JSON object only (no markdown, no backticks, no extra text).
   `,
 });
 
-const recommendWineByCountryFlow = ai.defineFlow(
-  {
-    name: 'recommendWineByCountryFlow',
-    inputSchema: RecommendWineByCountryInputSchema,
-    outputSchema: RecommendWineByCountryOutputSchema, // <- ARRAY
-  },
-  async (input) => {
-    const { output } = await recommendWineByCountryPrompt(input);
-    RecommendWineByCountryOutputSchema.parse(output);
-    return output; // <- array que la UI ya mapea con result.map(...)
-  }
-);
+// ===== Server Action invocable desde cliente =====
+export async function analyzeWineDescription(
+  input: AnalyzeWineDescriptionInput
+): Promise<AnalyzeWineDescriptionOutput> {
+  const { output } = await prompt(input);
+  return AnalyzeWineDescriptionOutputSchema.parse(output);
+}
