@@ -31,6 +31,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="font-body antialiased" suppressHydrationWarning>
         {children}
+        {/* Registro SW PWA (seguro) */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(console.error);
+  });
+}
+            `,
+          }}
+        />
       </body>
     </html>
   );
+}
