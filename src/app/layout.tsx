@@ -43,6 +43,40 @@ if ('serviceWorker' in navigator) {
             `,
           }}
         />
+        {/* Script para instalación de PWA */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+let deferredPrompt = null;
+
+// Android: cuando el sitio cumple los requisitos, Chrome dispara este evento
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  // Muestra el botón si el navegador lo permite
+  document.getElementById('install-app-cta')?.classList.remove('hidden');
+});
+
+function installApp() {
+  const ua = navigator.userAgent.toLowerCase();
+  const isIOS = /iphone|ipad|ipod/.test(ua);
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+  if (deferredPrompt) {            // ANDROID: prompt nativo
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.finally(() => { deferredPrompt = null; });
+  } else if (isIOS && isSafari) {  // iOS: Apple obliga a guía manual
+    alert('Para instalar en iPhone: 1) toca Compartir  2) “Añadir a pantalla de inicio”.');
+  } else {
+    // Fallback si el evento aún no disparó (o navegador no soporta)
+    alert('Si no ves “Instalar app”, usa Chrome (Android) o Safari (iOS) y elige “Añadir a pantalla de inicio”.');
+  }
+}
+// Exponer para el botón
+window.installApp = installApp;
+            `,
+          }}
+        />
       </body>
     </html>
   );
