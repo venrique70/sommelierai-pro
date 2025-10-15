@@ -42,7 +42,7 @@ export default function LanguageSwitcher({ language, setLanguage }: LanguageSwit
         <button
           id="install-app-cta"
           className={cn(
-            'btn-install hidden rounded-full px-5 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            'btn-install rounded-full px-5 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             'text-muted-foreground hover:bg-accent'
           )}
           onClick={() => (window as any).installApp()}
