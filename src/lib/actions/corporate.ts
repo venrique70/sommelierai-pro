@@ -1,4 +1,4 @@
-﻿import { adminDb } from "@/lib/firebase-admin";
+import { adminDb } from "@/lib/firebase-admin";
 
 export type CorporatePlan = "Starter" | "Premium" | "Pro";
 export type CorporateStatus = "active" | "suspended";
@@ -58,5 +58,30 @@ export async function sendCorporateInvite(arg: { accountId: string; email: strin
   await adminDb().collection(COL_INV).add({
     accountId: arg.accountId, email: arg.email, role: arg.role,
     status: "pending", sentAt: new Date().toISOString(),
+  });
+}
+
+// Obtener un corporate por id (wrapper con el nombre esperado por admin/corporate/actions.ts)
+export async function getCorporateInfo(accountId: string): Promise<CorporateAccount | null> {
+  const doc = await adminDb().collection(COL).doc(accountId).get();
+  if (!doc.exists) return null;
+  return { id: doc.id, ...(doc.data() as any) } as CorporateAccount;
+}
+
+// Crear/solicitar info corporativa (wrapper: usa createCorporateAccount debajo)
+export async function requestCorporateInfo(arg: {
+  companyName: string;
+  contactEmail: string;
+  seats?: number;
+  plan?: CorporatePlan;
+  taxId?: string;
+}): Promise<CorporateAccount> {
+  return createCorporateAccount({
+    companyName: arg.companyName,
+    contactEmail: arg.contactEmail,
+    seats: arg.seats ?? 1,
+    plan: (arg.plan ?? 'Starter') as CorporatePlan,
+    taxId: arg.taxId,
+    status: 'active',
   });
 }
