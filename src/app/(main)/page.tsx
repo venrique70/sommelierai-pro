@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { Wine, Lightbulb, UtensilsCrossed } from "lucide-react";
 import Link from "next/link";
 
-import { LanguageSwitcher } from "@/components/language-switcher";
+import LanguageSwitcher from '@/components/language-switcher';
 import { translations, type Language } from "@/lib/translations";
 import { WineAnalysisTab } from "@/components/features/wine-analysis-tab";
 import { RecommendWineTab } from "@/components/features/recommend-wine-tab";
