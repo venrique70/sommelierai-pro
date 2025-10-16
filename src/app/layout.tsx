@@ -61,39 +61,40 @@ if ('serviceWorker' in navigator) {
         <script
           dangerouslySetInnerHTML={{
             __html: `
-let deferredPrompt = null;
+  var deferredPrompt = null;
 
-// Android: guarda el prompt nativo cuando Chrome lo dispara
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  const cta = document.getElementById('install-app-cta'); // tu botón Android
-  if (cta) cta.textContent = '▼ Install App Android (listo)';
-});
+  // ANDROID: Chrome entrega el prompt aquí
+  window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    var cta = document.getElementById('install-app-cta'); // botón Android
+    if (cta) cta.textContent = '▼ Install App Android (listo)';
+  });
 
-// iOS popover helpers
-const iosPop = () => document.getElementById('ios-guide-pop');
-document.addEventListener('click', (e) => {
-  if (e.target && (e.target as HTMLElement).id === 'ios-guide-close') {
-    iosPop()?.classList.add('hidden');
-  }
-});
+  // MISMA FUNCIÓN que usabas antes (no tocamos el flujo)
+  window.installApp = function () {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.finally(function(){ deferredPrompt = null; });
+    } else {
+      // Guía mínima si aún no hay prompt nativo (no intrusiva)
+      alert('Android: Menú ⋮ → “Añadir a pantalla principal”.');
+    }
+  };
 
-// Botón Android (usa el flujo que ya funcionaba)
-window.installAndroid = function () {
-  if (deferredPrompt) {
-    deferredPrompt.prompt();
-    deferredPrompt.userChoice.finally(() => { deferredPrompt = null; });
-  } else {
-    // Guía mínima si aún no hay prompt nativo (no intrusiva)
-    alert('Android: Menú ⋮ → “Añadir a pantalla principal”.');
-  }
-};
-
-// Botón iOS: muestra guía compacta
-window.showIosGuide = function () {
-  iosPop()?.classList.remove('hidden');
-};
+  // iOS: guía compacta (popover)
+  (function(){
+    var iosPop = document.getElementById('ios-guide-pop');
+    document.addEventListener('click', function(e){
+      var el = e.target;
+      if (el && el.id === 'ios-guide-close' && iosPop) {
+        iosPop.classList.add('hidden');
+      }
+    });
+    window.showIosGuide = function () {
+      if (iosPop) iosPop.classList.remove('hidden');
+    };
+  })();
 `,
           }}
         />
