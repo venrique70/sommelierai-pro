@@ -38,17 +38,29 @@ export default function LanguageSwitcher({ language, setLanguage }: LanguageSwit
         >
           English
         </button>
-        {/* CTA de instalación */}
+        {/* CTA de instalación (Android) */}
         <button
           id="install-app-cta"
           className={cn(
             'btn-install rounded-full px-5 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             'text-muted-foreground hover:bg-accent'
           )}
-          onClick={() => (window as any).installApp()}
-          title="Instalar app"
+          onClick={() => (window as any).installAndroid?.()}
+          title="Instalar en Android"
         >
-          Instalar app
+          ▼Install App Android
+        </button>
+        {/* CTA iOS/Apple (nuevo) */}
+        <button
+          id="install-ios-cta"
+          className={cn(
+            'btn-install rounded-full px-5 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            'text-muted-foreground hover:bg-accent'
+          )}
+          onClick={() => (window as any).showIosGuide?.()}
+          title="Instalar en iOS / Apple"
+        >
+          ▼Install App iOS/Apple
         </button>
       </div>
     </div>

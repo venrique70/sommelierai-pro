@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Script from "next/script";
 
 export const metadata: Metadata = {
   title: "SommelierPro AI",
@@ -15,13 +14,36 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="manifest" href="/manifest.json" crossOrigin="anonymous" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="theme-color" content="#D4B26A" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
+        />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        {/* iOS icons */}
         <link rel="apple-touch-icon" href="/logo/icon-192.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/logo/apple-touch-icon-180.png" />
+        <meta name="apple-mobile-web-app-title" content="SommelierPro AI" />
       </head>
+
       <body className="font-body antialiased" suppressHydrationWarning>
         {children}
+
+        {/* Popover guía iOS (compacto, pegado al footer) */}
+        <div id="ios-guide-pop" className="install-popover hidden">
+          <h3 className="text-lg font-bold mb-2">
+            Instalar <span className="text-primary">SommelierPro AI</span> en iPhone
+          </h3>
+          <ol className="text-sm opacity-80 list-decimal ml-5">
+            <li className="mb-1">En Safari toca <strong>Compartir</strong> (▢↑).</li>
+            <li className="mb-1">Elige <strong>“Añadir a pantalla de inicio”</strong>.</li>
+            <li>Abre desde el <strong>icono</strong> — se verá a pantalla completa.</li>
+          </ol>
+          <div className="install-actions">
+            <button id="ios-guide-close" className="btn-secondary">Cerrar</button>
+          </div>
+        </div>
+
         {/* Registro SW PWA (seguro) */}
         <script
           dangerouslySetInnerHTML={{
@@ -31,41 +53,48 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(console.error);
   });
 }
-            `,
+`,
           }}
         />
-        {/* Script para instalación de PWA */}
+
+        {/* Handlers Android / iOS para los botones del footer */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
 let deferredPrompt = null;
 
-// Android: cuando el sitio cumple los requisitos, Chrome dispara este evento
+// Android: guarda el prompt nativo cuando Chrome lo dispara
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
-  // Muestra el botón si el navegador lo permite
-  document.getElementById('install-app-cta')?.classList.remove('hidden');
+  const cta = document.getElementById('install-app-cta'); // tu botón Android
+  if (cta) cta.textContent = '▼ Install App Android (listo)';
 });
 
-function installApp() {
-  const ua = navigator.userAgent.toLowerCase();
-  const isIOS = /iphone|ipad|ipod/.test(ua);
-  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+// iOS popover helpers
+const iosPop = () => document.getElementById('ios-guide-pop');
+document.addEventListener('click', (e) => {
+  if (e.target && (e.target as HTMLElement).id === 'ios-guide-close') {
+    iosPop()?.classList.add('hidden');
+  }
+});
 
-  if (deferredPrompt) {            // ANDROID: prompt nativo
+// Botón Android (usa el flujo que ya funcionaba)
+window.installAndroid = function () {
+  if (deferredPrompt) {
     deferredPrompt.prompt();
     deferredPrompt.userChoice.finally(() => { deferredPrompt = null; });
-  } else if (isIOS && isSafari) {  // iOS: Apple obliga a guía manual
-    alert('Para instalar en iPhone: 1) toca Compartir  2) “Añadir a pantalla de inicio”.');
   } else {
-    // Fallback si el evento aún no disparó (o navegador no soporta)
-    alert('Si no ves “Instalar app”, usa Chrome (Android) o Safari (iOS) y elige “Añadir a pantalla de inicio”.');
+    // Guía mínima si aún no hay prompt nativo (no intrusiva)
+    alert('Android: Menú ⋮ → “Añadir a pantalla principal”.');
   }
-}
-// Exponer para el botón
-window.installApp = installApp;
-            `,
+};
+
+// Botón iOS: muestra guía compacta
+window.showIosGuide = function () {
+  iosPop()?.classList.remove('hidden');
+};
+`,
           }}
         />
       </body>
