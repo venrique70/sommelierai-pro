@@ -48,7 +48,7 @@ export default function LanguageSwitcher({ language, setLanguage }: LanguageSwit
           onClick={() => (window as any).installAndroid?.()}
           title="Instalar en Android"
         >
-          ▼ Install App Android
+          ▼Install App Android
         </button>
         {/* CTA iOS/Apple (nuevo) */}
         <button
@@ -60,7 +60,7 @@ export default function LanguageSwitcher({ language, setLanguage }: LanguageSwit
           onClick={() => (window as any).showIosGuide?.()}
           title="Instalar en iOS / Apple"
         >
-          ▼ Install App iOS/Apple
+          ▼Install App iOS/Apple
         </button>
       </div>
     </div>
