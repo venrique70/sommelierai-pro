@@ -48,7 +48,7 @@ export default function LanguageSwitcher({ language, setLanguage }: LanguageSwit
           onClick={() => (window as any).installApp()}
           title="Instalar app"
         >
-          Instalar app
+          ▼ Install App Android
         </button>
       </div>
     </div>
