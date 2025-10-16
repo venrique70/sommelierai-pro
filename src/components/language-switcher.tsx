@@ -45,8 +45,8 @@ export default function LanguageSwitcher({ language, setLanguage }: LanguageSwit
             'btn-install rounded-full px-5 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             'text-muted-foreground hover:bg-accent'
           )}
-          onClick={() => (window as any).installAndroid?.()}
-          title="Instalar en Android"
+          onClick={() => (window as any).installApp()}
+          title="Instalar app"
         >
           ▼Install App Android
         </button>
