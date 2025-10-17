@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { ENABLE_MOBILE_MENU_TOGGLE } from "@/lib/featureFlags";
 import MobileSidebar from "@/components/MobileSidebar";
+import { AppSidebar } from "@/components/ui/sidebar";
 
 export const metadata: Metadata = {
   title: "SommelierPro AI",
@@ -29,9 +29,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
 
       <body className="font-body antialiased" suppressHydrationWarning>
-        {/* Reemplazo de <aside> por <MobileSidebar> */}
         <MobileSidebar>
-          {/* Contenido del menú sin modificar */}
+          <AppSidebar />
         </MobileSidebar>
 
         {/* Main con margen solo en desktop */}
