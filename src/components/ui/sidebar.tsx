@@ -113,6 +113,7 @@ const AppSidebar = () => {
   // ⬇️ idioma actual + diccionario
   const lang = useLang("es")
   const t = translations[lang]
+  const { isMobile, openMobile, toggleSidebar } = useSidebar()
 
   // ⬇️ Menús con labels traducidos (no tocamos rutas)
   const mainNav = [
@@ -188,7 +189,28 @@ const AppSidebar = () => {
 
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="flex flex-col w-64 bg-sidebar text-sidebar-foreground">
+      {isMobile && (
+        <button
+          onClick={toggleSidebar}
+          aria-label={openMobile ? "Cerrar menú" : "Abrir menú"}
+          className="md:hidden fixed left-3 top-3 z-[60] rounded-full bg-black/70 border border-zinc-700/60 px-3 py-2 text-[#D4B26A]"
+        >
+          ≡
+        </button>
+      )}
+      {isMobile && openMobile && (
+        <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setOpenMobile(false)} />
+      )}
+      <div
+        className={cn(
+          "flex flex-col w-64 bg-sidebar text-sidebar-foreground",
+          // Desktop fijo:
+          "md:static md:translate-x-0",
+          // Móvil off-canvas con animación:
+          "fixed left-0 top-0 h-full z-50 transition-transform duration-300",
+          openMobile ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
         <div className="p-4 font-bold text-lg">SommelierPro AI</div>
 
         {/* Principal */}
