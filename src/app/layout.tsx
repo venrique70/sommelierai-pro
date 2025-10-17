@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ENABLE_MOBILE_MENU_TOGGLE } from "@/lib/featureFlags";
 
 export const metadata: Metadata = {
   title: "SommelierPro AI",
@@ -27,7 +28,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
 
       <body className="font-body antialiased" suppressHydrationWarning>
-        {children}
+        {/* Aside del menú sin las clases translate-x-* */}
+        <aside
+          className={[
+            // Posición y capas
+            "bg-black", // Color actual
+            "md:static", // Desktop: siempre visible
+            "fixed left-0 top-0 h-full w-64 z-50", // Móvil: off-canvas
+            "transition-transform duration-300", // Animación
+          ].join(" ")}
+        >
+          {/* Contenido del menú sin modificar */}
+        </aside>
+
+        {/* Main con margen solo en desktop */}
+        <main className="md:ml-64">
+          {children}
+        </main>
 
         {/* Popover guía iOS (compacto, pegado al footer) */}
         <div id="ios-guide-pop" className="install-popover hidden">
