@@ -151,70 +151,72 @@ function SidebarUI({
 }: any) {
   const { isMobile, openMobile, toggleSidebar } = useSidebar()
 
+  // Contenido común del menú
+  const menuContent = (
+    <>
+      <div className="p-4 font-bold text-lg">SommelierPro AI</div>
+      <NavMenu items={mainNav} pathname={pathname} handleHomeClick={handleHomeClick} />
+      <div className="mt-4 font-semibold text-xs px-4">{t.navAiTools}</div>
+      <NavMenu items={toolNav} pathname={pathname} handleHomeClick={handleHomeClick} />
+      <div className="mt-4 font-semibold text-xs px-4">{t.navAccount}</div>
+      <NavMenu items={accountNav} pathname={pathname} handleHomeClick={handleHomeClick} />
+      <div className="mt-4 font-semibold text-xs px-4">{t.navAffiliatePortal}</div>
+      <NavMenu items={affiliateNav} pathname={pathname} handleHomeClick={handleHomeClick} />
+      {!authLoading && (
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={handleLogout} tooltip={t.navLogout}>
+              <LogOut />
+              <span>{t.navLogout}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      )}
+      {profile?.role === "admin" && (
+        <>
+          <div className="mt-4 font-semibold text-xs px-4">{t.navAdmin}</div>
+          <NavMenu items={adminNav} pathname={pathname} handleHomeClick={handleHomeClick} />
+        </>
+      )}
+    </>
+  )
+
+  if (!isMobile) {
+    // DESKTOP: solo el panel normal, sin fixed/translate ni overlay
+    return (
+      <div className="flex flex-col w-64 bg-sidebar text-sidebar-foreground md:static md:translate-x-0">
+        {menuContent}
+      </div>
+    )
+  }
+
+  // MÓVIL: botón, overlay y panel off-canvas
   return (
     <>
-      {isMobile && (
-        <button
-          onClick={toggleSidebar}
-          aria-label={openMobile ? "Cerrar menú" : "Abrir menú"}
-          className="md:hidden fixed left-3 top-3 z-[60] rounded-full bg-black/70 border border-zinc-700/60 px-3 py-2 text-[#D4B26A]"
-        >
-          ≡
-        </button>
-      )}
+      <button
+        onClick={toggleSidebar}
+        aria-label={openMobile ? "Cerrar menú" : "Abrir menú"}
+        className="md:hidden fixed left-3 top-3 z-[70] rounded-full bg-black/70 border border-zinc-700/60 px-3 py-2 text-[#D4B26A]"
+      >
+        ≡
+      </button>
 
-      {isMobile && openMobile && (
+      {openMobile && (
         <div
           className="fixed inset-0 z-40 bg-black/40"
-          onClick={() => toggleSidebar()}
+          onClick={toggleSidebar}
           aria-hidden="true"
         />
       )}
 
       <div
         className={cn(
-          "flex flex-col w-64 bg-sidebar text-sidebar-foreground",
-          "md:static md:translate-x-0",
-          "fixed left-0 top-0 h-full z-50 transition-transform duration-300",
+          "fixed left-0 top-0 h-full w-64 z-50 bg-sidebar text-sidebar-foreground",
+          "transition-transform duration-300",
           openMobile ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="p-4 font-bold text-lg">SommelierPro AI</div>
-
-        {/* Principal */}
-        <NavMenu items={mainNav} pathname={pathname} handleHomeClick={handleHomeClick} />
-
-        {/* Herramientas IA */}
-        <div className="mt-4 font-semibold text-xs px-4">{t.navAiTools}</div>
-        <NavMenu items={toolNav} pathname={pathname} handleHomeClick={handleHomeClick} />
-
-        {/* Cuenta */}
-        <div className="mt-4 font-semibold text-xs px-4">{t.navAccount}</div>
-        <NavMenu items={accountNav} pathname={pathname} handleHomeClick={handleHomeClick} />
-
-        {/* Afiliados */}
-        <div className="mt-4 font-semibold text-xs px-4">{t.navAffiliatePortal}</div>
-        <NavMenu items={affiliateNav} pathname={pathname} handleHomeClick={handleHomeClick} />
-
-        {/* Logout */}
-        {!authLoading && (
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton onClick={handleLogout} tooltip={t.navLogout}>
-                <LogOut />
-                <span>{t.navLogout}</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        )}
-
-        {/* Admin */}
-        {profile?.role === "admin" && (
-          <>
-            <div className="mt-4 font-semibold text-xs px-4">{t.navAdmin}</div>
-            <NavMenu items={adminNav} pathname={pathname} handleHomeClick={handleHomeClick} />
-          </>
-        )}
+        {menuContent}
       </div>
     </>
   )
