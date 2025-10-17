@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import MobileSidebar from "@/components/MobileSidebar";
 import { AppSidebar } from "@/components/ui/sidebar";
 
 export const metadata: Metadata = {
@@ -29,9 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
 
       <body className="font-body antialiased" suppressHydrationWarning>
-        <MobileSidebar>
-          <AppSidebar />
-        </MobileSidebar>
+        <AppSidebar />
 
         {/* Main con margen solo en desktop */}
         <main className="md:ml-64">
