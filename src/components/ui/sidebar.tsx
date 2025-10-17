@@ -181,18 +181,9 @@ function SidebarUI({
     </>
   )
 
-  if (!isMobile) {
-    // DESKTOP: solo el panel normal, sin fixed/translate ni overlay
-    return (
-      <div className="hidden md:flex flex-col w-64 bg-sidebar text-sidebar-foreground md:static md:translate-x-0">
-        {menuContent}
-      </div>
-    )
-  }
-
-  // MÓVIL: botón, overlay y panel off-canvas
   return (
     <>
+      {/* Botón solo en móvil */}
       <button
         onClick={toggleSidebar}
         aria-label={openMobile ? "Cerrar menú" : "Abrir menú"}
@@ -201,19 +192,25 @@ function SidebarUI({
         ≡
       </button>
 
+      {/* Overlay solo en móvil cuando está abierto */}
       {openMobile && (
         <div
-          className="fixed inset-0 z-40 bg-black/40"
+          className="md:hidden fixed inset-0 z-40 bg-black/40"
           onClick={toggleSidebar}
           aria-hidden="true"
         />
       )}
 
+      {/* Un solo sidebar para todo: móvil + desktop */}
       <div
         className={cn(
-          "fixed left-0 top-0 h-full w-64 z-50 bg-sidebar text-sidebar-foreground",
-          "transition-transform duration-300",
-          openMobile ? "translate-x-0" : "-translate-x-full"
+          "bg-sidebar text-sidebar-foreground w-64 h-full",
+          // base: posición móvil
+          "fixed left-0 top-0 z-50 transition-transform duration-300",
+          // móvil: oculto/visible según estado
+          openMobile ? "translate-x-0" : "-translate-x-full",
+          // desktop: siempre visible y estático
+          "md:static md:z-auto md:translate-x-0 md:transition-none"
         )}
       >
         {menuContent}
