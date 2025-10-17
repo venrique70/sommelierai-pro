@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ENABLE_MOBILE_MENU_TOGGLE } from "@/lib/featureFlags";
+import MobileSidebar from "@/components/MobileSidebar";
 
 export const metadata: Metadata = {
   title: "SommelierPro AI",
@@ -28,18 +29,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
 
       <body className="font-body antialiased" suppressHydrationWarning>
-        {/* Aside del menú sin las clases translate-x-* */}
-        <aside
-          className={[
-            // Posición y capas
-            "bg-black", // Color actual
-            "md:static", // Desktop: siempre visible
-            "fixed left-0 top-0 h-full w-64 z-50", // Móvil: off-canvas
-            "transition-transform duration-300", // Animación
-          ].join(" ")}
-        >
+        {/* Reemplazo de <aside> por <MobileSidebar> */}
+        <MobileSidebar>
           {/* Contenido del menú sin modificar */}
-        </aside>
+        </MobileSidebar>
 
         {/* Main con margen solo en desktop */}
         <main className="md:ml-64">
