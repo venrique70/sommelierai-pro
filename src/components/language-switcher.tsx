@@ -3,6 +3,7 @@
 import { Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Language } from '@/lib/translations';
+import InstallIosButton from "@/components/InstallIosButton";
 
 interface LanguageSwitcherProps {
   language: Language;
@@ -50,18 +51,7 @@ export default function LanguageSwitcher({ language, setLanguage }: LanguageSwit
         >
           ▼Install App Android
         </button>
-        {/* CTA iOS/Apple (nuevo) */}
-        <button
-          id="install-ios-cta"
-          className={cn(
-            'btn-install rounded-full px-5 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            'text-muted-foreground hover:bg-accent'
-          )}
-          onClick={() => (window as any).showIosGuide?.()}
-          title="Instalar en iOS / Apple"
-        >
-          ▼Install App iOS/Apple
-        </button>
+        <InstallIosButton />
       </div>
     </div>
   );
