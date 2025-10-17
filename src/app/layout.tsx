@@ -30,8 +30,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-body antialiased" suppressHydrationWarning>
         <AppSidebar />
 
-        {/* Main con margen solo en desktop */}
-        <main className="md:ml-64">
+        {/* Main con margen solo en desktop y sin micro-scroll lateral */}
+        <main className="md:ml-64 overflow-x-hidden">
           {children}
         </main>
 
