@@ -102,6 +102,124 @@ const SidebarProvider = ({ children, defaultOpen = true }: { children: React.Rea
   )
 }
 
+/* -------------------- NAV MENU -------------------- */
+
+const NavMenu = ({
+  items,
+  pathname,
+  handleHomeClick,
+}: {
+  items: { href: string; label: string; icon: React.ElementType; isButton?: boolean }[]
+  pathname: string
+  handleHomeClick: () => void
+}) => (
+  <SidebarMenu>
+    {items.map((item) => (
+      <SidebarMenuItem key={item.href}>
+        {item.isButton ? (
+          <SidebarMenuButton onClick={handleHomeClick} isActive={pathname === item.href} tooltip={item.label}>
+            <item.icon />
+            <span>{item.label}</span>
+          </SidebarMenuButton>
+        ) : (
+          <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label}>
+            <Link href={item.href}>
+              <item.icon />
+              <span>{item.label}</span>
+            </Link>
+          </SidebarMenuButton>
+        )}
+      </SidebarMenuItem>
+    ))}
+  </SidebarMenu>
+)
+
+/* -------------------- SIDEBAR UI -------------------- */
+
+function SidebarUI({
+  t,
+  pathname,
+  handleHomeClick,
+  accountNav,
+  mainNav,
+  toolNav,
+  affiliateNav,
+  adminNav,
+  authLoading,
+  profile,
+  handleLogout,
+}: any) {
+  const { isMobile, openMobile, toggleSidebar } = useSidebar()
+
+  return (
+    <>
+      {isMobile && (
+        <button
+          onClick={toggleSidebar}
+          aria-label={openMobile ? "Cerrar menú" : "Abrir menú"}
+          className="md:hidden fixed left-3 top-3 z-[60] rounded-full bg-black/70 border border-zinc-700/60 px-3 py-2 text-[#D4B26A]"
+        >
+          ≡
+        </button>
+      )}
+
+      {isMobile && openMobile && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40"
+          onClick={() => toggleSidebar()}
+          aria-hidden="true"
+        />
+      )}
+
+      <div
+        className={cn(
+          "flex flex-col w-64 bg-sidebar text-sidebar-foreground",
+          "md:static md:translate-x-0",
+          "fixed left-0 top-0 h-full z-50 transition-transform duration-300",
+          openMobile ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        <div className="p-4 font-bold text-lg">SommelierPro AI</div>
+
+        {/* Principal */}
+        <NavMenu items={mainNav} pathname={pathname} handleHomeClick={handleHomeClick} />
+
+        {/* Herramientas IA */}
+        <div className="mt-4 font-semibold text-xs px-4">{t.navAiTools}</div>
+        <NavMenu items={toolNav} pathname={pathname} handleHomeClick={handleHomeClick} />
+
+        {/* Cuenta */}
+        <div className="mt-4 font-semibold text-xs px-4">{t.navAccount}</div>
+        <NavMenu items={accountNav} pathname={pathname} handleHomeClick={handleHomeClick} />
+
+        {/* Afiliados */}
+        <div className="mt-4 font-semibold text-xs px-4">{t.navAffiliatePortal}</div>
+        <NavMenu items={affiliateNav} pathname={pathname} handleHomeClick={handleHomeClick} />
+
+        {/* Logout */}
+        {!authLoading && (
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton onClick={handleLogout} tooltip={t.navLogout}>
+                <LogOut />
+                <span>{t.navLogout}</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        )}
+
+        {/* Admin */}
+        {profile?.role === "admin" && (
+          <>
+            <div className="mt-4 font-semibold text-xs px-4">{t.navAdmin}</div>
+            <NavMenu items={adminNav} pathname={pathname} handleHomeClick={handleHomeClick} />
+          </>
+        )}
+      </div>
+    </>
+  )
+}
+
 /* -------------------- APP SIDEBAR -------------------- */
 
 const AppSidebar = () => {
@@ -113,7 +231,6 @@ const AppSidebar = () => {
   // ⬇️ idioma actual + diccionario
   const lang = useLang("es")
   const t = translations[lang]
-  const { isMobile, openMobile, toggleSidebar } = useSidebar()
 
   // ⬇️ Menús con labels traducidos (no tocamos rutas)
   const mainNav = [
@@ -148,32 +265,6 @@ const AppSidebar = () => {
     else router.push("/")
   }
 
-  const NavMenu = ({
-    items,
-  }: {
-    items: { href: string; label: string; icon: React.ElementType; isButton?: boolean }[]
-  }) => (
-    <SidebarMenu>
-      {items.map((item) => (
-        <SidebarMenuItem key={item.href}>
-          {item.isButton ? (
-            <SidebarMenuButton onClick={handleHomeClick} isActive={pathname === item.href} tooltip={item.label}>
-              <item.icon />
-              <span>{item.label}</span>
-            </SidebarMenuButton>
-          ) : (
-            <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label}>
-              <Link href={item.href}>
-                <item.icon />
-                <span>{item.label}</span>
-              </Link>
-            </SidebarMenuButton>
-          )}
-        </SidebarMenuItem>
-      ))}
-    </SidebarMenu>
-  )
-
   const handleLogout = async () => {
     try {
       await logout(router)
@@ -189,65 +280,19 @@ const AppSidebar = () => {
 
   return (
     <SidebarProvider defaultOpen={true}>
-      {isMobile && (
-        <button
-          onClick={toggleSidebar}
-          aria-label={openMobile ? "Cerrar menú" : "Abrir menú"}
-          className="md:hidden fixed left-3 top-3 z-[60] rounded-full bg-black/70 border border-zinc-700/60 px-3 py-2 text-[#D4B26A]"
-        >
-          ≡
-        </button>
-      )}
-      {isMobile && openMobile && (
-        <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setOpenMobile(false)} />
-      )}
-      <div
-        className={cn(
-          "flex flex-col w-64 bg-sidebar text-sidebar-foreground",
-          // Desktop fijo:
-          "md:static md:translate-x-0",
-          // Móvil off-canvas con animación:
-          "fixed left-0 top-0 h-full z-50 transition-transform duration-300",
-          openMobile ? "translate-x-0" : "-translate-x-full"
-        )}
-      >
-        <div className="p-4 font-bold text-lg">SommelierPro AI</div>
-
-        {/* Principal */}
-        <NavMenu items={mainNav} />
-
-        {/* Herramientas IA */}
-        <div className="mt-4 font-semibold text-xs px-4">{t.navAiTools}</div>
-        <NavMenu items={toolNav} />
-
-        {/* Cuenta */}
-        <div className="mt-4 font-semibold text-xs px-4">{t.navAccount}</div>
-        <NavMenu items={accountNav} />
-
-        {/* Afiliados */}
-        <div className="mt-4 font-semibold text-xs px-4">{t.navAffiliatePortal}</div>
-        <NavMenu items={affiliateNav} />
-
-        {/* Logout */}
-        {!authLoading && (
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton onClick={handleLogout} tooltip={t.navLogout}>
-                <LogOut />
-                <span>{t.navLogout}</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        )}
-
-        {/* Admin */}
-        {profile?.role === "admin" && (
-          <>
-            <div className="mt-4 font-semibold text-xs px-4">{t.navAdmin}</div>
-            <NavMenu items={adminNav} />
-          </>
-        )}
-      </div>
+      <SidebarUI
+        t={t}
+        pathname={pathname}
+        handleHomeClick={handleHomeClick}
+        accountNav={accountNav}
+        mainNav={mainNav}
+        toolNav={toolNav}
+        affiliateNav={affiliateNav}
+        adminNav={adminNav}
+        authLoading={authLoading}
+        profile={profile}
+        handleLogout={handleLogout}
+      />
     </SidebarProvider>
   )
 }
