@@ -184,7 +184,7 @@ function SidebarUI({
   if (!isMobile) {
     // DESKTOP: solo el panel normal, sin fixed/translate ni overlay
     return (
-      <div className="flex flex-col w-64 bg-sidebar text-sidebar-foreground md:static md:translate-x-0">
+      <div className="hidden md:flex flex-col w-64 bg-sidebar text-sidebar-foreground md:static md:translate-x-0">
         {menuContent}
       </div>
     )
@@ -281,7 +281,7 @@ const AppSidebar = () => {
   }
 
   return (
-    <SidebarProvider defaultOpen={true}>
+    <SidebarProvider defaultOpen={false}>
       <SidebarUI
         t={t}
         pathname={pathname}
