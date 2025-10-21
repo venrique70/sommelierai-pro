@@ -1,3 +1,4 @@
+```tsx
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
@@ -28,18 +29,21 @@ import { useLang } from "@/lib/use-lang";
 // esquema del form de solicitud
 import { z } from "zod";
 const ApprovalFormSchema = z.object({
-  firstName: z.string().min(2),
-  lastName: z.string().min(2),
-  idNumber: z.string().min(3),
-  phone: z.string().min(6),
-  country: z.string().min(2),
-  motivation: z.string().min(10),
+  firstName: z.string().min(2, { message: "El nombre debe tener al menos 2 caracteres." }),
+  lastName: z.string().min(2, { message: "El apellido debe tener al menos 2 caracteres." }),
+  idNumber: z.string().min(3, { message: "El documento debe tener al menos 3 caracteres." }),
+  phone: z.string().min(6, { message: "El teléfono debe tener al menos 6 caracteres." }),
+  country: z.string().min(2, { message: "El país debe tener al menos 2 caracteres." }),
+  motivation: z.string().min(10, { message: "La motivación debe tener al menos 10 caracteres." }),
+  uid: z.string().min(1, { message: "El UID es requerido." }),
+  email: z.string().email({ message: "Debe ser un email válido." }),
 });
 export type ApprovalForm = z.infer<typeof ApprovalFormSchema>;
 
 /* ───────────────────────── VendorOnboarding (inline) ───────────────────────── */
 function VendorOnboardingInline({
   email,
+  uid,
   vendorStatus = "none",
   affiliateLink,
   onAffiliateLinkChange,
@@ -48,6 +52,7 @@ function VendorOnboardingInline({
   savingLink,
 }: {
   email?: string;
+  uid?: string;
   vendorStatus?: VendorStatus;
   affiliateLink: string;
   onAffiliateLinkChange: (v: string) => void;
@@ -67,11 +72,19 @@ function VendorOnboardingInline({
       phone: "",
       country: "",
       motivation: "",
+      uid: uid || "",
+      email: email || "",
     },
   });
 
+  // Sincronizar uid y email cuando cambien las props
+  useEffect(() => {
+    if (uid) form.setValue("uid", uid);
+    if (email) form.setValue("email", email);
+  }, [uid, email, form]);
+
   const { isSubmitting } = form.formState;
-  const disabled = vendorStatus !== "none" || isSubmitting;
+  const disabled = isSubmitting;
 
   return (
     <Card className="border-primary/20 bg-card">
@@ -88,75 +101,142 @@ function VendorOnboardingInline({
         <div className="rounded-md border p-4">
           <div className="font-semibold mb-3">{lang === "es" ? "1) Solicitar Aprobación" : "1) Request Approval"}</div>
           <p className="text-sm text-muted-foreground mb-4">
-            {lang === "es"
-              ? (
-                <>
-                  Al enviar tu solicitud, un admin revisará tu cuenta ({email ?? "tu email"}). La solicitud se envía a <strong>vip@sommelierai.pro</strong>. Recibirás el estado en este mismo panel.
-                </>
-              )
-              : (
-                <>
-                  After you send your request, an admin will review your account ({email ?? "your email"}). The request is sent to <strong>vip@sommelierai.pro</strong>. You’ll see the status here.
-                </>
-              )}
+            {lang === "es" ? (
+              <>
+                Al enviar tu solicitud, un admin revisará tu cuenta ({email ?? "tu email"}). Recibirás el estado en este mismo panel.
+              </>
+            ) : (
+              <>
+                After you send your request, an admin will review your account ({email ?? "your email"}). You’ll see the status here.
+              </>
+            )}
           </p>
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onRequestApproval)} className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <FormField control={form.control} name="firstName" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{lang === "es" ? "Nombre" : "First Name"}</FormLabel>
-                  <FormControl><Input placeholder={lang === "es" ? "Juan" : "John"} {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="lastName" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{lang === "es" ? "Apellido" : "Last Name"}</FormLabel>
-                  <FormControl><Input placeholder={lang === "es" ? "Pérez" : "Doe"} {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="idNumber" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{lang === "es" ? "Documento de Identidad" : "ID Number"}</FormLabel>
-                  <FormControl><Input placeholder={lang === "es" ? "DNI/CE/Pasaporte" : "ID/Passport"} {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="phone" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{lang === "es" ? "Teléfono" : "Phone"}</FormLabel>
-                  <FormControl><Input placeholder="+51 999 999 999" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="country" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{lang === "es" ? "País" : "Country"}</FormLabel>
-                  <FormControl><Input placeholder={lang === "es" ? "Perú" : "Peru"} {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <div className="md:col-span-2">
-                <FormField control={form.control} name="motivation" render={({ field }) => (
+              {/* Campos ocultos para uid y email */}
+              <FormField
+                control={form.control}
+                name="uid"
+                render={({ field }) => (
+                  <FormItem className="hidden">
+                    <FormControl>
+                      <Input type="hidden" {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem className="hidden">
+                    <FormControl>
+                      <Input type="hidden" {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="firstName"
+                render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{lang === "es" ? "¿Por qué quieres ser referente de SommelierPro AI?" : "Why do you want to be a SommelierPro AI advocate?"}</FormLabel>
-                    <FormControl><Input placeholder={lang === "es" ? "Cuéntanos brevemente..." : "Tell us briefly..."} {...field} /></FormControl>
+                    <FormLabel>{lang === "es" ? "Nombre" : "First Name"}</FormLabel>
+                    <FormControl>
+                      <Input placeholder={lang === "es" ? "Juan" : "John"} {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
-                )} />
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="lastName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{lang === "es" ? "Apellido" : "Last Name"}</FormLabel>
+                    <FormControl>
+                      <Input placeholder={lang === "es" ? "Pérez" : "Doe"} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="idNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{lang === "es" ? "Documento de Identidad" : "ID Number"}</FormLabel>
+                    <FormControl>
+                      <Input placeholder={lang === "es" ? "DNI/CE/Pasaporte" : "ID/Passport"} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{lang === "es" ? "Teléfono" : "Phone"}</FormLabel>
+                    <FormControl>
+                      <Input placeholder="+51 999 999 999" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="country"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{lang === "es" ? "País" : "Country"}</FormLabel>
+                    <FormControl>
+                      <Input placeholder={lang === "es" ? "Perú" : "Peru"} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="md:col-span-2">
+                <FormField
+                  control={form.control}
+                  name="motivation"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        {lang === "es" ? "¿Por qué quieres ser referente de SommelierPro AI?" : "Why do you want to be a SommelierPro AI advocate?"}
+                      </FormLabel>
+                      <FormControl>
+                        <Input placeholder={lang === "es" ? "Cuéntanos brevemente..." : "Tell us briefly..."} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
               <div className="md:col-span-2 mt-2">
                 <Button type="submit" disabled={disabled}>
-                  {vendorStatus === "pending"
-                    ? (lang === "es" ? "En revisión…" : "Under review…")
+                  {isSubmitting
+                    ? lang === "es"
+                      ? "Enviando…"
+                      : "Sending…"
                     : vendorStatus === "approved"
-                    ? (lang === "es" ? "Aprobado ✔" : "Approved ✔")
-                    : isSubmitting
-                    ? (lang === "es" ? "Enviando…" : "Sending…")
-                    : (lang === "es" ? "Enviar solicitud" : "Send request")}
+                    ? lang === "es"
+                      ? "Aprobado ✔"
+                      : "Approved ✔"
+                    : vendorStatus === "pending"
+                    ? lang === "es"
+                      ? "Reenviar notificación"
+                      : "Resend notification"
+                    : lang === "es"
+                    ? "Enviar solicitud"
+                    : "Send request"}
                 </Button>
               </div>
             </form>
@@ -167,8 +247,12 @@ function VendorOnboardingInline({
         <div className="rounded-md border p-4">
           <div className="font-semibold mb-1">
             {vendorStatus === "approved"
-              ? (lang === "es" ? "2) Crear tu cuenta de afiliado" : "2) Create your affiliate account")
-              : (lang === "es" ? "2) Recibirás un correo con instrucciones" : "2) You will receive an email with instructions")}
+              ? lang === "es"
+                ? "2) Crear tu cuenta de afiliado"
+                : "2) Create your affiliate account"
+              : lang === "es"
+              ? "2) Recibirás un correo con instrucciones"
+              : "2) You will receive an email with instructions"}
           </div>
 
           {vendorStatus === "approved" ? (
@@ -180,11 +264,7 @@ function VendorOnboardingInline({
               </p>
               <div className="mt-3">
                 <Button asChild variant="secondary">
-                  <a
-                    href="https://sommelierproai.lemonsqueezy.com/affiliates"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
+                  <a href="https://sommelierproai.lemonsqueezy.com/affiliates" target="_blank" rel="noopener noreferrer">
                     {lang === "es" ? "Ir al portal de afiliados" : "Go to affiliate portal"}
                     <ExternalLink className="ml-2 h-4 w-4" />
                   </a>
@@ -216,7 +296,7 @@ function VendorOnboardingInline({
               placeholder={lang === "es" ? "https://tu-subdominio.lemonsqueezy.com/checkout/XXXX" : "https://your-subdomain.lemonsqueezy.com/checkout/XXXX"}
             />
             <Button onClick={onSaveAffiliateLink} disabled={!!savingLink}>
-              {savingLink ? (lang === "es" ? "Guardando…" : "Saving…") : (lang === "es" ? "Guardar enlace" : "Save link")}
+              {savingLink ? (lang === "es" ? "Guardando…" : "Saving…") : lang === "es" ? "Guardar enlace" : "Save link"}
             </Button>
           </div>
         </div>
@@ -236,8 +316,6 @@ function VendorOnboardingInline({
 }
 
 /* ─────────────────────── CommissionsSection (inline) ─────────────────────── */
-
-// Nueva tabla simple: % por plan (Mes/Año). Se elimina la sección corporativa.
 const PLAN_COMMISSIONS: { plan: string; month: string; year: string }[] = [
   { plan: "Descúbrete", month: "0%", year: "0%" },
   { plan: "Iniciado", month: "5%", year: "6%" },
@@ -286,7 +364,6 @@ function CommissionsSectionInline() {
 }
 
 /* ───────────────────────────── Page ───────────────────────────── */
-
 export default function AffiliateDashboardPage() {
   const lang = useLang("es");
   const { user } = useAuth();
@@ -294,11 +371,9 @@ export default function AffiliateDashboardPage() {
 
   const [metrics, setMetrics] = useState<VendorMetrics | null>(null);
   const [loadingMetrics, startLoadingMetrics] = useTransition();
-
   const [affiliateLink, setAffiliateLink] = useState("");
   const [savingLink, startSavingLink] = useTransition();
 
-  // mientras no está conectado a BD, usamos constantes
   const vendorStatus: VendorStatus = (metrics?.affiliateStatus as VendorStatus) ?? "none";
 
   useEffect(() => {
@@ -415,7 +490,9 @@ export default function AffiliateDashboardPage() {
 
       {/* Onboarding */}
       <VendorOnboardingInline
+        key={user?.uid ?? "nouser"}
         email={user?.email ?? ""}
+        uid={user?.uid ?? ""}
         vendorStatus={vendorStatus}
         affiliateLink={affiliateLink}
         onAffiliateLinkChange={setAffiliateLink}
@@ -430,42 +507,59 @@ export default function AffiliateDashboardPage() {
             return;
           }
 
-          try {
-            await submitAffiliateRequest(user.uid, { email: user.email, ...data });
-          } catch {}
-
-          const subject =
-            (lang === "es" ? "Solicitud de afiliado — " : "Affiliate request — ") + `${data.firstName} ${data.lastName}`;
-
-          const body = `\n${lang === "es" ? "Nueva solicitud de aprobación (Afiliados)" : "New affiliate approval request"}\n\nUID: ${user.uid}\nEmail: ${user.email}\n\n${lang === "es" ? "Nombre" : "First Name"}: ${data.firstName}\n${lang === "es" ? "Apellido" : "Last Name"}: ${data.lastName}\n${lang === "es" ? "Documento de Identidad" : "ID Number"}: ${data.idNumber}\n${lang === "es" ? "Teléfono" : "Phone"}: ${data.phone}\n${lang === "es" ? "País" : "Country"}: ${data.country}\n${lang === "es" ? "Motivación" : "Motivation"}: ${data.motivation}`.trim();
-
-          const mailto = `mailto:vip@sommelierai.pro?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-          window.location.href = mailto;
-
-          toast({
-            title: lang === "es" ? "Abre tu correo" : "Open your email",
-            description:
-              lang === "es"
-                ? "Hemos preparado un correo a vip@sommelierai.pro. Revísalo y envíalo. Tu solicitud quedó en revisión."
-                : "We prepared an email to vip@sommelierai.pro. Review and send it. Your request is now under review.",
-          });
-
           startLoadingMetrics(async () => {
-            const m = await getVendorMetrics(user.uid!);
-            setMetrics(m);
+            try {
+              // Registrar la solicitud en la base de datos
+              await submitAffiliateRequest(user.uid, { email: user.email, ...data });
+
+              // Enviar datos a la API
+              const res = await fetch("/api/affiliate/request", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  uid: data.uid,
+                  email: data.email,
+                  firstName: data.firstName,
+                  lastName: data.lastName,
+                  idNumber: data.idNumber,
+                  phone: data.phone,
+                  country: data.country,
+                  motivation: data.motivation,
+                }),
+              });
+
+              const j = await res.json().catch(() => ({}));
+              toast({
+                title: j.success ? (lang === "es" ? "Solicitud enviada" : "Request sent") : (lang === "es" ? "Error" : "Error"),
+                description: j.success
+                  ? lang === "es"
+                    ? "Tu solicitud ha sido enviada. Revisa el estado en el panel."
+                    : "Your request has been sent. Check the status in the panel."
+                  : j.message || (lang === "es" ? `Error: ${res.status}` : `Error: ${res.status}`),
+                variant: j.success ? "default" : "destructive",
+              });
+
+              // Actualizar métricas
+              const m = await getVendorMetrics(user.uid!);
+              setMetrics(m);
+            } catch (error) {
+              toast({
+                title: lang === "es" ? "Error" : "Error",
+                description: lang === "es" ? "No se pudo enviar la solicitud. Intenta de nuevo." : "Could not send request. Try again.",
+                variant: "destructive",
+              });
+            }
           });
         }}
         savingLink={!!savingLink}
       />
 
-      {/* Tabla de comisiones (nueva) */}
+      {/* Tabla de comisiones */}
       <div className="mt-8">
         <CommissionsSectionInline />
       </div>
 
-      {/* Se eliminaron: "Comisiones por Planes Corporativos" y "Registrar Venta Corporativa" */}
-
-      {/* Ventas recientes (si las expones en tu backend) */}
+      {/* Ventas recientes */}
       <Card>
         <CardHeader>
           <CardTitle>{lang === "es" ? "Ventas Recientes" : "Recent Sales"}</CardTitle>
@@ -507,3 +601,4 @@ export default function AffiliateDashboardPage() {
     </div>
   );
 }
+```
