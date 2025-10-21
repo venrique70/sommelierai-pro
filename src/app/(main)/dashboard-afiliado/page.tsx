@@ -1,4 +1,3 @@
-```tsx
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
@@ -601,4 +600,3 @@ export default function AffiliateDashboardPage() {
     </div>
   );
 }
-```
