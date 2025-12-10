@@ -112,17 +112,12 @@ async function saveAnalysisToHistory(uid: string, analysis: WineAnalysis): Promi
   try {
     const db = adminDb();
     db.settings?.({ ignoreUndefinedProperties: true });
-
-    // CORRECCIÓN APLICADA AQUÍ
-    // Solo eliminamos campos legacy que puedan ser arrays gigantes (image_urls)
-    // Mantenemos todas las URLs individuales que usamos para las imágenes generadas
     const STRIP_KEYS = /^(image_urls)$/i;
-
     const scrub = (v: any): any => {
       if (v === undefined || typeof v === "function" || v instanceof Promise) return null;
       if (v === null) return null;
       if (typeof v === "string") {
-        if (v.startsWith("data:")) return null; // evita base64 gigantes
+        if (v.startsWith("data:")) return null;
         return v;
       }
       if (Array.isArray(v)) return v.map(scrub);
@@ -137,7 +132,6 @@ async function saveAnalysisToHistory(uid: string, analysis: WineAnalysis): Promi
       }
       return v;
     };
-
     const safeAnalysis = scrub((analysis as any)?.analysis);
     const docToSave: any = {
       uid,
@@ -153,13 +147,11 @@ async function saveAnalysisToHistory(uid: string, analysis: WineAnalysis): Promi
       wineryName: (analysis as any)?.wineryName ?? null,
       createdAt: FieldValue.serverTimestamp(),
     };
-
     console.log("[FLOW] Writing to 'wineAnalyses' (no images):", {
       uid,
       wineName: docToSave.wineName,
       year: docToSave.year,
     });
-
     await db.collection("wineAnalyses").add(docToSave);
     console.log(`[FLOW] Wrote doc in 'wineAnalyses' OK for uid=${uid}`);
   } catch (err) {
@@ -210,7 +202,6 @@ function _verifyWineFacts<T extends Record<string, any>>(result: T): T {
   const barrel = String(result?.analysis?.barrelInfo || "");
   const k = _findKnown(result?.wineName);
   if (!k) return result;
-
   const hasGSM = /\b(garnacha|grenache|syrah|shiraz|monastrell)\b/i.test(gv);
   const grapesWrong = hasGSM || (k.grapesPct && gv !== k.grapesPct);
   if (grapesWrong) {
@@ -363,8 +354,36 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
     [visualResult, olfactoryResult, gustatoryResult, glassResult] = await Promise.allSettled([...imagePromises, glassImagePromise]);
   }
 
-  const getUrl = (res: PromiseSettledResult<any>) =>
-    res.status === 'fulfilled' && res.value?.media?.url ? res.value.media.url : undefined;
+  // ← FUNCIÓN REEMPLAZADA (ahora es 100% resistente a cambios de formato de Genkit/Gemini)
+  const getUrl = (res: PromiseSettledResult<any>) => {
+    if (res.status !== 'fulfilled' || !res.value) return undefined;
+
+    const v: any = res.value;
+
+    // 1) Caso: v.media es array
+    if (Array.isArray(v.media) && v.media.length > 0 && v.media[0]?.url) {
+      return v.media[0].url;
+    }
+
+    // 2) Caso: v.media es objeto
+    if (v.media?.url) {
+      return v.media.url;
+    }
+
+    // 3) Caso: v.output.media (algunos adaptadores de Genkit)
+    if (Array.isArray(v.output?.media) && v.output.media[0]?.url) {
+      return v.output.media[0].url;
+    }
+    if (v.output?.media?.url) {
+      return v.output.media.url;
+    }
+
+    // 4) Otros formatos posibles
+    if (v.imageUri) return v.imageUri;
+    if (v.url) return v.url;
+
+    return undefined;
+  };
 
   result = {
     isAiGenerated: result.isAiGenerated,
