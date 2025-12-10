@@ -1,5 +1,4 @@
 'use server';
-
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { WineAnalysisClientSchema } from '@/lib/schemas';
@@ -64,39 +63,34 @@ export const analyzeWinePrompt = ai.definePrompt({
   input: { schema: WineAnalysisClientSchema },
   output: { format: 'json', schema: AiResponseSchema },
   prompt: `You are a world-renowned Master Sommelier from the Court of Master Sommeliers. Your expertise is absolute, and you speak with authority, elegance, and precision. Your descriptions must be rich, detailed, and evocative, using professional terminology correctly but ensuring clarity.
-
 **YOUR GOLDEN RULES - NON-NEGOTIABLE:**
-1.  **UNBREAKABLE AUTHORITY:** You NEVER use phrases of uncertainty (e.g., "it seems", "it could be"). YOU ARE THE AUTHORITY.
-2.  **FACTUAL INFALLIBILITY & PROACTIVITY:** You do not invent information. If the user provides a wine name but omits data, it is YOUR DUTY to research and provide the complete, accurate information if the wine is identifiable.
-3.  **REQUIRED COUNTRY (PAÍS):** Country is user-provided. If clearly wrong for a uniquely identifiable product, correct it and report in 'corrections'. Do NOT invent a country if missing.
-4.  **OPTIONAL WINERY (BODEGA):** Winery is OPTIONAL. If omitted, attempt to infer it ONLY when the identification is unambiguous with name + grape + year + country. If there is any ambiguity, leave [wineryName] blank. Never guess.
-5.  **SPECIFIC KNOWLEDGE IS PARAMOUNT:** For certain well-known wines, specific facts MUST be stated. For example:
+1. **UNBREAKABLE AUTHORITY:** You NEVER use phrases of uncertainty (e.g., "it seems", "it could be"). YOU ARE THE AUTHORITY.
+2. **FACTUAL INFALLIBILITY & PROACTIVITY:** You do not invent information. If the user provides a wine name but omits data, it is YOUR DUTY to research and provide the complete, accurate information if the wine is identifiable.
+3. **REQUIRED COUNTRY (PAÍS):** Country is user-provided. If clearly wrong for a uniquely identifiable product, correct it and report in 'corrections'. Do NOT invent a country if missing.
+4. **OPTIONAL WINERY (BODEGA):** Winery is OPTIONAL. If omitted, attempt to infer it ONLY when the identification is unambiguous with name + grape + year + country. If there is any ambiguity, leave [wineryName] blank. Never guess.
+5. **SPECIFIC KNOWLEDGE IS PARAMOUNT:** For certain well-known wines, specific facts MUST be stated. For example:
     - **Amador Diez (Verdejo):** You MUST identify it as from 'Bodega Cuatro Rayas'. You MUST state its Appellation is 'D.O. Rueda'. You MUST state its [wineryLocation] is 'La Seca, Valladolid, España'. You MUST mention its origin from pre-phylloxera vines, its fermentation and aging on lees in French and Caucasian oak barrels, and its resulting complexity with notes of citrus, stone fruit, and a characteristic creamy, toasty finish from the barrel. The 'barrelInfo' and 'appellation' fields MUST be filled correctly.
-6.  **CORRECTIONS LOGIC:** Only report a correction in the 'corrections' array if the user provided a non-empty value that was incorrect. For example, if the user enters "Amador Diez" with country "Francia", you must correct it to "España" and report the correction. However, if the user enters "Amador Diez" and leaves the country field blank, you must fill in "España" but you MUST NOT add this action to the 'corrections' array.
-7.  **CRITICAL LANGUAGE RULE:** Respond entirely in the language specified by '{{language}}'.
-8.  Do not write disclaimers like “no dispongo…”, “no puedo confirmar…”. If a field is unknown, omit the disclaimer.
-9.  **ANTI-HALLUCINATION PROTOCOL:** You MUST follow this to avoid inventing facts. For ALL factual fields (e.g., grapeVariety, barrelInfo, appellation, wineryLocation):
+6. **CORRECTIONS LOGIC:** Only report a correction in the 'corrections' array if the user provided a non-empty value that was incorrect. For example, if the user enters "Amador Diez" with country "Francia", you must correct it to "España" and report the correction. However, if the user enters "Amador Diez" and leaves the country field blank, you must fill in "España" but you MUST NOT add this action to the 'corrections' array.
+7. **CRITICAL LANGUAGE RULE:** Respond entirely in the language specified by '{{language}}'.
+8. Do not write disclaimers like “no dispongo…”, “no puedo confirmar…”. If a field is unknown, omit the disclaimer.
+9. **ANTI-HALLUCINATION PROTOCOL:** You MUST follow this to avoid inventing facts. For ALL factual fields (e.g., grapeVariety, barrelInfo, appellation, wineryLocation):
     - Only provide information if it is 100% verifiable from your training data (no speculation or inference).
     - NEVER use phrases like "probably", "typically", "I believe", or disclaimers—simply omit the data.
     - Self-check: Before outputting, ask yourself: "Is this exact for THIS wine/year?" If no, blank.
-
 **BARREL DETAIL (MANDATORY):**
 - If the wine is identified and barrel aging is EXPLICITLY known from verified sources in your training (e.g., "12 months in American oak" for a specific wine), provide precise details: time in months/years, oak type, and percentage (e.g., “12 meses en roble americano”, “6 meses en roble francés y 6 meses en depósito”).
 - Do NOT invent or generalize (e.g., no "typical for region"). If unknown or not declared, leave "barrelInfo" COMPLETELY EMPTY ("").
 - Do NOT write disclaimers like “no dispongo…”, “no puedo confirmar…”, or “probablemente…”. If the producer truly does not declare any barrel aging, leave "barrelInfo" empty (do not output placeholders like “sin barrica declarada”).
-
 **GRAPE DETAIL (MANDATORY):**
 - Provide the EXACT grape composition ONLY if known 100% for this specific wine/year from your training (with percentages if available, e.g., "Cabernet Sauvignon 35%, Merlot 35%"). If percentages are not published, list varieties explicitly (e.g., "Cabernet Sauvignon, Merlot, Monastrell").
 - Do NOT invent blends or guess (avoid generic “blend tinto” or regional assumptions). If unknown or ambiguous, leave "grapeVariety" COMPLETELY EMPTY ("") and set isAiGenerated: true.
-
 **YOUR MANDATORY PROCESS:**
 **Preconditions:** If country is missing, do not infer; require country from the user. For winery, only fill when the match is uniquely clear; otherwise proceed without it.
-1.  Identify & research the wine by name, grape, and year, applying your specific knowledge and correction logic. If facts like grapes or barrel are unknown after identification, set isAiGenerated: true and leave those fields empty. Do not proceed to sensory analysis without core facts.
-2.  Provide rich sensory analysis (visual, olfactory, gustatory). The descriptions must be elaborate, following the detailed instructions in the output schema. For visual, describe hue, intensity, and what the legs imply. For olfactory, differentiate primary, secondary, and tertiary aromas. For gustatory, detail the attack, evolution, and finish, describing the interplay of acidity, tannins, and body.
-3.  Recommend food pairings with justifications.
-4.  Provide expert conclusion notes. This must include a mention of the country of origin.
-5.  Generate concise English descriptors for image generation (the 'En' fields).
-
+1. Identify & research the wine by name, grape, and year, applying your specific knowledge and correction logic. If facts like grapes or barrel are unknown after identification, set isAiGenerated: true and leave those fields empty. Do not proceed to sensory analysis without core facts.
+2. Provide rich sensory analysis (visual, olfactory, gustatory). The descriptions must be elaborate, following the detailed instructions in the output schema. For visual, describe hue, intensity, and what the legs imply. For olfactory, differentiate primary, secondary, and tertiary aromas. For gustatory, detail the attack, evolution, and finish, describing the interplay of acidity, tannins, and body.
+3. Recommend food pairings with justifications.
+4. Provide expert conclusion notes. This must include a mention of the country of origin.
+5. Generate concise English descriptors for image generation (the 'En' fields).
 **User Input:**
 - Language: {{{language}}}
 - Product Name: {{{wineName}}}
@@ -106,7 +100,6 @@ export const analyzeWinePrompt = ai.definePrompt({
 - Country: {{{country}}}
 {{#if foodToPair}}- Dish to pair: {{{foodToPair}}}{{/if}}
 - Note: Base ALL facts on verifiable knowledge only—no external search simulation.
-
 Return one valid JSON object only (no markdown, no backticks, no extra text).
 `,
 });
@@ -116,18 +109,20 @@ async function saveAnalysisToHistory(uid: string, analysis: WineAnalysis): Promi
     console.error("[FLOW] No UID provided, cannot save analysis.");
     return;
   }
-
   try {
     const db = adminDb();
     db.settings?.({ ignoreUndefinedProperties: true });
 
-    const STRIP_KEYS = /^(imageUrl|image_urls|suggestedGlassTypeImageUrl)$/i;
+    // CORRECCIÓN APLICADA AQUÍ
+    // Solo eliminamos campos legacy que puedan ser arrays gigantes (image_urls)
+    // Mantenemos todas las URLs individuales que usamos para las imágenes generadas
+    const STRIP_KEYS = /^(image_urls)$/i;
 
     const scrub = (v: any): any => {
       if (v === undefined || typeof v === "function" || v instanceof Promise) return null;
       if (v === null) return null;
       if (typeof v === "string") {
-        if (v.startsWith("data:")) return null;
+        if (v.startsWith("data:")) return null; // evita base64 gigantes
         return v;
       }
       if (Array.isArray(v)) return v.map(scrub);
@@ -144,7 +139,6 @@ async function saveAnalysisToHistory(uid: string, analysis: WineAnalysis): Promi
     };
 
     const safeAnalysis = scrub((analysis as any)?.analysis);
-
     const docToSave: any = {
       uid,
       userId: uid,
@@ -167,9 +161,9 @@ async function saveAnalysisToHistory(uid: string, analysis: WineAnalysis): Promi
     });
 
     await db.collection("wineAnalyses").add(docToSave);
-    console.log(`[FLOW] ✅ Wrote doc in 'wineAnalyses' OK for uid=${uid}`);
+    console.log(`[FLOW] Wrote doc in 'wineAnalyses' OK for uid=${uid}`);
   } catch (err) {
-    console.error(`[FLOW] ❌ Write failed for uid=${uid}:`, err);
+    console.error(`[FLOW] Write failed for uid=${uid}:`, err);
   }
 }
 
@@ -229,7 +223,6 @@ function _verifyWineFacts<T extends Record<string, any>>(result: T): T {
       { field: "Grape", original, corrected: k.grapesPct }
     ];
   }
-
   if (k.barrelInfo && barrel !== k.barrelInfo) {
     result.analysis = result.analysis || {};
     const original = barrel || "—";
@@ -240,7 +233,6 @@ function _verifyWineFacts<T extends Record<string, any>>(result: T): T {
       { field: "Barrel", original, corrected: k.barrelInfo }
     ];
   }
-
   if (k.country && _norm(result.country) !== _norm(k.country)) {
     result.corrections = [
       ...(result.corrections || []),
@@ -248,20 +240,16 @@ function _verifyWineFacts<T extends Record<string, any>>(result: T): T {
     ];
     result.country = k.country;
   }
-
   if (k.winery && !result.wineryName) {
     result.wineryName = k.winery;
   }
-
   if (k.appellation && result.analysis && !result.analysis.appellation) {
     result.analysis.appellation = k.appellation;
   }
-
   return result;
 }
 
 const TRUSTED_HOSTS = ["decantalo.com", "vinosselectos.es", "wine-searcher.com", "vivino.com", "cuatrorayas.es"];
-
 const _host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
 const _hasTrustedSource = (urls?: string[]) =>
   !!urls?.some(u => TRUSTED_HOSTS.some(t => _host(u).endsWith(t)));
@@ -327,7 +315,6 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
     const gsmTokens = ['garnacha', 'grenache', 'syrah', 'shiraz', 'monastrell'];
     const countGsm = gsmTokens.reduce((n, t) => n + (new RegExp(`\\b${t}\\b`, 'i').test(gv) ? 1 : 0), 0);
     const guessedGSM = (/\bgsm\b/i.test(gv) || countGsm >= 3) && !/%/.test(gv);
-
     if (generic || guessedGSM) {
       result.corrections = [...(result.corrections || []), { field: "Grape", original: gv, corrected: "—" }];
       result.analysis.grapeVariety = "";
@@ -337,13 +324,14 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
 
   const imageGenerationModel = 'googleai/gemini-2.0-flash-preview-image-generation';
   const imageGenerationConfig = { responseModalities: ['TEXT', 'IMAGE'] as const };
-
   const analysisData = result.analysis;
+
   const okImg = String(analysisData.visualDescriptionEn || '').trim().length >= 10 &&
                 String(analysisData.olfactoryAnalysisEn || '').trim().length >= 10 &&
                 String(analysisData.gustatoryPhaseEn || '').trim().length >= 10;
 
   let visualResult: any, olfactoryResult: any, gustatoryResult: any, glassResult: any;
+
   if (okImg) {
     const imagePromises = [
       ai.generate({
@@ -362,6 +350,7 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
         config: imageGenerationConfig,
       }),
     ];
+
     let glassImagePromise: Promise<any> = Promise.resolve(null);
     if (analysisData.suggestedGlassType && !/n\/?a|no especificado|not specified/i.test(analysisData.suggestedGlassType)) {
       glassImagePromise = ai.generate({
@@ -370,6 +359,7 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
         config: imageGenerationConfig,
       });
     }
+
     [visualResult, olfactoryResult, gustatoryResult, glassResult] = await Promise.allSettled([...imagePromises, glassImagePromise]);
   }
 
@@ -417,6 +407,7 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
       .replace(/\s+\./g, ".")
       .trim();
   }
+
   const countryFix = result.corrections?.find(c => /^(País|Country)$/i.test(c.field));
   if (countryFix && typeof result.notes === "string") {
     const wrong = String(countryFix.original || "").trim();
@@ -425,16 +416,16 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
       result.notes = result.notes
         .replace(new RegExp(`\\b${wrong}\\b`, "gi"), right)
         .replace(/(origen|origin)\s+en\s+(francia|france)/gi, `$1 en ${right}`);
-
       if (/^España$/i.test(right)) {
         result.notes = result.notes.replace(/\bfranc[eé]s(a)?\b/gi, (_m, a) => (a ? "española" : "español"));
       }
-
       result.notes = result.notes.trim();
     }
   }
+
   if (userInput.uid) {
     await saveAnalysisToHistory(userInput.uid, result);
   }
+
   return result;
 };
