@@ -313,7 +313,7 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
     }
   }
 
-  const imageGenerationModel = 'googleai/gemini-2.5-flash-preview-image-generation';
+  const imageGenerationModel = 'googleai/gemini-2.5-flash-image-preview';
   const imageGenerationConfig = { responseModalities: ['TEXT', 'IMAGE'] as const };
   const analysisData = result.analysis;
 
