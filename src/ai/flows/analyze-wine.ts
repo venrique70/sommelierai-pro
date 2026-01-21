@@ -268,6 +268,29 @@ const withKeyIfNeeded = (url: string) => {
 
 type MediaHit = { url?: string; dataB64?: string; contentType?: string };
 
+// Helper para convertir diferentes formatos de datos binarios a base64 string
+const asBase64 = (d: any): string | undefined => {
+  if (!d) return undefined;
+  if (typeof d === "string") return d;
+
+  try {
+    // ArrayBuffer
+    if (d instanceof ArrayBuffer) return Buffer.from(d).toString("base64");
+    // Uint8Array / Buffer / TypedArray
+    if (ArrayBuffer.isView(d)) {
+      return Buffer.from(d.buffer, d.byteOffset, d.byteLength).toString("base64");
+    }
+  } catch {}
+
+  return undefined;
+};
+
+const toDataUrl = (ct: string, b64: string) => {
+  const contentType = ct || "image/png";
+  if (b64.startsWith("data:")) return b64;
+  return `data:${contentType};base64,${b64}`;
+};
+
 const extractMedia = (v: any): MediaHit | null => {
   if (!v) return null;
 
@@ -275,15 +298,14 @@ const extractMedia = (v: any): MediaHit | null => {
   const img = v?.image || v?.output?.image;
   if (img) {
     const ct = img.contentType || img.mimeType;
-    const b64 =
+    const b64Raw =
       img.data ||
       img.base64 ||
       img.inlineData?.data ||
       img.inline_data?.data;
+    const b64 = asBase64(b64Raw);
     if (typeof img.url === "string") return { url: img.url, contentType: ct };
-    if (typeof b64 === "string") {
-      return { dataB64: b64, contentType: ct || img.inlineData?.mimeType || img.inline_data?.mime_type };
-    }
+    if (b64) return { dataB64: b64, contentType: ct || img.inlineData?.mimeType || img.inline_data?.mime_type };
   }
 
   // 1) media directo (casos más comunes)
@@ -294,13 +316,14 @@ const extractMedia = (v: any): MediaHit | null => {
   const m1 = direct?.media ? direct.media : direct;
   if (m1) {
     const ct = m1.contentType || m1.mimeType;
-    const b64 =
+    const b64Raw =
       m1.data ||
       m1.base64 ||
       m1.inlineData?.data ||
       m1.inline_data?.data;
+    const b64 = asBase64(b64Raw);
     if (typeof m1.url === "string") return { url: m1.url, contentType: ct };
-    if (typeof b64 === "string") return { dataB64: b64, contentType: ct || m1.inlineData?.mimeType || m1.inline_data?.mime_type };
+    if (b64) return { dataB64: b64, contentType: ct || m1.inlineData?.mimeType || m1.inline_data?.mime_type };
   }
 
   // 2) message/content/parts
@@ -321,23 +344,20 @@ const extractMedia = (v: any): MediaHit | null => {
     for (const p of parts) {
       const pm = p?.media || p;
       const ct = pm?.contentType || pm?.mimeType || p?.inlineData?.mimeType || p?.inline_data?.mime_type;
-      const b64 =
+      const b64Raw =
         pm?.data ||
         pm?.base64 ||
+        pm?.inlineData?.data ||
+        pm?.inline_data?.data ||
         p?.inlineData?.data ||
         p?.inline_data?.data;
+      const b64 = asBase64(b64Raw);
       if (typeof pm?.url === "string") return { url: pm.url, contentType: ct };
-      if (typeof b64 === "string") return { dataB64: b64, contentType: ct };
+      if (b64) return { dataB64: b64, contentType: ct };
     }
   }
 
   return null;
-};
-
-const toDataUrl = (ct: string, b64: string) => {
-  const contentType = ct || "image/png";
-  if (b64.startsWith("data:")) return b64;
-  return `data:${contentType};base64,${b64}`;
 };
 
 const getImageSrc = async (
@@ -452,6 +472,7 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
 
   const analysisData = result.analysis;
 
+  // Textos con fallback a las descripciones normales si faltan los ...En
   const visualTxt =
     (analysisData.visualDescriptionEn || "").trim() ||
     (analysisData.visual?.description || "").trim();
