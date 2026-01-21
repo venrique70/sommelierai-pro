@@ -271,6 +271,22 @@ type MediaHit = { url?: string; dataB64?: string; contentType?: string };
 const extractMedia = (v: any): MediaHit | null => {
   if (!v) return null;
 
+  // 0) Algunos modelos exponen directamente response.image / output.image
+  const img = v?.image || v?.output?.image;
+  if (img) {
+    const ct = img.contentType || img.mimeType;
+    const b64 =
+      img.data ||
+      img.base64 ||
+      img.inlineData?.data ||
+      img.inline_data?.data;
+    if (typeof img.url === "string") return { url: img.url, contentType: ct };
+    if (typeof b64 === "string") {
+      return { dataB64: b64, contentType: ct || img.inlineData?.mimeType || img.inline_data?.mime_type };
+    }
+  }
+
+  // 1) media directo (casos más comunes)
   const direct =
     (Array.isArray(v.media) ? v.media[0] : v.media) ||
     (Array.isArray(v.output?.media) ? v.output.media[0] : v.output?.media);
@@ -287,6 +303,7 @@ const extractMedia = (v: any): MediaHit | null => {
     if (typeof b64 === "string") return { dataB64: b64, contentType: ct || m1.inlineData?.mimeType || m1.inline_data?.mime_type };
   }
 
+  // 2) message/content/parts
   const rawContent =
     v.output?.message?.content ??
     v.message?.content ??
@@ -430,12 +447,11 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
   // GENERACIÓN DE IMÁGENES (versión robusta con fallback)
   // ───────────────────────────────────────────────────────────────
 
-  const imageGenerationModel = 'googleai/gemini-2.5-flash-image-preview';
-  const imageGenerationConfig = { responseModalities: ['TEXT', 'IMAGE'] as const };
+  const imageGenerationModel = 'googleai/gemini-2.5-flash-image';
+  const imageGenerationConfig = { responseModalities: ['IMAGE', 'TEXT'] as const };
 
   const analysisData = result.analysis;
 
-  // Textos con fallback a las descripciones normales si faltan los ...En
   const visualTxt =
     (analysisData.visualDescriptionEn || "").trim() ||
     (analysisData.visual?.description || "").trim();
