@@ -5,6 +5,7 @@ import { WineAnalysisClientSchema } from '@/lib/schemas';
 import type { WineAnalysis } from '@/types';
 import { fetchPublicFactsByName } from "@/ai/facts/webFacts";
 import { adminDb, FieldValue } from '@/lib/firebase-admin';
+import { Buffer } from "buffer";
 
 const AiResponseSchema = z.object({
   isAiGenerated: z.boolean().describe("Set to true ONLY if you cannot find the specific wine and have to analyze a similar one or if key facts are missing."),
@@ -249,6 +250,118 @@ function _sanitizeBySources<T extends Record<string, any>>(result: T): T {
   return result;
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// MANEJO ROBUSTO DE IMÁGENES (devuelve data: URLs seguras)
+// ──────────────────────────────────────────────────────────────────────────────
+
+const API_KEY =
+  process.env.GEMINI_API_KEY ||
+  process.env.GOOGLE_API_KEY ||
+  process.env.GOOGLE_GENAI_API_KEY;
+
+const withKeyIfNeeded = (url: string) => {
+  if (!API_KEY) return url;
+  if (/[?&]key=/.test(url)) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}key=${API_KEY}`;
+};
+
+type MediaHit = { url?: string; dataB64?: string; contentType?: string };
+
+const extractMedia = (v: any): MediaHit | null => {
+  if (!v) return null;
+
+  const direct =
+    (Array.isArray(v.media) ? v.media[0] : v.media) ||
+    (Array.isArray(v.output?.media) ? v.output.media[0] : v.output?.media);
+
+  const m1 = direct?.media ? direct.media : direct;
+  if (m1) {
+    const ct = m1.contentType || m1.mimeType;
+    const b64 =
+      m1.data ||
+      m1.base64 ||
+      m1.inlineData?.data ||
+      m1.inline_data?.data;
+    if (typeof m1.url === "string") return { url: m1.url, contentType: ct };
+    if (typeof b64 === "string") return { dataB64: b64, contentType: ct || m1.inlineData?.mimeType || m1.inline_data?.mime_type };
+  }
+
+  const rawContent =
+    v.output?.message?.content ??
+    v.message?.content ??
+    v.output?.content ??
+    v.content;
+
+  const parts =
+    (Array.isArray(rawContent) ? rawContent : undefined) ??
+    (Array.isArray(rawContent?.parts) ? rawContent.parts : undefined) ??
+    v.output?.message?.parts ??
+    v.output?.candidates?.[0]?.content?.parts ??
+    v.candidates?.[0]?.content?.parts;
+
+  if (Array.isArray(parts)) {
+    for (const p of parts) {
+      const pm = p?.media || p;
+      const ct = pm?.contentType || pm?.mimeType || p?.inlineData?.mimeType || p?.inline_data?.mime_type;
+      const b64 =
+        pm?.data ||
+        pm?.base64 ||
+        p?.inlineData?.data ||
+        p?.inline_data?.data;
+      if (typeof pm?.url === "string") return { url: pm.url, contentType: ct };
+      if (typeof b64 === "string") return { dataB64: b64, contentType: ct };
+    }
+  }
+
+  return null;
+};
+
+const toDataUrl = (ct: string, b64: string) => {
+  const contentType = ct || "image/png";
+  if (b64.startsWith("data:")) return b64;
+  return `data:${contentType};base64,${b64}`;
+};
+
+const getImageSrc = async (
+  res: PromiseSettledResult<any> | undefined,
+  label: string
+): Promise<string | undefined> => {
+  if (!res) return undefined;
+  if (res.status !== "fulfilled" || !res.value) {
+    console.error(`[IMG] ${label} rejected:`, (res as any)?.reason);
+    return undefined;
+  }
+
+  const hit = extractMedia(res.value);
+  if (!hit) {
+    console.error(`[IMG] ${label} no media found. Keys:`, Object.keys(res.value || {}));
+    return undefined;
+  }
+
+  if (hit.dataB64) return toDataUrl(hit.contentType || "image/png", hit.dataB64);
+
+  if (hit.url) {
+    try {
+      const url = withKeyIfNeeded(hit.url);
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const ct = r.headers.get("content-type") || hit.contentType || "image/png";
+      const buf = Buffer.from(await r.arrayBuffer());
+      return `data:${ct};base64,${buf.toString("base64")}`;
+    } catch (e) {
+      console.error(`[IMG] ${label} fetch failed:`, e);
+      return undefined;
+    }
+  }
+
+  return undefined;
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+// FUNCIÓN PRINCIPAL
+// ──────────────────────────────────────────────────────────────────────────────
+
 export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClientSchema>): Promise<WineAnalysis> => {
   if (!userInput?.country || !String(userInput.country).trim()) {
     throw new Error("Debes indicar el país del vino para continuar el análisis.");
@@ -313,31 +426,50 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
     }
   }
 
+  // ───────────────────────────────────────────────────────────────
+  // GENERACIÓN DE IMÁGENES (versión robusta con fallback)
+  // ───────────────────────────────────────────────────────────────
+
   const imageGenerationModel = 'googleai/gemini-2.5-flash-image-preview';
   const imageGenerationConfig = { responseModalities: ['TEXT', 'IMAGE'] as const };
+
   const analysisData = result.analysis;
 
-  const okImg = String(analysisData.visualDescriptionEn || '').trim().length >= 10 &&
-                String(analysisData.olfactoryAnalysisEn || '').trim().length >= 10 &&
-                String(analysisData.gustatoryPhaseEn || '').trim().length >= 10;
+  // Textos con fallback a las descripciones normales si faltan los ...En
+  const visualTxt =
+    (analysisData.visualDescriptionEn || "").trim() ||
+    (analysisData.visual?.description || "").trim();
 
-  let visualResult: any, olfactoryResult: any, gustatoryResult: any, glassResult: any;
+  const olfTxt =
+    (analysisData.olfactoryAnalysisEn || "").trim() ||
+    (analysisData.olfactory?.description || "").trim();
+
+  const gustTxt =
+    (analysisData.gustatoryPhaseEn || "").trim() ||
+    (analysisData.gustatory?.description || "").trim();
+
+  const okImg = visualTxt.length >= 10 && olfTxt.length >= 10 && gustTxt.length >= 10;
+
+  let visualResult: PromiseSettledResult<any> | undefined;
+  let olfactoryResult: PromiseSettledResult<any> | undefined;
+  let gustatoryResult: PromiseSettledResult<any> | undefined;
+  let glassResult: PromiseSettledResult<any> | undefined;
 
   if (okImg) {
     const imagePromises = [
       ai.generate({
         model: imageGenerationModel,
-        prompt: `Hyper-realistic photo, a glass of wine. ${analysisData.visualDescriptionEn}. Studio lighting, neutral background.`,
+        prompt: `Hyper-realistic photo, a glass of wine. ${visualTxt}. Studio lighting, neutral background.`,
         config: imageGenerationConfig,
       }),
       ai.generate({
         model: imageGenerationModel,
-        prompt: `Abstract art, captures the essence of wine aromas. ${analysisData.olfactoryAnalysisEn}. No text, no glass.`,
+        prompt: `Abstract art, captures the essence of wine aromas. ${olfTxt}. No text, no glass.`,
         config: imageGenerationConfig,
       }),
       ai.generate({
         model: imageGenerationModel,
-        prompt: `Abstract textured art, evokes the sensation of wine flavors. ${analysisData.gustatoryPhaseEn}. No text, no glass.`,
+        prompt: `Abstract textured art, evokes the sensation of wine flavors. ${gustTxt}. No text, no glass.`,
         config: imageGenerationConfig,
       }),
     ];
@@ -351,39 +483,23 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
       });
     }
 
-    [visualResult, olfactoryResult, gustatoryResult, glassResult] = await Promise.allSettled([...imagePromises, glassImagePromise]);
+    [visualResult, olfactoryResult, gustatoryResult, glassResult] =
+      await Promise.allSettled([...imagePromises, glassImagePromise]);
   }
 
-  // ← FUNCIÓN REEMPLAZADA (ahora es 100% resistente a cambios de formato de Genkit/Gemini)
-  const getUrl = (res: PromiseSettledResult<any>) => {
-    if (res.status !== 'fulfilled' || !res.value) return undefined;
+  // Obtener las URLs finales (data: o undefined)
+  const [visualUrl, olfactoryUrl, gustatoryUrl, glassUrl] = okImg
+    ? await Promise.all([
+        getImageSrc(visualResult,   "visual"),
+        getImageSrc(olfactoryResult, "olfactory"),
+        getImageSrc(gustatoryResult, "gustatory"),
+        getImageSrc(glassResult,     "glass"),
+      ])
+    : [undefined, undefined, undefined, undefined];
 
-    const v: any = res.value;
-
-    // 1) Caso: v.media es array
-    if (Array.isArray(v.media) && v.media.length > 0 && v.media[0]?.url) {
-      return v.media[0].url;
-    }
-
-    // 2) Caso: v.media es objeto
-    if (v.media?.url) {
-      return v.media.url;
-    }
-
-    // 3) Caso: v.output.media (algunos adaptadores de Genkit)
-    if (Array.isArray(v.output?.media) && v.output.media[0]?.url) {
-      return v.output.media[0].url;
-    }
-    if (v.output?.media?.url) {
-      return v.output.media.url;
-    }
-
-    // 4) Otros formatos posibles
-    if (v.imageUri) return v.imageUri;
-    if (v.url) return v.url;
-
-    return undefined;
-  };
+  // ───────────────────────────────────────────────────────────────
+  // ASIGNACIÓN FINAL
+  // ───────────────────────────────────────────────────────────────
 
   result = {
     isAiGenerated: result.isAiGenerated,
@@ -398,10 +514,10 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
     foodToPair: userInput.foodToPair,
     analysis: {
       ...analysisData,
-      visual: { ...analysisData.visual, imageUrl: okImg ? getUrl(visualResult) : undefined },
-      olfactory: { ...analysisData.olfactory, imageUrl: okImg ? getUrl(olfactoryResult) : undefined },
-      gustatory: { ...analysisData.gustatory, imageUrl: okImg ? getUrl(gustatoryResult) : undefined },
-      suggestedGlassTypeImageUrl: okImg ? getUrl(glassResult) : undefined,
+      visual: { ...analysisData.visual, imageUrl: visualUrl },
+      olfactory: { ...analysisData.olfactory, imageUrl: olfactoryUrl },
+      gustatory: { ...analysisData.gustatory, imageUrl: gustatoryUrl },
+      suggestedGlassTypeImageUrl: glassUrl,
     },
   };
 
