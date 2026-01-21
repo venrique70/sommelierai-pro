@@ -1,13 +1,13 @@
-// app/api/analyze-wine/route.ts
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { WineAnalysisClientSchema } from "@/lib/schemas";
 import { adminDb, FieldValue } from "@/lib/firebase-admin";
 import { analyzeWineFlow } from "@/ai/flows/analyze-wine";
+
+// Configuración del runtime (NECESARIO para Buffer y fetch server-side)
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 // Helper para respuesta JSON
 function j(res: any, status = 200) {
@@ -17,7 +17,6 @@ function j(res: any, status = 200) {
 async function saveHistory(uid: string, out: any) {
   try {
     const db = adminDb();
-
     const docToSave = {
       uid,
       userId: uid, // compat
@@ -32,13 +31,11 @@ async function saveHistory(uid: string, out: any) {
       grapeVariety: out?.grapeVariety ?? null,
       createdAt: FieldValue.serverTimestamp(),
     };
-
     console.log("[saveHistory] Guardando en Firestore:", {
       uid: docToSave.uid,
       wineName: docToSave.wineName,
       year: docToSave.year,
     });
-
     const ref = await db.collection("history").add(docToSave);
     console.log("[saveHistory] Documento creado con ID:", ref.id);
     return ref.id;
@@ -70,7 +67,6 @@ export async function POST(req: Request) {
     // 1) Parseo/validación de entrada
     const json = await req.json().catch(() => ({}));
     const input = WineAnalysisClientSchema.parse(json);
-
     if (!input?.uid) {
       return j({ ok: false, error: "Debes iniciar sesión para analizar un producto" }, 401);
     }
