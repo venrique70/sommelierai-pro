@@ -1,4 +1,5 @@
 'use server';
+
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { WineAnalysisClientSchema } from '@/lib/schemas';
@@ -6,6 +7,10 @@ import type { WineAnalysis } from '@/types';
 import { fetchPublicFactsByName } from "@/ai/facts/webFacts";
 import { adminDb, FieldValue } from '@/lib/firebase-admin';
 import { Buffer } from "buffer";
+
+// ──────────────────────────────────────────────────────────────────────────────
+// SCHEMAS + PROMPT
+// ──────────────────────────────────────────────────────────────────────────────
 
 const AiResponseSchema = z.object({
   isAiGenerated: z.boolean().describe("Set to true ONLY if you cannot find the specific wine and have to analyze a similar one or if key facts are missing."),
@@ -105,6 +110,10 @@ Return one valid JSON object only (no markdown, no backticks, no extra text).
 `,
 });
 
+// ──────────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ──────────────────────────────────────────────────────────────────────────────
+
 async function saveAnalysisToHistory(uid: string, analysis: WineAnalysis): Promise<void> {
   if (!uid) {
     console.error("[FLOW] No UID provided, cannot save analysis.");
@@ -165,8 +174,13 @@ function _norm(s?: string) {
 }
 
 const _KNOWN: Record<string, {
-  grapesPct: string; country?: string; winery?: string; aliases?: string[];
-  sources?: string[]; barrelInfo?: string; appellation?: string;
+  grapesPct: string;
+  country?: string;
+  winery?: string;
+  aliases?: string[];
+  sources?: string[];
+  barrelInfo?: string;
+  appellation?: string;
 }> = {
   "ophiusa": {
     grapesPct: "Cabernet Sauvignon 35%, Merlot 35%, Monastrell 25%, Fogoneu 5%",
@@ -203,8 +217,10 @@ function _verifyWineFacts<T extends Record<string, any>>(result: T): T {
   const barrel = String(result?.analysis?.barrelInfo || "");
   const k = _findKnown(result?.wineName);
   if (!k) return result;
+
   const hasGSM = /\b(garnacha|grenache|syrah|shiraz|monastrell)\b/i.test(gv);
   const grapesWrong = hasGSM || (k.grapesPct && gv !== k.grapesPct);
+
   if (grapesWrong) {
     result.analysis = result.analysis || {};
     const original = gv || "—";
@@ -215,6 +231,7 @@ function _verifyWineFacts<T extends Record<string, any>>(result: T): T {
       { field: "Grape", original, corrected: k.grapesPct }
     ];
   }
+
   if (k.barrelInfo && barrel !== k.barrelInfo) {
     result.analysis = result.analysis || {};
     const original = barrel || "—";
@@ -225,6 +242,7 @@ function _verifyWineFacts<T extends Record<string, any>>(result: T): T {
       { field: "Barrel", original, corrected: k.barrelInfo }
     ];
   }
+
   if (k.country && _norm(result.country) !== _norm(k.country)) {
     result.corrections = [
       ...(result.corrections || []),
@@ -232,26 +250,20 @@ function _verifyWineFacts<T extends Record<string, any>>(result: T): T {
     ];
     result.country = k.country;
   }
+
   if (k.winery && !result.wineryName) {
     result.wineryName = k.winery;
   }
+
   if (k.appellation && result.analysis && !result.analysis.appellation) {
     result.analysis.appellation = k.appellation;
   }
-  return result;
-}
 
-const TRUSTED_HOSTS = ["decantalo.com", "vinosselectos.es", "wine-searcher.com", "vivino.com", "cuatrorayas.es"];
-const _host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
-const _hasTrustedSource = (urls?: string[]) =>
-  !!urls?.some(u => TRUSTED_HOSTS.some(t => _host(u).endsWith(t)));
-
-function _sanitizeBySources<T extends Record<string, any>>(result: T): T {
   return result;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// MANEJO ROBUSTO DE IMÁGENES (devuelve data: URLs seguras)
+// IMAGEN HELPERS
 // ──────────────────────────────────────────────────────────────────────────────
 
 const API_KEY =
@@ -259,29 +271,37 @@ const API_KEY =
   process.env.GOOGLE_API_KEY ||
   process.env.GOOGLE_GENAI_API_KEY;
 
+const hostOf = (u: string) => {
+  try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; }
+};
+
 const withKeyIfNeeded = (url: string) => {
   if (!API_KEY) return url;
+  if (!url || url.startsWith("data:")) return url;
   if (/[?&]key=/.test(url)) return url;
+
+  const h = hostOf(url);
+  const needsKey =
+    h.endsWith("generativelanguage.googleapis.com") ||
+    h.endsWith("aiplatform.googleapis.com");
+
+  if (!needsKey) return url;
+
   const sep = url.includes("?") ? "&" : "?";
   return `${url}${sep}key=${API_KEY}`;
 };
 
 type MediaHit = { url?: string; dataB64?: string; contentType?: string };
 
-// Helper para convertir diferentes formatos de datos binarios a base64 string
 const asBase64 = (d: any): string | undefined => {
   if (!d) return undefined;
   if (typeof d === "string") return d;
-
   try {
-    // ArrayBuffer
     if (d instanceof ArrayBuffer) return Buffer.from(d).toString("base64");
-    // Uint8Array / Buffer / TypedArray
     if (ArrayBuffer.isView(d)) {
       return Buffer.from(d.buffer, d.byteOffset, d.byteLength).toString("base64");
     }
   } catch {}
-
   return undefined;
 };
 
@@ -294,9 +314,34 @@ const toDataUrl = (ct: string, b64: string) => {
 const extractMedia = (v: any): MediaHit | null => {
   if (!v) return null;
 
-  // 0) Algunos modelos exponen directamente response.image / output.image
+  // Caso 1: image como string directo
+  const imgVal = v?.image ?? v?.output?.image;
+  if (typeof imgVal === "string") {
+    const s = imgVal.trim();
+    if (s) {
+      if (s.startsWith("data:") || /^https?:\/\//i.test(s)) return { url: s };
+      return { dataB64: s, contentType: "image/png" };
+    }
+  }
+
+  // Caso 2: media como string directo
+  const mediaVal = v?.media ?? v?.output?.media;
+  if (typeof mediaVal === "string") {
+    const s = mediaVal.trim();
+    if (s) {
+      if (s.startsWith("data:") || /^https?:\/\//i.test(s)) return { url: s };
+      return { dataB64: s, contentType: "image/png" };
+    }
+  }
+
+  // Caso 3: media como objeto con .url
+  if (mediaVal && typeof mediaVal?.url === "string") {
+    return { url: mediaVal.url, contentType: mediaVal.contentType || mediaVal.mimeType };
+  }
+
+  // Caso 4: image como objeto estructurado (solo si es object)
   const img = v?.image || v?.output?.image;
-  if (img) {
+  if (img && typeof img === "object") {
     const ct = img.contentType || img.mimeType;
     const b64Raw =
       img.data ||
@@ -308,11 +353,10 @@ const extractMedia = (v: any): MediaHit | null => {
     if (b64) return { dataB64: b64, contentType: ct || img.inlineData?.mimeType || img.inline_data?.mime_type };
   }
 
-  // 1) media directo (casos más comunes)
+  // Caso 5: media directo (array o primer elemento)
   const direct =
     (Array.isArray(v.media) ? v.media[0] : v.media) ||
     (Array.isArray(v.output?.media) ? v.output.media[0] : v.output?.media);
-
   const m1 = direct?.media ? direct.media : direct;
   if (m1) {
     const ct = m1.contentType || m1.mimeType;
@@ -326,13 +370,12 @@ const extractMedia = (v: any): MediaHit | null => {
     if (b64) return { dataB64: b64, contentType: ct || m1.inlineData?.mimeType || m1.inline_data?.mime_type };
   }
 
-  // 2) message/content/parts
+  // Caso 6: estructura de candidates / parts
   const rawContent =
     v.output?.message?.content ??
     v.message?.content ??
     v.output?.content ??
     v.content;
-
   const parts =
     (Array.isArray(rawContent) ? rawContent : undefined) ??
     (Array.isArray(rawContent?.parts) ? rawContent.parts : undefined) ??
@@ -376,11 +419,21 @@ const getImageSrc = async (
     return undefined;
   }
 
-  if (hit.dataB64) return toDataUrl(hit.contentType || "image/png", hit.dataB64);
+  if (hit.dataB64) {
+    return toDataUrl(hit.contentType || "image/png", hit.dataB64);
+  }
 
   if (hit.url) {
+    const u = hit.url.trim();
+
+    if (u.startsWith("data:")) return u;
+
+    if (!/^https?:\/\//i.test(u)) {
+      return toDataUrl(hit.contentType || "image/png", u);
+    }
+
     try {
-      const url = withKeyIfNeeded(hit.url);
+      const url = withKeyIfNeeded(u);
       const r = await fetch(url);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const ct = r.headers.get("content-type") || hit.contentType || "image/png";
@@ -463,24 +516,16 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
     }
   }
 
-  // ───────────────────────────────────────────────────────────────
-  // GENERACIÓN DE IMÁGENES (versión robusta con fallback)
-  // ───────────────────────────────────────────────────────────────
-
   const imageGenerationModel = 'googleai/gemini-2.5-flash-image';
   const imageGenerationConfig = { responseModalities: ['IMAGE', 'TEXT'] as const };
-
   const analysisData = result.analysis;
 
-  // Textos con fallback a las descripciones normales si faltan los ...En
   const visualTxt =
     (analysisData.visualDescriptionEn || "").trim() ||
     (analysisData.visual?.description || "").trim();
-
   const olfTxt =
     (analysisData.olfactoryAnalysisEn || "").trim() ||
     (analysisData.olfactory?.description || "").trim();
-
   const gustTxt =
     (analysisData.gustatoryPhaseEn || "").trim() ||
     (analysisData.gustatory?.description || "").trim();
@@ -524,19 +569,14 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
       await Promise.allSettled([...imagePromises, glassImagePromise]);
   }
 
-  // Obtener las URLs finales (data: o undefined)
   const [visualUrl, olfactoryUrl, gustatoryUrl, glassUrl] = okImg
     ? await Promise.all([
-        getImageSrc(visualResult,   "visual"),
+        getImageSrc(visualResult, "visual"),
         getImageSrc(olfactoryResult, "olfactory"),
         getImageSrc(gustatoryResult, "gustatory"),
-        getImageSrc(glassResult,     "glass"),
+        getImageSrc(glassResult, "glass"),
       ])
     : [undefined, undefined, undefined, undefined];
-
-  // ───────────────────────────────────────────────────────────────
-  // ASIGNACIÓN FINAL
-  // ───────────────────────────────────────────────────────────────
 
   result = {
     isAiGenerated: result.isAiGenerated,
