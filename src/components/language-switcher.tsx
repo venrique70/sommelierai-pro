@@ -14,9 +14,13 @@ export default function LanguageSwitcher({ language, setLanguage }: LanguageSwit
   return (
     <div className="fixed bottom-5 right-5 z-50">
       <div className="lang-install flex items-center gap-2 rounded-full bg-secondary p-1 border border-input">
+        
+        {/* Icono de globo */}
         <div className="p-2">
           <Globe className="size-5 text-primary" />
         </div>
+
+        {/* Español */}
         <button
           onClick={() => setLanguage('es')}
           className={cn(
@@ -28,6 +32,8 @@ export default function LanguageSwitcher({ language, setLanguage }: LanguageSwit
         >
           Español
         </button>
+
+        {/* English */}
         <button
           onClick={() => setLanguage('en')}
           className={cn(
@@ -39,9 +45,10 @@ export default function LanguageSwitcher({ language, setLanguage }: LanguageSwit
         >
           English
         </button>
+
         {/* CTA de instalación (Android) */}
         <button
-          id="install-app-cta"
+          id="install-app-cta"                     // ← aquí está el id que pediste
           className={cn(
             'btn-install rounded-full px-5 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             'text-muted-foreground hover:bg-accent'
@@ -49,8 +56,10 @@ export default function LanguageSwitcher({ language, setLanguage }: LanguageSwit
           onClick={() => (window as any).installApp()}
           title="Instalar app"
         >
-          ▼Install App Android
+          ▼ Install App Android
         </button>
+
+        {/* Botón iOS */}
         <InstallIosButton />
       </div>
     </div>
