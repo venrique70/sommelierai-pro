@@ -13,5 +13,4 @@ export const ai = genkit({
       // projectId: GEMINI_PROJECT_ID,
     }),
   ],
-  logLevel: 'debug',
 });
