@@ -1,3 +1,4 @@
+import { requireUser, authErrorResponse } from "@/lib/server-auth";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { WineAnalysisClientSchema } from "@/lib/schemas";
@@ -64,9 +65,11 @@ async function bumpUsageIfNotAdmin(uid: string) {
 
 export async function POST(req: Request) {
   try {
+    const session = await requireUser(req);
     // 1) Parseo/validación de entrada
     const json = await req.json().catch(() => ({}));
     const input = WineAnalysisClientSchema.parse(json);
+    input.uid = session.uid; // la identidad sale del token, no del cuerpo
     if (!input?.uid) {
       return j({ ok: false, error: "Debes iniciar sesión para analizar un producto" }, 401);
     }
@@ -116,6 +119,7 @@ export async function POST(req: Request) {
     // 7) Responder
     return j({ ...out, savedId }, 200);
   } catch (e: any) {
+    { const ar = authErrorResponse(e); if (ar) return ar; }
     if (e instanceof z.ZodError) {
       console.error("[analyze-wine] ZodError:", e.issues);
       return j({ ok: false, error: "Entrada inválida", issues: e.issues }, 400);

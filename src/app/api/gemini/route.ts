@@ -1,3 +1,4 @@
+import { requireUser, authErrorResponse } from "@/lib/server-auth";
 import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
@@ -18,7 +19,7 @@ function normalizeModel(m?: string) {
   return 'gemini-2.5-pro';
 }
 
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   try {
     const { prompt, model } = await req.json();
 
@@ -68,4 +69,15 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   return NextResponse.json({ ok: true });
+}
+
+export async function POST(...args: Parameters<typeof POST_handler>) {
+  try {
+    await requireUser(args[0] as Request);
+  } catch (e) {
+    const r = authErrorResponse(e);
+    if (r) return r;
+    throw e;
+  }
+  return POST_handler(...args);
 }

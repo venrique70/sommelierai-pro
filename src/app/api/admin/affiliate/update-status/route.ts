@@ -1,3 +1,4 @@
+import { requireAdmin, authErrorResponse } from "@/lib/server-auth";
 // src/app/api/admin/affiliate/update-status/route.ts
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
@@ -9,7 +10,7 @@ export const dynamic = "force-dynamic";
  * Actualiza el estado de afiliado en users/{uid} buscando por email.
  * Body: { email: string, status: "approved"|"pending"|"rejected"|"suspended" }
  */
-export async function POST(req: Request) {
+async function POST_handler(req: Request) {
   try {
     const { email, status } = (await req.json()) as {
       email?: string;
@@ -57,4 +58,15 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
+}
+
+export async function POST(...args: Parameters<typeof POST_handler>) {
+  try {
+    await requireAdmin(args[0] as Request);
+  } catch (e) {
+    const r = authErrorResponse(e);
+    if (r) return r;
+    throw e;
+  }
+  return POST_handler(...args);
 }

@@ -1,3 +1,4 @@
+import { requireUser, authErrorResponse } from "@/lib/server-auth";
 import { NextResponse } from "next/server";
 
 type Body = {
@@ -13,7 +14,10 @@ type Body = {
 
 export async function POST(req: Request) {
   try {
+    const session = await requireUser(req);
     const body = (await req.json()) as Body;
+    body.uid = session.uid;
+    body.email = session.email || body.email;
     if (!body?.uid || !body?.email) {
       return NextResponse.json(
         { success: false, message: "Missing uid/email" },
@@ -108,6 +112,7 @@ Motivación: ${body.motivation}
 
     return NextResponse.json({ success: true });
   } catch (e: any) {
+    { const ar = authErrorResponse(e); if (ar) return ar; }
     return NextResponse.json(
       { success: false, message: e?.message || "Unexpected error" },
       { status: 500 }

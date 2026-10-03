@@ -27,6 +27,7 @@ import { useLang } from "@/lib/use-lang";
 
 // esquema del form de solicitud
 import { z } from "zod";
+import { authFetch } from "@/lib/auth-fetch";
 const ApprovalFormSchema = z.object({
   firstName: z.string().min(2, { message: "El nombre debe tener al menos 2 caracteres." }),
   lastName: z.string().min(2, { message: "El apellido debe tener al menos 2 caracteres." }),
@@ -512,7 +513,7 @@ export default function AffiliateDashboardPage() {
               await submitAffiliateRequest(user.uid, { email: user.email, ...data });
 
               // Enviar datos a la API
-              const res = await fetch("/api/affiliate/request", {
+              const res = await authFetch("/api/affiliate/request", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

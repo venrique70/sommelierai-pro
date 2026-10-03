@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import type { z } from "zod";
 import { WineAnalysisClientSchema } from "@/lib/schemas";
 import { useForm } from "react-hook-form";
+import { authFetch } from "@/lib/auth-fetch";
 
 type ClientInput = z.infer<typeof WineAnalysisClientSchema>;
 
@@ -39,7 +40,7 @@ const payload: ClientInput = {
 };
 
 
-    const res = await fetch("/api/analyze-wine", {
+    const res = await authFetch("/api/analyze-wine", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       cache: "no-store",

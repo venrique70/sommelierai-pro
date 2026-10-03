@@ -1,13 +1,12 @@
 export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
+import { requireAdmin, authErrorResponse } from "@/lib/server-auth";
 
 export async function POST(req:Request){
   try{
-    const { adminUid } = await req.json();
+    await requireAdmin(req);
     const db = adminDb();
-    const adminDoc = await db.collection("users").doc(adminUid).get();
-    if(!adminDoc.exists || adminDoc.data()?.role!=="admin") return NextResponse.json({ok:false,error:"no autorizado"},{status:403});
 
     const cols = ["history","wineAnalyses"];
     let deleted = 0;
@@ -19,5 +18,5 @@ export async function POST(req:Request){
       if ((s1.size+s2.size)>0) { await batch.commit(); deleted += (s1.size+s2.size); }
     }
     return NextResponse.json({ok:true, deleted});
-  }catch(e:any){ return NextResponse.json({ok:false,error:String(e?.message||e)},{status:500}); }
+  }catch(e:any){ const ar = authErrorResponse(e); if (ar) return ar; return NextResponse.json({ok:false,error:String(e?.message||e)},{status:500}); }
 }

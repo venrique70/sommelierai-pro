@@ -15,6 +15,7 @@ import Image from "next/image";
 // ⬇️ i18n
 import { useLang } from "@/lib/use-lang";
 import { translations } from "@/lib/translations";
+import { authFetch } from "@/lib/auth-fetch";
 
 type Any = Record<string, any>;
 
@@ -67,7 +68,7 @@ export default function HistoryDetail() {
           nextRow = j as Any;
         } else {
           // MODO REAL: tu flujo actual con verificación de owner
-          const res = await fetch("/api/history/detail", {
+          const res = await authFetch("/api/history/detail", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ uid: user.uid, id }),
