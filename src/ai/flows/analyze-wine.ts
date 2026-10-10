@@ -7,6 +7,7 @@ import type { WineAnalysis } from '@/types';
 import { fetchPublicFactsByName } from "@/ai/facts/webFacts";
 import { adminDb, FieldValue } from '@/lib/firebase-admin';
 import { Buffer } from "buffer";
+import { getCategory, isWine } from "@/lib/categories";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // SCHEMAS + PROMPT
@@ -66,7 +67,7 @@ const AiResponseSchema = z.object({
 export const analyzeWinePrompt = ai.definePrompt({
   name: 'analyzeWinePrompt',
   model: 'googleai/gemini-2.5-pro',
-  input: { schema: WineAnalysisClientSchema },
+  input: { schema: WineAnalysisClientSchema.extend({ categoryGuidance: z.string().optional() }) },
   output: { format: 'json', schema: AiResponseSchema },
   prompt: `You are a world-renowned Master Sommelier from the Court of Master Sommeliers. Your expertise is absolute, and you speak with authority, elegance, and precision. Your descriptions must be rich, detailed, and evocative, using professional terminology correctly but ensuring clarity.
 **YOUR GOLDEN RULES - NON-NEGOTIABLE:**
@@ -97,6 +98,9 @@ export const analyzeWinePrompt = ai.definePrompt({
 3. Recommend food pairings with justifications.
 4. Provide expert conclusion notes. This must include a mention of the country of origin.
 5. Generate concise English descriptors for image generation (the 'En' fields).
+{{#if categoryGuidance}}**CATEGORY OVERRIDE (applies instead of the wine-specific wording above; the anti-hallucination and language rules still apply):**
+{{{categoryGuidance}}}
+{{/if}}
 **User Input:**
 - Language: {{{language}}}
 - Product Name: {{{wineName}}}
@@ -461,7 +465,12 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
     throw new Error("Debes indicar una añada válida para el vino.");
   }
 
-  const { output } = await analyzeWinePrompt(userInput);
+  const category = getCategory(userInput.category);
+  const wineOnly = isWine(userInput.category);
+  const { output } = await analyzeWinePrompt({
+    ...userInput,
+    categoryGuidance: category.guidance || undefined,
+  });
   let result: WineAnalysis = AiResponseSchema.parse(output) as WineAnalysis;
 
   console.log('[DEBUG] AI Output facts:', {
@@ -471,10 +480,10 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
     isAiGenerated: result.isAiGenerated
   });
 
-  result = _verifyWineFacts(result);
+  if (wineOnly) result = _verifyWineFacts(result);
 
   try {
-    const webFacts = await fetchPublicFactsByName(String(result.wineName || userInput.wineName || ""));
+    const webFacts = !wineOnly ? null : await fetchPublicFactsByName(String(result.wineName || userInput.wineName || ""));
     if (webFacts) {
       const r: any = result;
       if (webFacts.country && _norm(String(r.country || "")) !== _norm(webFacts.country)) {
@@ -505,7 +514,7 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
     }
   } catch { /* silencioso */ }
 
-  if (result?.analysis?.grapeVariety) {
+  if (wineOnly && result?.analysis?.grapeVariety) {
     const gv = String(result.analysis.grapeVariety).trim();
     const generic = /\b(blend|coupage|mezcla)\b/i.test(gv) && !/%/.test(gv) && !/,/.test(gv);
     const gsmTokens = ['garnacha', 'grenache', 'syrah', 'shiraz', 'monastrell'];
@@ -543,17 +552,17 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
     const imagePromises = [
       ai.generate({
         model: imageGenerationModel,
-        prompt: `Hyper-realistic photo, a glass of wine. ${visualTxt}. Studio lighting, neutral background.`,
+        prompt: category.image.visual(visualTxt),
         config: imageGenerationConfig,
       }),
       ai.generate({
         model: imageGenerationModel,
-        prompt: `Abstract art, captures the essence of wine aromas. ${olfTxt}. No text, no glass.`,
+        prompt: category.image.olfactory(olfTxt),
         config: imageGenerationConfig,
       }),
       ai.generate({
         model: imageGenerationModel,
-        prompt: `Abstract textured art, evokes the sensation of wine flavors. ${gustTxt}. No text, no glass.`,
+        prompt: category.image.gustatory(gustTxt),
         config: imageGenerationConfig,
       }),
     ];
@@ -562,7 +571,7 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
     if (analysisData.suggestedGlassType && !/n\/?a|no especificado|not specified/i.test(analysisData.suggestedGlassType)) {
       glassImagePromise = ai.generate({
         model: imageGenerationModel,
-        prompt: `Professional product photo of an empty ${analysisData.suggestedGlassType} wine glass. White background, studio lighting.`,
+        prompt: category.image.vessel(String(analysisData.suggestedGlassType)),
         config: imageGenerationConfig,
       });
     }

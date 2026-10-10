@@ -29,6 +29,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { WineAnalysisClientSchema } from "@/lib/schemas";
+import { CATEGORY_IDS, CATEGORIES } from "@/lib/categories";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -188,6 +189,7 @@ export function WineAnalysisTab({
     resolver: zodResolver(WineAnalysisClientSchema),
     defaultValues: {
       uid: "",
+      category: "wine",
       wineName: "",
       grapeVariety: "",
       year: 2018,
@@ -372,6 +374,29 @@ export function WineAnalysisTab({
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{language === "es" ? "Categoría" : "Category"}</FormLabel>
+                  <FormControl>
+                    <select
+                      {...field}
+                      value={field.value ?? "wine"}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {CATEGORY_IDS.map((id) => (
+                        <option key={id} value={id}>
+                          {language === "es" ? CATEGORIES[id].labelEs : CATEGORIES[id].labelEn}
+                        </option>
+                      ))}
+                    </select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <FormField
                 control={form.control}

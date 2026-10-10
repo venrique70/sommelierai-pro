@@ -1,9 +1,11 @@
 import { z } from "zod";
 import type { Language } from "./translations";
+import { CATEGORY_IDS } from "./categories";
 
-// --- Análisis de vino (cliente)
+// --- Análisis de producto (cliente). `category` es opcional: sin ella se analiza como vino.
 export const WineAnalysisClientSchema = z.object({
   uid: z.string(),
+  category: z.enum(CATEGORY_IDS).optional(),
   wineName: z.string().min(2, { message: "El nombre del vino debe tener al menos 2 caracteres." }),
   year: z.coerce.number().min(1800, { message: "El año debe ser válido." }).max(new Date().getFullYear() + 1, { message: "El año no puede ser en el futuro." }),
   grapeVariety: z.string().min(2, { message: "La cepa debe tener al menos 2 caracteres." }),
