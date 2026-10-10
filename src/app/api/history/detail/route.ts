@@ -1,3 +1,4 @@
+import { requireUser, authErrorResponse } from "@/lib/server-auth";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -48,7 +49,9 @@ function normalize(x: any) {
 
 export async function POST(req: Request) {
   try {
-    const { uid, id } = await req.json();
+    const session = await requireUser(req);
+    const { id } = await req.json();
+    const uid = session.uid;
     if (!uid || !id) return NextResponse.json({ error: "uid e id requeridos" }, { status: 400 });
 
     const db = adminDb();
@@ -75,6 +78,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   } catch (e: any) {
+    { const ar = authErrorResponse(e); if (ar) return ar; }
     return NextResponse.json({ error: String(e?.message || e) }, { status: 500 });
   }
 }

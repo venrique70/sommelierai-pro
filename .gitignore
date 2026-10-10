@@ -141,3 +141,9 @@ src__IGNORE/
 # Editor/OS
 .DS_Store
 .idea/
+
+# Secrets / local only
+serviceAccount*.json
+.env
+.env.local
+.env*.local

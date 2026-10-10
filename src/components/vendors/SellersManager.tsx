@@ -12,6 +12,7 @@ import { RefreshCw, Plus, CheckCircle, XCircle } from "lucide-react";
 
 // i18n
 import { useLang } from "@/lib/use-lang";
+import { authFetch } from "@/lib/auth-fetch";
 
 type VendorStatus = "pending" | "approved" | "rejected" | "suspended";
 export type Vendor = { id: string; name: string; email: string; phone?: string; docId?: string; status: VendorStatus; createdAt: string; };
@@ -82,7 +83,7 @@ export default function SellersManager({ initialVendors = [], initialRequests = 
 
   async function createVendorReal() {
     if (!newName.trim() || !newEmail.trim()) return;
-    await fetch("/api/vendors/create", {
+    await authFetch("/api/vendors/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -101,7 +102,7 @@ export default function SellersManager({ initialVendors = [], initialRequests = 
   }
 
   async function changeStatus(v: Vendor, s: VendorStatus) {
-    await fetch("/api/vendors/status", {
+    await authFetch("/api/vendors/status", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ vendorId: v.id, status: s }),
@@ -112,7 +113,7 @@ export default function SellersManager({ initialVendors = [], initialRequests = 
   async function removeVendor(v: Vendor) {
     const msg = lang === "es" ? "¿Eliminar definitivamente?" : "Delete permanently?";
     if (!confirm(msg)) return;
-    await fetch("/api/vendors/delete", {
+    await authFetch("/api/vendors/delete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ vendorId: v.id }),
@@ -121,7 +122,7 @@ export default function SellersManager({ initialVendors = [], initialRequests = 
   }
 
   async function approveRequest(r: VendorRequest) {
-    await fetch("/api/vendors/approve", {
+    await authFetch("/api/vendors/approve", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ requestId: r.id }),
@@ -129,7 +130,7 @@ export default function SellersManager({ initialVendors = [], initialRequests = 
     router.refresh();
   }
   async function rejectRequest(r: VendorRequest) {
-    await fetch("/api/vendors/reject", {
+    await authFetch("/api/vendors/reject", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ requestId: r.id, reason: "Rejected by admin" }),

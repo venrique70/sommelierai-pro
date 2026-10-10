@@ -15,7 +15,14 @@ function readRawServiceAccount(): string {
 
 function parseServiceAccount() {
   const raw = readRawServiceAccount();
-  if (!raw) return null;
+  if (!raw) {
+    // Alternativa: variables separadas (FIREBASE_PROJECT_ID / FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY)
+    const projectId = process.env.FIREBASE_PROJECT_ID;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    const privateKey = (process.env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n");
+    if (projectId && clientEmail && privateKey) return { projectId, clientEmail, privateKey };
+    return null;
+  }
   const jsonStr = raw.trim().startsWith("{") ? raw.trim() : Buffer.from(raw.trim(), "base64").toString("utf8");
   const p: any = JSON.parse(jsonStr);
   const projectId   = p.project_id   || p.projectId;

@@ -1,3 +1,4 @@
+import { requireUser, authErrorResponse } from "@/lib/server-auth";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,9 @@ function inferEstado(name?: string, variety?: string, year?: number) {
 
 export async function POST(req: Request) {
   try {
-    const { uid, name, year, variety, docId } = await req.json();
+    const session = await requireUser(req);
+    const { name, year, variety, docId } = await req.json();
+    const uid = session.uid;
 
     if (!uid)  return NextResponse.json({ error: "uid requerido"  }, { status: 400 });
     if (!name && !docId) return NextResponse.json({ error: "name o docId requerido" }, { status: 400 });
@@ -75,6 +78,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true, id: key });
   } catch (e: any) {
+    { const ar = authErrorResponse(e); if (ar) return ar; }
     return NextResponse.json({ error: e?.message || String(e) }, { status: 500 });
   }
 }

@@ -211,7 +211,8 @@ function _findKnown(name?: string) {
   return null;
 }
 
-function _verifyWineFacts<T extends Record<string, any>>(result: T): T {
+function _verifyWineFacts<T extends Record<string, any>>(input: T): T {
+  const result: any = input;
   if (!result) return result;
   const gv = String(result?.analysis?.grapeVariety || "");
   const barrel = String(result?.analysis?.barrelInfo || "");
@@ -259,7 +260,7 @@ function _verifyWineFacts<T extends Record<string, any>>(result: T): T {
     result.analysis.appellation = k.appellation;
   }
 
-  return result;
+  return result as T;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -461,12 +462,12 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
   }
 
   const { output } = await analyzeWinePrompt(userInput);
-  let result: WineAnalysis = AiResponseSchema.parse(output);
+  let result: WineAnalysis = AiResponseSchema.parse(output) as WineAnalysis;
 
   console.log('[DEBUG] AI Output facts:', {
     grapes: result.analysis?.grapeVariety,
     barrel: result.analysis?.barrelInfo,
-    sources: result.analysis?.sources,
+    sources: (result.analysis as any)?.sources,
     isAiGenerated: result.isAiGenerated
   });
 
@@ -475,30 +476,31 @@ export const analyzeWineFlow = async (userInput: z.infer<typeof WineAnalysisClie
   try {
     const webFacts = await fetchPublicFactsByName(String(result.wineName || userInput.wineName || ""));
     if (webFacts) {
-      if (webFacts.country && _norm(String(result.country || "")) !== _norm(webFacts.country)) {
-        result.corrections = [...(result.corrections || []), { field: "Country", original: String(result.country || "—"), corrected: webFacts.country }];
-        result.country = webFacts.country;
+      const r: any = result;
+      if (webFacts.country && _norm(String(r.country || "")) !== _norm(webFacts.country)) {
+        r.corrections = [...(r.corrections || []), { field: "Country", original: String(r.country || "—"), corrected: webFacts.country }];
+        r.country = webFacts.country;
       }
       if (webFacts.barrel) {
-        const cur = String(result.analysis?.barrelInfo || "");
+        const cur = String(r.analysis?.barrelInfo || "");
         if (!cur || /tiempo no declarado|tipo no declarado|sin\s+barrica/i.test(cur)) {
-          result.analysis = result.analysis || {};
-          result.analysis.barrelInfo = webFacts.barrel;
+          r.analysis = r.analysis || {};
+          r.analysis.barrelInfo = webFacts.barrel;
         }
       }
       if (webFacts.grapes) {
-        const gv = String(result.analysis?.grapeVariety || "");
+        const gv = String(r.analysis?.grapeVariety || "");
         const generic = /\b(blend|coupage|mezcla)\b/i.test(gv) && !/%/.test(gv) && !/,/.test(gv);
         if (!gv || generic) {
-          result.analysis = result.analysis || {};
-          result.analysis.grapeVariety = webFacts.grapes;
+          r.analysis = r.analysis || {};
+          r.analysis.grapeVariety = webFacts.grapes;
         }
       }
       if (webFacts.sources?.length) {
-        result.analysis = result.analysis || {};
-        const prev = new Set(result.analysis.sources || []);
+        r.analysis = r.analysis || {};
+        const prev = new Set(r.analysis.sources || []);
         webFacts.sources.forEach(s => prev.add(s));
-        (result.analysis as any).sources = Array.from(prev);
+        (r.analysis as any).sources = Array.from(prev);
       }
     }
   } catch { /* silencioso */ }

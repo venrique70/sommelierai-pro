@@ -10,7 +10,7 @@ import Footer from "@/components/Footer";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 function Shell({ children }: { children: React.ReactNode }) {
-  const { loading, user, error } = useAuth();
+  const { loading, user } = useAuth();
   const [giveUp, setGiveUp] = useState(false);
 
   useEffect(() => {
@@ -19,8 +19,8 @@ function Shell({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    console.log("[useAuth] loading:", loading, "uid:", user?.uid, "error:", error);
-  }, [loading, user, error]);
+    console.log("[useAuth] loading:", loading, "uid:", user?.uid);
+  }, [loading, user]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(getAuth(), (u) => {

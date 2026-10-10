@@ -1,3 +1,4 @@
+import { requireAdmin, authErrorResponse } from "@/lib/server-auth";
 // src/app/api/admin-health/route.ts
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,9 +32,10 @@ function readEnvInfo() {
   return { present, projectId, emailDomain, parseError: parsed?.parseError === true };
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const env = readEnvInfo();
   try {
+    const session = await requireAdmin(req);
     // Fuerza init del Admin SDK (lazy)
     const app = getFirebaseAdminApp();
     const apps = getApps().length;
@@ -47,6 +49,7 @@ export async function GET() {
       { status: 200 }
     );
   } catch (e: any) {
+    { const ar = authErrorResponse(e); if (ar) return ar; }
     return NextResponse.json(
       { ok: false, env, error: String(e?.message || e) },
       { status: 500 }

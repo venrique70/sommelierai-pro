@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { RefreshCw, Plus } from "lucide-react";
+import { authFetch } from "@/lib/auth-fetch";
 
 /* ===== Tipos ===== */
 export type CorporatePlan = "Starter" | "Premium" | "Pro";
@@ -89,7 +90,7 @@ export default function CorporateManager({ initialAccounts = [], initialInvites 
 
   async function createAccountReal() {
     if (!newCompany.trim() || !newEmail.trim()) return;
-    const res = await fetch("/api/corporate/create", {
+    const res = await authFetch("/api/corporate/create", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         companyName: newCompany.trim(),
@@ -104,7 +105,7 @@ export default function CorporateManager({ initialAccounts = [], initialInvites 
   }
 
   async function onUpdateAccount(acc: CorporateAccount, patch: Partial<CorporateAccount>) {
-    const res = await fetch("/api/corporate/update", {
+    const res = await authFetch("/api/corporate/update", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ accountId: acc.id, patch }),
     });
@@ -115,7 +116,7 @@ export default function CorporateManager({ initialAccounts = [], initialInvites 
   async function onSendInvite() {
     const accountId = inviteAccountId || (accounts[0]?.id ?? "");
     if (!accountId || !inviteEmail.trim()) return;
-    const res = await fetch("/api/corporate/invite", {
+    const res = await authFetch("/api/corporate/invite", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ accountId, email: inviteEmail.trim(), role: inviteRole }),
     });

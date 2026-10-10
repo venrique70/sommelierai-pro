@@ -1,3 +1,4 @@
+import { requireUser, authErrorResponse } from "@/lib/server-auth";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -6,7 +7,9 @@ import { adminDb, FieldValue } from "@/lib/firebase-admin";
 
 export async function POST(req: Request) {
   try {
-    const { uid } = await req.json();
+    const session = await requireUser(req);
+    await req.json().catch(() => null);
+    const uid = session.uid;
     if (!uid) return NextResponse.json({ ok:false, error:"uid required" }, { status:400 });
 
     const db = adminDb();
@@ -41,6 +44,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok:true, moved });
   } catch (e: any) {
+    { const ar = authErrorResponse(e); if (ar) return ar; }
     return NextResponse.json({ ok:false, error:e?.message ?? "unknown" }, { status:500 });
   }
 }

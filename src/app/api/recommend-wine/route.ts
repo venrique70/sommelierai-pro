@@ -1,3 +1,4 @@
+import { requireUser, authErrorResponse } from "@/lib/server-auth";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,7 @@ function fallbackReco(body:any){
   }));
 }
 
-export async function POST(req: Request){
+async function POST_handler(req: Request){
   try{
     const body = await req.json().catch(()=>({}));
     const out = fallbackReco(body);
@@ -42,4 +43,15 @@ export async function POST(req: Request){
   }catch(e:any){
     return NextResponse.json({ recommendations: fallbackReco({}), error: String(e?.message||e) }, { status:200 });
   }
+}
+
+export async function POST(...args: Parameters<typeof POST_handler>) {
+  try {
+    await requireUser(args[0] as Request);
+  } catch (e) {
+    const r = authErrorResponse(e);
+    if (r) return r;
+    throw e;
+  }
+  return POST_handler(...args);
 }
